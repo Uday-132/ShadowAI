@@ -1,0 +1,16 @@
+# Windows / Visual Studio Ignore
+.vs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bin/
+obj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore publish output EXCEPT in the Website directory (since we want to keep setup.exe)
+!d:/uday/projects/WebSites/Overlays/Website/setup.exe

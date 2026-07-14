@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow AI - Advanced Desktop Overlay</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;500;700&family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&display=swap"
+        rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Styling -->
+    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+
+<body>
+    <!-- Background Glow Blobs -->
+    <div class="glow-blob blob-1"></div>
+    <div class="glow-blob blob-2"></div>
+
+    <!-- Navigation Header -->
+    <header>
+        <div class="nav-container">
+            <div class="logo">
+                <img src="shadow_ai_logo.png" class="logo-img" alt="Shadow AI Logo">
+                <span class="logo-text">SHADOW<span class="highlight">AI</span></span>
+            </div>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#guide">Installation</a>
+            </nav>
+            <a href="setup.exe" class="nav-download-btn" download><i class="fa-solid fa-download"></i> Get Shadow AI</a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero-section text-center-hero">
+        <!-- Lightfall WebGL Background -->
+        <div id="lightfall-bg" class="lightfall-bg"></div>
+
+        <div class="container hero-container-centered">
+
+
+            <!-- Interactive Text Pressure Quote -->
+            <div class="text-pressure-container">
+                <div class="text-pressure-wrapper">
+                    <h1 class="text-pressure">
+                        <span>i</span><span>t</span><span>'</span><span>s</span><span>&nbsp;</span><span>n</span><span>o</span><span>t</span><span>&nbsp;</span><span>c</span><span>h</span><span>e</span><span>a</span><span>t</span><span>i</span><span>n</span><span>g</span><span>,</span>
+                    </h1>
+                    <h1 class="text-pressure">
+                        <span>i</span><span>t</span><span>'</span><span>s</span><span>&nbsp;</span><span>o</span><span>p</span><span>t</span><span>i</span><span>m</span><span>i</span><span>z</span><span>a</span><span>t</span><span>i</span><span>o</span><span>n</span><span>.</span>
+                    </h1>
+                </div>
+            </div>
+
+            <p class="hero-subtitle centered-subtitle">A sleek desktop overlay offering an array of intuitive tools,
+                including system tracking, checkable notes, a digital
+                presentation stopwatch, a discreet screen-sharing feature with AI-powered crop scanning, and a
+                voice-dictated Q&A assistant.</p>
+
+            <div class="hero-actions centered-actions">
+                <a href="setup.exe" class="cta-btn primary-cta" download>
+                    <i class="fa-solid fa-circle-down"></i>
+                    <div class="cta-text">
+                        <span class="cta-sub">Download for Windows</span>
+                        <span class="cta-main">setup.exe (47 MB)</span>
+                    </div>
+                </a>
+                <a href="#guide" class="cta-btn secondary-cta">
+                    <i class="fa-solid fa-book"></i> Setup Guide
+                </a>
+            </div>
+
+            <div class="download-stats centered-stats">
+                <span class="stat-item"><i class="fa-solid fa-shield-halved text-success"></i> Antivirus Cleared</span>
+                <span class="stat-item"><i class="fa-solid fa-microchip"></i> Zero CPU Overhead</span>
+                <span class="stat-item"><i class="fa-solid fa-eye-slash"></i> Screen Share Safe</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Features Grid -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <h2 class="section-title">Shadow AI Features</h2>
+            <p class="section-subtitle">Everything you need, floating elegantly on top of your work.</p>
+
+            <div class="features-dual-layout">
+                <!-- Column 1: AI & Performance -->
+                <div class="features-column">
+                    <h4 class="column-header"><i class="fa-solid fa-bolt"></i> AI &amp; Performance</h4>
+                    <div class="features-list">
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper ai-accent"><i class="fa-solid fa-brain"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Real-time AI Responses</h3>
+                                <p>Powered by sub-second Groq Llama 3 API hooks to deliver swift solutions,
+                                    explanations, and key data points.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper ai-accent"><i class="fa-solid fa-crop-simple"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Screen Capture Analysis</h3>
+                                <p>Crop and scan any screen region instantly to perform optical character recognition
+                                    (OCR) and feed coordinates into Scout AI.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper ai-accent"><i class="fa-solid fa-code"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Coding Interview Support</h3>
+                                <p>Bypass screen assessment traps by overlaying technical assistance on a
+                                    click-transparent, stream-safe virtual glass pane.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper ai-accent"><i class="fa-solid fa-microphone"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Live Transcription</h3>
+                                <p>Listen to system speaker audio or external microphone streams to transcribe speech
+                                    queries on-the-fly using Whisper.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper ai-accent"><i class="fa-solid fa-database"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Unlimited Transcript Storage</h3>
+                                <p>Maintain local persistent databases containing records of all past OCR captures,
+                                    voice inquiries, and AI generated replies.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: Security & Stealth -->
+                <div class="features-column">
+                    <h4 class="column-header"><i class="fa-solid fa-shield-halved"></i> Security &amp; Stealth</h4>
+                    <div class="features-list">
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper"><i class="fa-solid fa-eye-slash"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Invisible on Screen Share</h3>
+                                <p>Bypasses OBS Studio, Discord screen sharing, Teams, Zoom, screenshots, and recording
+                                    hooks completely via display composition filters.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper"><i class="fa-solid fa-window-maximize"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Invisible in Dock</h3>
+                                <p>Operates without any system taskbar icon, taskbar preview, or active window tray
+                                    lists. Runs seamlessly in the background.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper"><i class="fa-solid fa-wave-square"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Invisible in Task Manager</h3>
+                                <p>Bypasses process tracking hooks by running under a masqueraded system name
+                                    (`SystemCoreHost.exe`) that blends in with standard OS processes.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper"><i class="fa-solid fa-window-restore"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Invisible to Tab Switching</h3>
+                                <p>Excluded from the Windows Alt+Tab dialog stack, preventing accidental menu overlays
+                                    and keeping your application listings empty.</p>
+                            </div>
+                        </div>
+                        <div class="glass-card feature-row-card reveal">
+                            <div class="feature-icon-wrapper"><i class="fa-solid fa-arrow-pointer"></i></div>
+                            <div class="feature-info-content">
+                                <h3>Cursor Undetectability</h3>
+                                <p>Keeps the cursor free from active window capture highlights or input capturing flags,
+                                    enabling absolute mouse click-through transparency.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparisons Section -->
+    <section id="comparisons" class="comparisons-section">
+        <div class="container">
+            <h2 class="section-title">Product Comparisons</h2>
+            <p class="section-subtitle">See how Shadow AI delivers premium assistance at a fraction of the cost.</p>
+
+            <div class="comparisons-wrapper">
+                <!-- Back Navigation (Hidden on main grid) -->
+                <div class="comparison-back-nav hidden-btn" id="comparison-back-btn">
+                    <button class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Comparisons</button>
+                </div>
+
+                <!-- View 0: Cards Grid -->
+                <div class="comparison-grid active-view" id="comparison-main-grid">
+                    <!-- Card 1 -->
+                    <div class="comp-card" data-target="comp-all">
+                        <h3>Compare all affordable tools</h3>
+                        <p>Side-by-side comparison with Parakeet AI, Final Round AI, and others.</p>
+                        <span class="comp-link">View full comparison <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                    <!-- Card 2 -->
+                    <div class="comp-card" data-target="comp-parakeet">
+                        <h3>Shadow AI vs Parakeet AI</h3>
+                        <p>Save 69% — ₹1,199 vs ₹3,749 for the same features.</p>
+                        <span class="comp-link">View comparison <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                    <!-- Card 3 -->
+                    <div class="comp-card" data-target="comp-finalround">
+                        <h3>Shadow AI vs Final Round AI</h3>
+                        <p>Save 85% — ₹1,199 vs ₹8,188/month with no subscription lock-in.</p>
+                        <span class="comp-link">View comparison <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                    <!-- Card 4 -->
+                    <div class="comp-card" data-target="comp-warmup">
+                        <h3>Shadow AI vs Interview Warmup</h3>
+                        <p>Free practice mode vs real-time, in-interview assistance.</p>
+                        <span class="comp-link">View comparison <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                    <!-- Card 5 -->
+                    <div class="comp-card" data-target="comp-linkedin">
+                        <h3>Shadow AI vs LinkedIn AI</h3>
+                        <p>Save 81% — ₹1,199 vs ₹6,213/month subscription.</p>
+                        <span class="comp-link">View comparison <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                    <!-- Card 6 -->
+                    <div class="comp-card" data-target="comp-pricing">
+                        <h3>View pricing plans</h3>
+                        <p>Starting at ₹1,199 + GST. Credits never expire.</p>
+                        <span class="comp-link">See all plans <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </div>
+
+                <!-- View 1: Compare All -->
+                <div class="comparison-table-wrapper hidden-view" id="comp-all-view">
+                    <h3 class="table-title">Compare All Affordable Tools</h3>
+                    <div class="table-responsive">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th class="shadow-highlight-col">Shadow AI</th>
+                                    <th>Parakeet AI</th>
+                                    <th>Final Round AI</th>
+                                    <th>LinkedIn AI</th>
+                                    <th>Interview Warmup</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td>Starting Price</td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,199 <span class="gst-tag">(+ GST)</span></td>
+                                    <td>₹2,650</td>
+                                    <td>₹8,188/mo</td>
+                                    <td>₹6,213/mo</td>
+                                    <td class="text-free">Free</td>
+                                </tr>
+                                <tr>
+                                    <td>Real-Time AI Responses</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Screen Capture Analysis</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Coding Interview Support</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-triangle-exclamation warning-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Live Audio Transcription</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Credits Never Expire</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td>N/A</td>
+                                </tr>
+                                <tr>
+                                    <td>UPI/Net Banking Payment</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td>N/A</td>
+                                </tr>
+                                <tr>
+                                    <td>Resume Upload & Context</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-triangle-exclamation warning-icon"></i></td>
+                                </tr>
+                                <tr class="gst-checkout-row">
+                                    <td>18% GST at Checkout</td>
+                                    <td class="shadow-highlight-col text-yes">Yes</td>
+                                    <td>GST on UPI only</td>
+                                    <td>Prices in USD</td>
+                                    <td>GST may apply</td>
+                                    <td>N/A</td>
+                                </tr>
+                                <tr>
+                                    <td>Pay-Per-Use Option</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td>N/A</td>
+                                </tr>
+                                <tr>
+                                    <td>Best For</td>
+                                    <td class="shadow-highlight-col text-budget">Budget-conscious</td>
+                                    <td>Frequent users</td>
+                                    <td>Corporates</td>
+                                    <td>Power users</td>
+                                    <td>Free practice</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View 2: Shadow AI vs Parakeet AI -->
+                <div class="comparison-table-wrapper hidden-view" id="comp-parakeet-view">
+                    <h3 class="table-title">Shadow AI vs Parakeet AI Plan Comparison</h3>
+                    <div class="table-responsive">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Parakeet AI</th>
+                                    <th class="shadow-highlight-col">Shadow AI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td>Standard Plan (3 hours AI)</td>
+                                    <td>₹3,749</td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,199 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td>Plus Plan (6 interviews)</td>
+                                    <td>₹7,499</td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,999 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td>Pro Plan (9 interviews)</td>
+                                    <td>₹10,799</td>
+                                    <td class="shadow-highlight-col shadow-price">₹2,999 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Real-time AI Responses</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Screen Capture Analysis</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Coding Interview Support</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Live Transcription</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Unlimited Transcript Storage</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Priority Support</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Payment Options</td>
+                                    <td>Cards, UPI, GPay, PhonePe</td>
+                                    <td class="shadow-highlight-col text-highlight-val">UPI, Cards, Net Banking</td>
+                                </tr>
+                                <tr>
+                                    <td>Pricing Transparency</td>
+                                    <td>+18% GST on UPI payments</td>
+                                    <td class="shadow-highlight-col">18% GST applicable</td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td>Cost per Interview Hour</td>
+                                    <td>~₹1,250</td>
+                                    <td class="shadow-highlight-col shadow-price">~₹400 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View 3: Shadow AI vs Final Round AI -->
+                <div class="comparison-table-wrapper hidden-view" id="comp-finalround-view">
+                    <h3 class="table-title">Shadow AI vs Final Round AI</h3>
+                    <div class="table-responsive">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Final Round AI</th>
+                                    <th class="shadow-highlight-col">Shadow AI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td>Standard Plan Cost</td>
+                                    <td>₹8,188/month</td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,199 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Billed As</td>
+                                    <td>Monthly Subscription (Lock-in)</td>
+                                    <td class="shadow-highlight-col text-highlight-val">One-time / Pay-per-use (No lock-in)</td>
+                                </tr>
+                                <tr>
+                                    <td>Real-time Copilot</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Multi-platform (Teams/Zoom/Meet)</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Technical Interview Modules</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Audio loopback tracking</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Dynamic resume context</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Pay-Per-Use Option</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Stealth Window Overlay</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td>Estimated Savings</td>
+                                    <td>0%</td>
+                                    <td class="shadow-highlight-col shadow-price">Save 85%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View 4: Shadow AI vs Interview Warmup -->
+                <div class="comparison-table-wrapper hidden-view" id="comp-warmup-view">
+                    <h3 class="table-title">Shadow AI vs Google Interview Warmup</h3>
+                    <div class="table-responsive">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>Google Interview Warmup</th>
+                                    <th class="shadow-highlight-col">Shadow AI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td>Cost</td>
+                                    <td class="text-free">Free</td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,199 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Live In-Interview Assistance</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i> (Post-session review only)</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i> (Real-time overlay HUD)</td>
+                                </tr>
+                                <tr>
+                                    <td>Screen Capture / OCR Scans</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Live Transcription Feedback</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i> (Transcribes post-response)</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i> (Live feedback loop)</td>
+                                </tr>
+                                <tr>
+                                    <td>Custom Coding Questions</td>
+                                    <td><i class="fa-solid fa-triangle-exclamation warning-icon"></i> (Static templates)</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i> (Any custom technical question)</td>
+                                </tr>
+                                <tr>
+                                    <td>Stealth Window Technology</td>
+                                    <td>N/A (Web application)</td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i> (Invisible to screen shares)</td>
+                                </tr>
+                                <tr>
+                                    <td>Best For</td>
+                                    <td>Solo pre-interview warmup</td>
+                                    <td class="shadow-highlight-col text-highlight-val">Live interview backup & execution</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View 5: Shadow AI vs LinkedIn AI -->
+                <div class="comparison-table-wrapper hidden-view" id="comp-linkedin-view">
+                    <h3 class="table-title">Shadow AI vs LinkedIn Premium Interview Prep</h3>
+                    <div class="table-responsive">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature</th>
+                                    <th>LinkedIn AI Premium</th>
+                                    <th class="shadow-highlight-col">Shadow AI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td>Cost</td>
+                                    <td>₹6,213/month</td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,199 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Billing Frequency</td>
+                                    <td>Recurring Monthly</td>
+                                    <td class="shadow-highlight-col text-highlight-val">One-time / Pay-as-you-go</td>
+                                </tr>
+                                <tr>
+                                    <td>Real-time Interview Assistance</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Floating Desktop Widget</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Sub-second Groq LLM responses</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Audio loopback device tracking</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Stream-Safe & OBS-Safe overlay</td>
+                                    <td><i class="fa-solid fa-xmark cross-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr class="highlight-row">
+                                    <td>Estimated Savings</td>
+                                    <td>0%</td>
+                                    <td class="shadow-highlight-col shadow-price">Save 81%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- View 6: Shadow AI Pricing Plans -->
+                <div class="comparison-table-wrapper hidden-view" id="comp-pricing-view">
+                    <h3 class="table-title">Shadow AI Pricing Plans</h3>
+                    <div class="table-responsive">
+                        <table class="comp-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature/Plan</th>
+                                    <th>Standard Plan</th>
+                                    <th class="shadow-highlight-col">Plus Plan</th>
+                                    <th>Pro Plan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-row">
+                                    <td>Price</td>
+                                    <td>₹1,199 <span class="gst-tag">(+ GST)</span></td>
+                                    <td class="shadow-highlight-col shadow-price">₹1,999 <span class="gst-tag">(+ GST)</span></td>
+                                    <td>₹2,999 <span class="gst-tag">(+ GST)</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Credits / Usage</td>
+                                    <td>3 Hours AI Assistance</td>
+                                    <td class="shadow-highlight-col text-highlight-val">6 Interviews (~6 hours)</td>
+                                    <td>9 Interviews (~9 hours)</td>
+                                </tr>
+                                <tr>
+                                    <td>Real-time Q&A Overlay</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Screen Crop OCR Scans</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Audio loopback transcribing</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                                <tr>
+                                    <td>Validity</td>
+                                    <td>Never Expires (Lifetime)</td>
+                                    <td class="shadow-highlight-col text-highlight-val">Never Expires (Lifetime)</td>
+                                    <td>Never Expires (Lifetime)</td>
+                                </tr>
+                                <tr>
+                                    <td>Premium Support</td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td class="shadow-highlight-col"><i class="fa-solid fa-check check-icon"></i></td>
+                                    <td><i class="fa-solid fa-check check-icon"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation & Getting Started Guide -->
+    <section id="guide" class="guide-section">
+        <div class="container">
+            <h2 class="section-title">Deployment Guide</h2>
+            <p class="section-subtitle">Follow these quick configuration steps to boot up your dashboard.</p>
+
+            <div class="timeline-container">
+                <div class="timeline-track"></div>
+                <div class="steps-grid">
+                    <div class="step-card reveal">
+                        <div class="step-num">1</div>
+                        <h4>Download &amp; Extract</h4>
+                        <p>Download the latest Windows release (`setup.exe`). Extract the lightweight Shadow AI files into any
+                            local directory of your choice.</p>
+                        <div class="step-extra">
+                            <code
+                                class="code-path"><i class="fa-solid fa-folder-open"></i> C:\Program Files\ShadowAI\</code>
+                        </div>
+                    </div>
+                    <div class="step-card reveal">
+                        <div class="step-num">2</div>
+                        <h4>Provision API Key</h4>
+                        <p>Open the Shadow AI settings panel. Paste your **Groq API Key** to enable Whisper Voice queries and
+                            Llama 4 Scout crop OCR scanners.</p>
+                        <div class="step-extra">
+                            <code
+                                class="code-path"><i class="fa-solid fa-file-code"></i> %APPDATA%\OverlayApp\settings.json</code>
+                        </div>
+                    </div>
+                    <div class="step-card reveal">
+                        <div class="step-num">3</div>
+                        <h4>Trigger Global Keybinds</h4>
+                        <p>Double-click the widget tab bar to toggle drag-locking. Press on your keyboard to instantly
+                            switch mouse focus.</p>
+                        <div class="step-extra">
+                            <div class="kbd-layout">
+                                <kbd class="kbd-btn">Ctrl</kbd> + <kbd class="kbd-btn">Shift</kbd> + <kbd
+                                    class="kbd-btn">C</kbd>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Canvas Animated Footer (No Text, Endless Looping Animation) -->
+    <footer class="interactive-footer">
+        <canvas id="footer-wave-canvas"></canvas>
+    </footer>
+
+    <!-- Ambient Audio Player Control -->
+    <button id="ambient-audio-toggle" class="audio-control-btn" aria-label="Toggle ambient background music">
+        <span class="audio-bar bar-1"></span>
+        <span class="audio-bar bar-2"></span>
+        <span class="audio-bar bar-3"></span>
+        <span class="audio-bar bar-4"></span>
+    </button>
+    <audio id="ambient-audio" src="dragon-studio-deep-sea-underwater-ambience-472383.mp3" loop></audio>
+
+    <!-- App Script -->
+    <script src="https://cdn.jsdelivr.net/npm/ogl@0.0.32/dist/ogl.umd.js"></script>
+    <script src="app.js?v=12"></script>
+</body>
+
+</html>

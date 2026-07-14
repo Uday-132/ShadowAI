@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>shadow_ai.ico</ApplicationIcon>
+    <StartupObject>OverlayApp.App</StartupObject>
+    <AssemblyName>SystemCoreHost</AssemblyName>
+    <Description>Windows Core Host Services</Description>
+    <Product>Microsoft Windows Operating System</Product>
+    <Copyright>© Microsoft Corporation. All rights reserved.</Copyright>
+    <Company>Microsoft Corporation</Company>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="shadow_ai.ico" />
+  </ItemGroup>
+
+</Project>
