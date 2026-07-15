@@ -40,6 +40,7 @@ namespace OverlayApp.ViewModels
         private bool _isProcessingVoice;
 
         private readonly System.Collections.Generic.List<ChatMessage> _voiceChatHistory = new System.Collections.Generic.List<ChatMessage>();
+        private readonly System.Collections.Generic.List<ChatMessage> _txtChatHistory = new System.Collections.Generic.List<ChatMessage>();
         private string _followUpText = "";
         private bool _isFollowUpRecording;
         private bool _wasLiveScanActiveBeforeFollowUp;
@@ -110,7 +111,12 @@ namespace OverlayApp.ViewModels
             CloseAppCommand = new RelayCommand(_ => System.Windows.Application.Current.Shutdown());
             StartScanCommand = new RelayCommand(_ => TriggerScreenScan());
             ToggleVoiceCommand = new RelayCommand(_ => ToggleVoiceRecording());
-            ClearTxtScanCommand = new RelayCommand(_ => { ScanResponseText = ""; CapturedPreview = null; });
+            ClearTxtScanCommand = new RelayCommand(_ => { 
+                ScanResponseText = ""; 
+                CapturedPreview = null; 
+                _txtChatHistory.Clear();
+                OnPropertyChanged(nameof(IsFollowUpVisible));
+            });
             ClearVoiceScanCommand = new RelayCommand(_ => { 
                 VoiceScanResponseText = "";
                 _voiceChatHistory.Clear();
@@ -279,6 +285,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsTimerActive));
                     OnPropertyChanged(nameof(IsTxtScanActive));
                     OnPropertyChanged(nameof(IsVoiceScanActive));
+                    OnPropertyChanged(nameof(IsFollowUpVisible));
 
                     // Manage performance statistics updates (avoid querying background stats when hidden)
                     if (value == WidgetType.SystemMonitor)
@@ -425,7 +432,17 @@ namespace OverlayApp.ViewModels
 
         public string FollowUpMicColor => _isFollowUpRecording ? "#FFFF453A" : "#88FFFFFF";
 
-        public bool IsFollowUpVisible => _voiceChatHistory.Count > 1;
+        public bool IsFollowUpVisible
+        {
+            get
+            {
+                if (ActiveWidget == WidgetType.TxtScan)
+                {
+                    return _txtChatHistory.Count > 1;
+                }
+                return _voiceChatHistory.Count > 1;
+            }
+        }
 
         public string Theme
         {
@@ -587,11 +604,27 @@ namespace OverlayApp.ViewModels
                             return;
                         }
 
-                        // Stage 2: Send extracted text to Groq (llama-3.1-8b-instant) for explanation/solving
-                        ScanResponseText = $"[LLM 2] Analyzing transcribed text (Groq)...\n\nExtracted Text:\n\"{ocrText.Trim()}\"";
+                        // Send extracted text to Groq for explanation/solving
+                        ScanResponseText = $"[LLM] Analyzing transcribed text (Groq)...\n\nExtracted Text:\n\"{ocrText.Trim()}\"";
                         
-                        string finalResult = await _llmService.ProcessTextWithGroqAsync(GroqKey, ocrText);
+                        _txtChatHistory.Clear();
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from the user's screen. If it is a question or problem, solve it step-by-step. If it is code, explain and debug it. If it is general text, explain or summarize it. Keep your output concise, clear, and formatted in markdown."
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the raw text extracted from my screen:\n\n{ocrText}"
+                        });
+
+                        string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
                         ScanResponseText = finalResult;
+
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "assistant",
+                            Content = finalResult
+                        });
+                        OnPropertyChanged(nameof(IsFollowUpVisible));
                     }
                     else
                     {
@@ -842,7 +875,10 @@ namespace OverlayApp.ViewModels
             if (string.IsNullOrWhiteSpace(FollowUpText)) return;
             if (string.IsNullOrWhiteSpace(GroqKey))
             {
-                VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
+                if (ActiveWidget == WidgetType.TxtScan)
+                    ScanResponseText = "Error: Please set your Groq API Key in Settings first.";
+                else
+                    VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
                 return;
             }
 
@@ -850,38 +886,70 @@ namespace OverlayApp.ViewModels
             FollowUpText = ""; // Clear immediately for visual feedback
 
             IsScanning = true;
-            VoiceScanResponseText += $"\n\n👉 Follow-up Question:\n\"{question}\"\n\nThinking...";
-
-            try
+            if (ActiveWidget == WidgetType.TxtScan)
             {
-                _voiceChatHistory.Add(new ChatMessage {
-                    Role = "user",
-                    Content = question
-                });
-
-                string answer = await _llmService.ProcessChatWithGroqAsync(GroqKey, _voiceChatHistory);
-                
-                // Replace the temporary indicator with the real answer
-                VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", answer);
-
-                _voiceChatHistory.Add(new ChatMessage {
-                    Role = "assistant",
-                    Content = answer
-                });
-            }
-            catch (Exception ex)
-            {
-                VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", $"Follow-up query failed: {ex.Message}");
-                if (_voiceChatHistory.Count > 0 && _voiceChatHistory[_voiceChatHistory.Count - 1].Content == question)
+                ScanResponseText += $"\n\n👉 Follow-up Question:\n\"{question}\"\n\nThinking...";
+                try
                 {
-                    _voiceChatHistory.RemoveAt(_voiceChatHistory.Count - 1);
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = question
+                    });
+
+                    string answer = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
+                    
+                    ScanResponseText = ScanResponseText.Replace("Thinking...", answer);
+
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "assistant",
+                        Content = answer
+                    });
+                }
+                catch (Exception ex)
+                {
+                    ScanResponseText = ScanResponseText.Replace("Thinking...", $"Follow-up query failed: {ex.Message}");
+                    if (_txtChatHistory.Count > 0 && _txtChatHistory[_txtChatHistory.Count - 1].Content == question)
+                    {
+                        _txtChatHistory.RemoveAt(_txtChatHistory.Count - 1);
+                    }
+                }
+                finally
+                {
+                    IsScanning = false;
                 }
             }
-            finally
+            else
             {
-                IsScanning = false;
-                // Resume live scan listening after follow-up is complete
-                ResumeLiveScanIfNeeded();
+                VoiceScanResponseText += $"\n\n👉 Follow-up Question:\n\"{question}\"\n\nThinking...";
+                try
+                {
+                    _voiceChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = question
+                    });
+
+                    string answer = await _llmService.ProcessChatWithGroqAsync(GroqKey, _voiceChatHistory);
+                    
+                    VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", answer);
+
+                    _voiceChatHistory.Add(new ChatMessage {
+                        Role = "assistant",
+                        Content = answer
+                    });
+                }
+                catch (Exception ex)
+                {
+                    VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", $"Follow-up query failed: {ex.Message}");
+                    if (_voiceChatHistory.Count > 0 && _voiceChatHistory[_voiceChatHistory.Count - 1].Content == question)
+                    {
+                        _voiceChatHistory.RemoveAt(_voiceChatHistory.Count - 1);
+                    }
+                }
+                finally
+                {
+                    IsScanning = false;
+                    ResumeLiveScanIfNeeded();
+                }
             }
         }
 

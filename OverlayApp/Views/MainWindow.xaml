@@ -550,6 +550,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                              <!-- Scan Controls Row -->
@@ -616,13 +617,64 @@
                                         </Border>
                                         
                                         <!-- Scan Results Text -->
-                                         <TextBox Text="{Binding ScanResponseText, Mode=OneWay}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" BorderThickness="0" IsReadOnly="True" AcceptsReturn="True"/>
+                                        <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Border>
 
+                            <!-- Follow-up Chat Input Bar -->
+                            <Border Grid.Row="2" Margin="0,8,0,0" Background="#11FFFFFF" CornerRadius="4" Padding="4,2" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Chat Input TextBox -->
+                                    <TextBox Grid.Column="0" Text="{Binding FollowUpText, UpdateSourceTrigger=PropertyChanged}" 
+                                             Foreground="#E0FFFFFF" FontSize="10.5" Background="Transparent" BorderThickness="0" 
+                                             VerticalContentAlignment="Center" Margin="4,2" CaretBrush="#FFFFFF" SelectionBrush="{Binding Tag, ElementName=MainBorder}">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Enter" Command="{Binding SubmitFollowUpCommand}"/>
+                                        </TextBox.InputBindings>
+                                    </TextBox>
+
+                                    <!-- Follow-up Microphone Button (takes external mic only) -->
+                                    <Button Grid.Column="1" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="Transparent" Padding="4">
+                                                    <!-- Simple mic SVG -->
+                                                    <Path x:Name="MicIcon" Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
+                                                          Fill="{Binding FollowUpMicColor}" Width="10.5" Height="10.5" Stretch="Uniform"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- Send Button -->
+                                    <Button Grid.Column="2" Command="{Binding SubmitFollowUpCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="Transparent" Padding="4">
+                                                    <!-- Simple paper plane Send SVG -->
+                                                    <Path x:Name="SendIcon" Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
+                                                          Fill="#88FFFFFF" Width="10.5" Height="10.5" Stretch="Uniform"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="SendIcon" Property="Fill" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+                            </Border>
+
                             <!-- Loader Spinner Bar -->
-                            <ProgressBar Grid.Row="2" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                            <ProgressBar Grid.Row="3" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
                         </Grid>
                     </Border>
                 </Grid>

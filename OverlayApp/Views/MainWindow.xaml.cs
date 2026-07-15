@@ -53,7 +53,11 @@ namespace OverlayApp.Views
                 {
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        TxtScanScrollViewer?.ScrollToTop();
+                        var text = ViewModel.ScanResponseText;
+                        if (text != null && !text.Contains("👉 Follow-up Question"))
+                        {
+                            TxtScanScrollViewer?.ScrollToTop();
+                        }
                     }));
                 }
                 else if (args.PropertyName == nameof(MainViewModel.VoiceScanResponseText))
