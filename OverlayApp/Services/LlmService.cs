@@ -98,10 +98,10 @@ namespace OverlayApp.Services
             {
                 string url = "https://api.groq.com/openai/v1/chat/completions";
 
-                // Build Groq chat completion request using GPT-OSS 20B
+                // Build Groq chat completion request using GPT-OSS 120B
                 var payload = new
                 {
-                    model = "openai/gpt-oss-20b",
+                    model = "openai/gpt-oss-120b",
                     max_tokens = 1500,
                     messages = new[]
                     {
@@ -157,7 +157,7 @@ namespace OverlayApp.Services
 
                 var payload = new
                 {
-                    model = "openai/gpt-oss-20b",
+                    model = "openai/gpt-oss-120b",
                     max_tokens = 1500,
                     messages = new[]
                     {
@@ -303,7 +303,7 @@ namespace OverlayApp.Services
 
                 var payload = new
                 {
-                    model = "openai/gpt-oss-20b",
+                    model = "openai/gpt-oss-120b",
                     max_tokens = 1500,
                     messages = history
                 };
