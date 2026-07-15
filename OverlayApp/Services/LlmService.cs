@@ -98,10 +98,10 @@ namespace OverlayApp.Services
             {
                 string url = "https://api.groq.com/openai/v1/chat/completions";
 
-                // Build Groq chat completion request using Llama 3.3 70B Versatile
+                // Build Groq chat completion request using GPT-OSS 20B
                 var payload = new
                 {
-                    model = "llama-3.3-70b-versatile",
+                    model = "openai/gpt-oss-20b",
                     max_tokens = 1500,
                     messages = new[]
                     {
@@ -157,7 +157,7 @@ namespace OverlayApp.Services
 
                 var payload = new
                 {
-                    model = "llama-3.3-70b-versatile",
+                    model = "openai/gpt-oss-20b",
                     max_tokens = 1500,
                     messages = new[]
                     {
@@ -228,7 +228,7 @@ namespace OverlayApp.Services
                     var fileContent = new ByteArrayContent(fileBytes);
                     fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
                     form.Add(fileContent, "file", "speech.wav");
-                    form.Add(new StringContent("whisper-large-v3-turbo"), "model");
+                    form.Add(new StringContent("whisper-large-v3"), "model");
 
                     using (var request = new HttpRequestMessage(HttpMethod.Post, url))
                     {
@@ -303,7 +303,7 @@ namespace OverlayApp.Services
 
                 var payload = new
                 {
-                    model = "llama-3.3-70b-versatile",
+                    model = "openai/gpt-oss-20b",
                     max_tokens = 1500,
                     messages = history
                 };
