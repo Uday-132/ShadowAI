@@ -708,7 +708,7 @@ namespace OverlayApp.ViewModels
                         {
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "system",
-                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from a coding challenge or problem. Solve the programming problem, provide clean, well-commented, optimized code, and briefly explain your logic and time complexity. Keep your output concise, clear, and formatted in markdown."
+                                Content = "You are a strict code generator. Solve the programming challenge. You must output ONLY the source code in Python language by default. Do not include any explanations, warnings, intro/outro text, or markdown code block formatting (e.g. no ```). Return ONLY the raw Python code."
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
@@ -1008,11 +1008,17 @@ namespace OverlayApp.ViewModels
             if (ActiveWidget == WidgetType.TxtScan)
             {
                 ScanResponseText += $"\n\n👉 Follow-up Question:\n\"{question}\"\n\nThinking...";
+                string finalQuestion = question;
                 try
                 {
+                    if (IsCodingScanMode)
+                    {
+                        finalQuestion = question + "\n\n(Reminder: Output ONLY the source code. Do not include markdown code block wrappers, descriptions, or explanations. Return ONLY the code.)";
+                    }
+
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "user",
-                        Content = question
+                        Content = finalQuestion
                     });
 
                     string answer = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
@@ -1027,7 +1033,7 @@ namespace OverlayApp.ViewModels
                 catch (Exception ex)
                 {
                     ScanResponseText = ScanResponseText.Replace("Thinking...", $"Follow-up query failed: {ex.Message}");
-                    if (_txtChatHistory.Count > 0 && _txtChatHistory[_txtChatHistory.Count - 1].Content == question)
+                    if (_txtChatHistory.Count > 0 && (_txtChatHistory[_txtChatHistory.Count - 1].Content == question || _txtChatHistory[_txtChatHistory.Count - 1].Content == finalQuestion))
                     {
                         _txtChatHistory.RemoveAt(_txtChatHistory.Count - 1);
                     }
