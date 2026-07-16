@@ -558,6 +558,7 @@
                              <Grid Grid.Row="0" Margin="0,0,0,8">
                                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                      <TextBlock Text="SCAN TYPE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
+                                     <RadioButton Content="NORMAL SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsNormalScanMode, Mode=TwoWay}"/>
                                      <RadioButton Content="MCQ SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsMcqScanMode, Mode=TwoWay}"/>
                                      <RadioButton Content="CODING SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsCodingScanMode, Mode=TwoWay}"/>
                                  </StackPanel>

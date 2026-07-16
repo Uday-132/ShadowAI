@@ -22,6 +22,6 @@ namespace OverlayApp.Models
         [JsonInclude] public string VoiceScanResponseText = "";
         [JsonInclude] public bool IsSystemAudioSource = false;
         [JsonInclude] public bool IsLiveMode = false;
-        [JsonInclude] public bool IsMcqScanMode = true;
+        [JsonInclude] public string TextScanType = "Normal";
     }
 }

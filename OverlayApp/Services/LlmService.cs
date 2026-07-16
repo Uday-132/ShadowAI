@@ -290,7 +290,7 @@ namespace OverlayApp.Services
         /// <summary>
         /// Sends the entire conversational message history to Groq for stateful chat completions.
         /// </summary>
-        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history)
+        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "openai/gpt-oss-120b")
         {
             if (string.IsNullOrWhiteSpace(groqKey))
             {
@@ -303,7 +303,7 @@ namespace OverlayApp.Services
 
                 var payload = new
                 {
-                    model = "openai/gpt-oss-120b",
+                    model = modelName,
                     max_tokens = 1500,
                     messages = history
                 };

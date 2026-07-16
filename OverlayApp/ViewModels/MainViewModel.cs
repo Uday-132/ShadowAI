@@ -181,7 +181,9 @@ namespace OverlayApp.ViewModels
                     e.PropertyName == nameof(IsFirstRun) ||
                     e.PropertyName == nameof(IsSystemAudioSource) ||
                     e.PropertyName == nameof(IsLiveMode) ||
-                    e.PropertyName == nameof(IsMcqScanMode))
+                    e.PropertyName == nameof(IsMcqScanMode) ||
+                    e.PropertyName == nameof(IsCodingScanMode) ||
+                    e.PropertyName == nameof(IsNormalScanMode))
                 {
                     _settingsService.SaveSettings(_settings);
                 }
@@ -415,20 +417,47 @@ namespace OverlayApp.ViewModels
 
         public bool IsMcqScanMode
         {
-            get => _settings.IsMcqScanMode;
+            get => _settings.TextScanType == "MCQ";
             set
             {
-                if (SetProperty(ref _settings.IsMcqScanMode, value))
+                if (value && _settings.TextScanType != "MCQ")
                 {
+                    _settings.TextScanType = "MCQ";
+                    OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
+                    OnPropertyChanged(nameof(IsNormalScanMode));
                 }
             }
         }
 
         public bool IsCodingScanMode
         {
-            get => !_settings.IsMcqScanMode;
-            set => IsMcqScanMode = !value;
+            get => _settings.TextScanType == "Coding";
+            set
+            {
+                if (value && _settings.TextScanType != "Coding")
+                {
+                    _settings.TextScanType = "Coding";
+                    OnPropertyChanged(nameof(IsMcqScanMode));
+                    OnPropertyChanged(nameof(IsCodingScanMode));
+                    OnPropertyChanged(nameof(IsNormalScanMode));
+                }
+            }
+        }
+
+        public bool IsNormalScanMode
+        {
+            get => _settings.TextScanType == "Normal";
+            set
+            {
+                if (value && _settings.TextScanType != "Normal")
+                {
+                    _settings.TextScanType = "Normal";
+                    OnPropertyChanged(nameof(IsMcqScanMode));
+                    OnPropertyChanged(nameof(IsCodingScanMode));
+                    OnPropertyChanged(nameof(IsNormalScanMode));
+                }
+            }
         }
 
         public string FollowUpText
@@ -631,14 +660,51 @@ namespace OverlayApp.ViewModels
                         {
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "system",
-                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text containing multiple-choice questions (MCQs) for jobs (aptitude, reasoning, technical questions, etc.). Solve the MCQ step-by-step, verify the options, identify the correct answer, and explain the logic clearly. Keep your output concise, clear, and formatted in markdown."
+                                Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice question (MCQ) for aptitude, reasoning, or technical content, and output ONLY the correct option letter (e.g., A, B, C, or D) or the exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
                                 Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrText}"
                             });
+
+                            // Run dual models concurrently to verify answers
+                            var task1 = _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory, "openai/gpt-oss-120b");
+                            var task2 = _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory, "llama-3.3-70b-versatile");
+                            
+                            await Task.WhenAll(task1, task2);
+                            string answer1 = await task1;
+                            string answer2 = await task2;
+
+                            string clean1 = CleanMcqResponse(answer1);
+                            string clean2 = CleanMcqResponse(answer2);
+                            bool isMatch = !string.IsNullOrEmpty(clean1) && !string.IsNullOrEmpty(clean2) && clean1 == clean2;
+
+                            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                            sb.AppendLine("### 🤖 MCQ Double-Model Verification");
+                            sb.AppendLine();
+                            sb.AppendLine($"* **Model A (GPT-OSS-120B):** {answer1.Trim()}");
+                            sb.AppendLine($"* **Model B (Llama-3.3-70B):** {answer2.Trim()}");
+                            sb.AppendLine();
+                            sb.AppendLine("---");
+                            sb.AppendLine();
+                            if (isMatch)
+                            {
+                                sb.AppendLine($"✅ **Match!** Both models agree on the option: **{clean1.ToUpperInvariant()}**");
+                            }
+                            else
+                            {
+                                sb.AppendLine("⚠️ **Mismatch!** The models returned different answers. You should probably **rescan** the question.");
+                            }
+
+                            string finalResult = sb.ToString();
+                            ScanResponseText = finalResult;
+
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "assistant",
+                                Content = finalResult
+                            });
                         }
-                        else
+                        else if (IsCodingScanMode)
                         {
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "system",
@@ -648,15 +714,35 @@ namespace OverlayApp.ViewModels
                                 Role = "user",
                                 Content = $"Here is the raw text from a coding problem:\n\n{ocrText}"
                             });
+
+                            string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
+                            ScanResponseText = finalResult;
+
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "assistant",
+                                Content = finalResult
+                            });
                         }
+                        else
+                        {
+                            // Normal Scan Mode: returns general explanation / summary
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "system",
+                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from the user's screen. Provide a clear, structured explanation or summary of the text. Solve problems step-by-step if it is a general question. Keep your output concise, clear, and formatted in markdown."
+                            });
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "user",
+                                Content = $"Here is the raw text from my screen:\n\n{ocrText}"
+                            });
 
-                        string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
-                        ScanResponseText = finalResult;
+                            string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
+                            ScanResponseText = finalResult;
 
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "assistant",
-                            Content = finalResult
-                        });
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "assistant",
+                                Content = finalResult
+                            });
+                        }
                         OnPropertyChanged(nameof(IsFollowUpVisible));
                     }
                     else
@@ -1078,6 +1164,32 @@ namespace OverlayApp.ViewModels
                 System.Diagnostics.Debug.WriteLine($"ResumeLiveScan failed: {ex.Message}");
                 VoiceScanResponseText += $"\n\n[System] Could not resume live scan: {ex.Message}";
             }
+        }
+
+        private string CleanMcqResponse(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            
+            // Trim whitespaces, quotes, and punctuation
+            string cleaned = input.Trim().Trim('"', '\'', '.', ':', ')', '(', '[', ']');
+            
+            // Convert to lower case for case-insensitive comparison
+            cleaned = cleaned.ToLowerInvariant();
+            
+            // If it is long, just take the first word or first character if it starts with a/b/c/d/e
+            if (cleaned.Length > 0)
+            {
+                // Check if first character is a letter followed by a space, period, or end of string
+                char first = cleaned[0];
+                if (first >= 'a' && first <= 'e')
+                {
+                    if (cleaned.Length == 1 || !char.IsLetter(cleaned[1]))
+                    {
+                        return first.ToString();
+                    }
+                }
+            }
+            return cleaned;
         }
 
         #endregion
