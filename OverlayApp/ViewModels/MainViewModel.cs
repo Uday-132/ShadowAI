@@ -180,7 +180,8 @@ namespace OverlayApp.ViewModels
                     e.PropertyName == nameof(AppFontSize) ||
                     e.PropertyName == nameof(IsFirstRun) ||
                     e.PropertyName == nameof(IsSystemAudioSource) ||
-                    e.PropertyName == nameof(IsLiveMode))
+                    e.PropertyName == nameof(IsLiveMode) ||
+                    e.PropertyName == nameof(IsMcqScanMode))
                 {
                     _settingsService.SaveSettings(_settings);
                 }
@@ -412,6 +413,24 @@ namespace OverlayApp.ViewModels
             set => IsLiveMode = !value;
         }
 
+        public bool IsMcqScanMode
+        {
+            get => _settings.IsMcqScanMode;
+            set
+            {
+                if (SetProperty(ref _settings.IsMcqScanMode, value))
+                {
+                    OnPropertyChanged(nameof(IsCodingScanMode));
+                }
+            }
+        }
+
+        public bool IsCodingScanMode
+        {
+            get => !_settings.IsMcqScanMode;
+            set => IsMcqScanMode = !value;
+        }
+
         public string FollowUpText
         {
             get => _followUpText;
@@ -608,14 +627,28 @@ namespace OverlayApp.ViewModels
                         ScanResponseText = $"[LLM] Analyzing transcribed text (Groq)...\n\nExtracted Text:\n\"{ocrText.Trim()}\"";
                         
                         _txtChatHistory.Clear();
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "system",
-                            Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from the user's screen. If it is a question or problem, solve it step-by-step. If it is code, explain and debug it. If it is general text, explain or summarize it. Keep your output concise, clear, and formatted in markdown."
-                        });
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "user",
-                            Content = $"Here is the raw text extracted from my screen:\n\n{ocrText}"
-                        });
+                        if (IsMcqScanMode)
+                        {
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "system",
+                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text containing multiple-choice questions (MCQs) for jobs (aptitude, reasoning, technical questions, etc.). Solve the MCQ step-by-step, verify the options, identify the correct answer, and explain the logic clearly. Keep your output concise, clear, and formatted in markdown."
+                            });
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "user",
+                                Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrText}"
+                            });
+                        }
+                        else
+                        {
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "system",
+                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from a coding challenge or problem. Solve the programming problem, provide clean, well-commented, optimized code, and briefly explain your logic and time complexity. Keep your output concise, clear, and formatted in markdown."
+                            });
+                            _txtChatHistory.Add(new ChatMessage {
+                                Role = "user",
+                                Content = $"Here is the raw text from a coding problem:\n\n{ocrText}"
+                            });
+                        }
 
                         string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
                         ScanResponseText = finalResult;

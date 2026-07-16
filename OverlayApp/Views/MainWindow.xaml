@@ -547,14 +547,24 @@
                     <Border Background="#11FFFFFF" CornerRadius="6" Padding="8">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/> <!-- Row 0: Option Toggles -->
+                                <RowDefinition Height="Auto"/> <!-- Row 1: Scan Buttons -->
+                                <RowDefinition Height="*"/>    <!-- Row 2: Response Area -->
+                                <RowDefinition Height="Auto"/> <!-- Row 3: Follow-up Chat Box -->
+                                <RowDefinition Height="Auto"/> <!-- Row 4: Loader ProgressBar -->
                             </Grid.RowDefinitions>
 
-                             <!-- Scan Controls Row -->
+                             <!-- Option Toggles (Scan Type) -->
                              <Grid Grid.Row="0" Margin="0,0,0,8">
+                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                     <TextBlock Text="SCAN TYPE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
+                                     <RadioButton Content="MCQ SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsMcqScanMode, Mode=TwoWay}"/>
+                                     <RadioButton Content="CODING SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsCodingScanMode, Mode=TwoWay}"/>
+                                 </StackPanel>
+                             </Grid>
+
+                             <!-- Scan Controls Row -->
+                             <Grid Grid.Row="1" Margin="0,0,0,8">
                                  <Grid.ColumnDefinitions>
                                      <ColumnDefinition Width="*"/>
                                      <ColumnDefinition Width="Auto"/>
@@ -599,7 +609,7 @@
                              </Grid>
 
                             <!-- Response Area -->
-                            <Border Grid.Row="1" Background="#11FFFFFF" CornerRadius="4" Padding="6">
+                            <Border Grid.Row="2" Background="#11FFFFFF" CornerRadius="4" Padding="6">
                                 <ScrollViewer x:Name="TxtScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
                                     <StackPanel>
                                         <!-- Captured Image Preview (if available) -->
@@ -623,7 +633,7 @@
                             </Border>
 
                             <!-- Follow-up Chat Input Bar -->
-                            <Border Grid.Row="2" Margin="0,8,0,0" Background="#11FFFFFF" CornerRadius="4" Padding="4,2" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
+                            <Border Grid.Row="3" Margin="0,8,0,0" Background="#11FFFFFF" CornerRadius="4" Padding="4,2" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -674,7 +684,7 @@
                             </Border>
 
                             <!-- Loader Spinner Bar -->
-                            <ProgressBar Grid.Row="3" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                            <ProgressBar Grid.Row="4" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
                         </Grid>
                     </Border>
                 </Grid>
