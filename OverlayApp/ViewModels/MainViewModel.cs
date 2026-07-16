@@ -708,7 +708,7 @@ namespace OverlayApp.ViewModels
                         {
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "system",
-                                Content = "You are a strict code generator. Solve the programming challenge. You must output ONLY the source code in Python language by default. Do not include any explanations, warnings, intro/outro text, or markdown code block formatting (e.g. no ```). Return ONLY the raw Python code."
+                                Content = "You are a strict code generator. Solve the programming challenge. You must output ONLY the source code in Python language by default. Write the code in a humanized style as if written by a developer in a real coding interview (use natural variable names, standard spacing, and write clean logic without adding excessive comments on every line). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
@@ -728,7 +728,7 @@ namespace OverlayApp.ViewModels
                             // Normal Scan Mode: returns general explanation / summary
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "system",
-                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from the user's screen. Provide a clear, structured explanation or summary of the text. Solve problems step-by-step if it is a general question. Keep your output concise, clear, and formatted in markdown."
+                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from the user's screen. Solve problems step-by-step if it is a general question. Keep your output concise and formatted in markdown. Crucial constraint: You must write in a natural, conversational, humanized style. Avoid typical robotic AI phrases, transitions, templates, or preambles (like 'Here is...'). Write like an experienced developer explaining something casually to a peer. Do not mention you are an AI."
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
@@ -903,7 +903,7 @@ namespace OverlayApp.ViewModels
                 _voiceChatHistory.Clear();
                 _voiceChatHistory.Add(new ChatMessage {
                     Role = "system",
-                    Content = "You are a helpful overlay productivity assistant. The user provides text transcribed from their screen or recorded speech. If it is a question or problem, solve it. If it is code, explain and debug it. If it is general text, explain or summarize it. Keep your output concise, clear, and formatted in markdown."
+                    Content = "You are a helpful overlay productivity assistant. Solve or explain the user's transcribed question. Keep your output concise, clear, and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions, repetitive templates, or preambles. Speak like an experienced developer or colleague offering quick assistance. Do not say you are an AI."
                 });
                 _voiceChatHistory.Add(new ChatMessage {
                     Role = "user",
@@ -1013,7 +1013,7 @@ namespace OverlayApp.ViewModels
                 {
                     if (IsCodingScanMode)
                     {
-                        finalQuestion = question + "\n\n(Reminder: Output ONLY the source code. Do not include markdown code block wrappers, descriptions, or explanations. Return ONLY the code.)";
+                        finalQuestion = question + "\n\n(Reminder: Output ONLY the source code in a humanized developer style. Do not include markdown code block wrappers, descriptions, warnings, or explanations. Return ONLY the code.)";
                     }
 
                     _txtChatHistory.Add(new ChatMessage {

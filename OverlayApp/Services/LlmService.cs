@@ -164,7 +164,7 @@ namespace OverlayApp.Services
                         new
                         {
                             role = "system",
-                            content = "You are a helpful overlay productivity assistant. The user is asking a follow-up question or requesting modifications to a previous solution. Answer the user's follow-up request accurately, keeping the context of the previous query and previous solution in mind. Keep your output concise and formatted in markdown."
+                            content = "You are a helpful overlay productivity assistant. The user is asking a follow-up question or requesting modifications to a previous solution. Answer the user's follow-up request accurately, keeping the context of the previous query and previous solution in mind. Keep your output concise and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions or preambles."
                         },
                         new
                         {
