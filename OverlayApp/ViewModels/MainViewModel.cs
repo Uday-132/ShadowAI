@@ -50,7 +50,6 @@ namespace OverlayApp.ViewModels
 
         // Authentication & Session Fields
         private static readonly HttpClient _httpClient = new HttpClient();
-        private string _apiBaseUrl = "https://shadow-ai-seven.vercel.app";
         private readonly DispatcherTimer _sessionTimer;
         
         private string _sessionTimerDisplay = "Please log in";
@@ -214,7 +213,7 @@ namespace OverlayApp.ViewModels
                     string content = System.IO.File.ReadAllText(localFile).Trim();
                     if (!string.IsNullOrEmpty(content))
                     {
-                        _apiBaseUrl = content;
+                        ApiBaseUrl = content;
                     }
                 }
             }
@@ -264,7 +263,8 @@ namespace OverlayApp.ViewModels
                     e.PropertyName == nameof(IsCodingScanMode) ||
                     e.PropertyName == nameof(IsNormalScanMode) ||
                     e.PropertyName == nameof(SessionToken) ||
-                    e.PropertyName == nameof(UserEmail))
+                    e.PropertyName == nameof(UserEmail) ||
+                    e.PropertyName == nameof(ApiBaseUrl))
                 {
                     _settingsService.SaveSettings(_settings);
                 }
@@ -1318,6 +1318,12 @@ namespace OverlayApp.ViewModels
             set => SetProperty(ref _settings.UserEmail, value);
         }
 
+        public string ApiBaseUrl
+        {
+            get => _settings.ApiBaseUrl;
+            set => SetProperty(ref _settings.ApiBaseUrl, value);
+        }
+
         public bool IsLoggedIn => !string.IsNullOrEmpty(SessionToken);
 
         public string SessionTimerDisplay
@@ -1455,7 +1461,7 @@ namespace OverlayApp.ViewModels
                 string json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 
-                var response = await _httpClient.PostAsync($"{_apiBaseUrl}/api/auth/login", content);
+                var response = await _httpClient.PostAsync($"{ApiBaseUrl}/api/auth/login", content);
                 string responseStr = await response.Content.ReadAsStringAsync();
                 
                 var result = JsonSerializer.Deserialize<AuthResponse>(responseStr);
@@ -1507,7 +1513,7 @@ namespace OverlayApp.ViewModels
                 string json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 
-                var response = await _httpClient.PostAsync($"{_apiBaseUrl}/api/auth/signup", content);
+                var response = await _httpClient.PostAsync($"{ApiBaseUrl}/api/auth/signup", content);
                 string responseStr = await response.Content.ReadAsStringAsync();
                 
                 var result = JsonSerializer.Deserialize<AuthResponse>(responseStr);
@@ -1566,7 +1572,7 @@ namespace OverlayApp.ViewModels
                 string json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{_apiBaseUrl}/api/pay/verify")
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/api/pay/verify")
                 {
                     Content = content
                 };
@@ -1603,7 +1609,7 @@ namespace OverlayApp.ViewModels
             IsPaymentLoading = true;
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{_apiBaseUrl}/api/session/start");
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/api/session/start");
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
 
                 var response = await _httpClient.SendAsync(request);
@@ -1638,7 +1644,7 @@ namespace OverlayApp.ViewModels
 
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"{_apiBaseUrl}/api/session/status");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/api/session/status");
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
 
                 var response = await _httpClient.SendAsync(request);

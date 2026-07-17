@@ -25,5 +25,6 @@ namespace OverlayApp.Models
         [JsonInclude] public string TextScanType = "Normal";
         [JsonInclude] public string SessionToken = "";
         [JsonInclude] public string UserEmail = "";
+        [JsonInclude] public string ApiBaseUrl = "https://shadow-ai-seven.vercel.app";
     }
 }

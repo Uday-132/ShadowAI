@@ -1326,7 +1326,7 @@
                     </Style>
                 </Grid.Style>
 
-                <Border Width="300" Height="330" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border Width="300" MinHeight="330" Height="Auto" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5"/>
                     </Border.Effect>
@@ -1355,6 +1355,16 @@
                             <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4" Margin="0,0,0,12">
                                 <TextBox Text="{Binding LoginPassword, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
                             </Border>
+
+                            <!-- Server Settings Expander -->
+                            <Expander Header="Server Settings" Foreground="#55FFFFFF" FontSize="9.5" FontWeight="Normal" HorizontalAlignment="Stretch" Margin="0,0,0,6">
+                                <StackPanel Margin="2,6,2,2">
+                                    <TextBlock Text="API BASE URL" Foreground="#77FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <Border CornerRadius="4" Background="#20FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="6,3">
+                                        <TextBox Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF"/>
+                                    </Border>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
 
                         <!-- Error / Loading -->
