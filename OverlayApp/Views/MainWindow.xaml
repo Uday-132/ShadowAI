@@ -355,6 +355,20 @@
                     <TextBlock Text="AI" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="10" FontWeight="Bold" Margin="4,0,0,0"/>
                 </StackPanel>
 
+                <!-- Session Countdown Timer -->
+                <TextBlock Grid.Column="0" Text="{Binding SessionTimerDisplay}" Foreground="#AAFFFFFF" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,4,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLoggedIn}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
                 <!-- Actions (Pin, Settings, Exit) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,2,0">
                     <!-- Pin (Interactivity Lock) -->
@@ -1295,6 +1309,288 @@
                         </Grid>
                     </Grid>
                 </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!--            LOGIN / SIGNUP OVERLAY          -->
+            <!-- ========================================== -->
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#EE0B0F19">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsLoginOverlayVisible}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <Border Width="300" Height="330" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5"/>
+                    </Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,16">
+                            <TextBlock Text="SHADOW AI" Foreground="#FFFFFF" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Enter credentials to activate overlay" Foreground="#A0FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Form -->
+                        <StackPanel Grid.Row="1">
+                            <TextBlock Text="Email Address" Foreground="#77FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                            <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4" Margin="0,0,0,12">
+                                <TextBox Text="{Binding LoginEmail, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
+                            </Border>
+
+                            <TextBlock Text="Password" Foreground="#77FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                            <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4" Margin="0,0,0,12">
+                                <TextBox Text="{Binding LoginPassword, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Error / Loading -->
+                        <StackPanel Grid.Row="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding AuthErrorMessage}" Foreground="#FFFF3333" FontSize="11" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <TextBlock Text="Processing request..." Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="11" HorizontalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsAuthLoading}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- Buttons -->
+                        <Grid Grid.Row="3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Button Command="{Binding LoginCommand}" Content="LOGIN" Margin="0,0,6,0" Height="32" FontWeight="Bold" Cursor="Hand" Foreground="#FFFFFF" FontSize="11">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="#30FFFFFF"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#50FFFFFF"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <Button Grid.Column="1" Command="{Binding SignupCommand}" Content="SIGN UP" Margin="6,0,0,0" Height="32" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Opacity" Value="0.9"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!--           PAYMENT / STATUS OVERLAY         -->
+            <!-- ========================================== -->
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="998" Background="#EE0B0F19">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPaymentOverlayVisible}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <Grid>
+                    <!-- Top Action Header -->
+                    <Grid VerticalAlignment="Top" Margin="16">
+                        <TextBlock Text="{Binding UserEmail}" Foreground="#55FFFFFF" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                        <Button Command="{Binding LogoutCommand}" Content="LOGOUT" Foreground="#FFFF5555" FontSize="10.5" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" VerticalAlignment="Center" Background="Transparent" BorderThickness="0">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <ContentPresenter/>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+
+                    <!-- Main Portal Card -->
+                    <Border Width="320" Height="390" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5"/>
+                        </Border.Effect>
+                        
+                        <Grid>
+                            <!-- View State 1: Needs payment -->
+                            <Grid>
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPaymentCreditAvailable}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="ACCESS LOCKED" Foreground="#FFFF3333" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Row="1" Text="Your trial has ended. Pay 50 INR for 3 hours." Foreground="#A0FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+
+                                <!-- QR Code -->
+                                <Border Grid.Row="2" Background="#FFFFFF" Padding="6" CornerRadius="8" HorizontalAlignment="Center" Margin="0,10" Width="142" Height="142">
+                                    <Image Source="{Binding PaymentQrUrl}" Width="130" Height="130" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                </Border>
+
+                                <TextBlock Grid.Row="3" Text="Scan QR to pay ₹50 via UPI" Foreground="#77FFFFFF" FontSize="9.5" HorizontalAlignment="Center"/>
+
+                                <!-- UTR Entry Form -->
+                                <StackPanel Grid.Row="4" VerticalAlignment="Center" Margin="0,4">
+                                    <TextBlock Text="Enter 12-digit UPI Ref / UTR No." Foreground="#A0FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4">
+                                        <TextBox Text="{Binding PaymentUtr, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="5">
+                                    <TextBlock Text="{Binding PaymentErrorMessage}" Foreground="#FFFF3333" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                    <Button Command="{Binding SubmitPaymentCommand}" Content="VERIFY PAYMENT" Height="32" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Opacity" Value="0.9"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- View State 2: Credit available, start session -->
+                            <Grid>
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPaymentCreditAvailable}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="PAYMENT VERIFIED" Foreground="#FF33FF33" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                
+                                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,20">
+                                    <!-- Dynamic Checkmark SVG icon path -->
+                                    <Path Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 1,1 20,12A8,8 0 0,1 12,20M16.5,8.5L11,14L7.5,10.5L6,12L11,17L18,9.5L16.5,8.5Z" Fill="#FF33FF33" Width="48" Height="48" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="You have 1 active session credit." Foreground="#A0FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                    <TextBlock Text="Click below to start your 3-hour assessment." Foreground="#77FFFFFF" FontSize="9.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <Button Grid.Row="2" Command="{Binding StartPaidSessionCommand}" Content="START ASSESSMENT (3 HOURS)" Height="36" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Opacity" Value="0.9"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
 
             <!-- Custom Resize Grip (only active when not locked) -->

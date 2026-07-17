@@ -1,6 +1,9 @@
 using System;
 using System.Windows.Threading;
 using System.Windows.Input;
+using System.Threading.Tasks;
+using System.Net.Http;
+using System.Text.Json;
 using OverlayApp.Models;
 using OverlayApp.Services;
 using OverlayApp.Helpers;
@@ -45,6 +48,33 @@ namespace OverlayApp.ViewModels
         private bool _isFollowUpRecording;
         private bool _wasLiveScanActiveBeforeFollowUp;
 
+        // Authentication & Session Fields
+        private static readonly HttpClient _httpClient = new HttpClient();
+        private string _apiBaseUrl = "https://shadow-ai-seven.vercel.app";
+        private readonly DispatcherTimer _sessionTimer;
+        
+        private string _sessionTimerDisplay = "Please log in";
+        private bool _isTrialActive;
+        private bool _isPaidActive;
+        private DateTime? _trialEndsAt;
+        private DateTime? _paidUntil;
+        private bool _isSessionActive;
+        private string _systemGroqKey = "";
+        
+        private bool _isLoginOverlayVisible = true;
+        private bool _isPaymentOverlayVisible = false;
+        private bool _isPaymentCreditAvailable = false;
+        private string _paymentQrUrl = "";
+        
+        private string _loginEmail = "";
+        private string _loginPassword = "";
+        private string _authErrorMessage = "";
+        private bool _isAuthLoading;
+        
+        private string _paymentUtr = "";
+        private string _paymentErrorMessage = "";
+        private bool _isPaymentLoading;
+
         // Commands
         public ICommand ToggleSettingsCommand { get; }
         public ICommand ToggleClickThroughCommand { get; }
@@ -63,6 +93,14 @@ namespace OverlayApp.ViewModels
         public ICommand BackOnboardingCommand { get; }
         public ICommand SkipOnboardingCommand { get; }
         public ICommand FinishOnboardingCommand { get; }
+
+        // Authentication Commands
+        public ICommand LoginCommand { get; }
+        public ICommand SignupCommand { get; }
+        public ICommand LogoutCommand { get; }
+        public ICommand SubmitPaymentCommand { get; }
+        public ICommand StartPaidSessionCommand { get; }
+        public ICommand RefreshSessionStatusCommand { get; }
 
         private readonly SettingsService _settingsService;
 
@@ -167,6 +205,47 @@ namespace OverlayApp.ViewModels
             _stopwatchTimer.Interval = TimeSpan.FromMilliseconds(100);
             _stopwatchTimer.Tick += StopwatchTimer_Tick;
 
+            // Read local API base URL override if exists
+            try
+            {
+                string localFile = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "api_url.txt");
+                if (System.IO.File.Exists(localFile))
+                {
+                    string content = System.IO.File.ReadAllText(localFile).Trim();
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        _apiBaseUrl = content;
+                    }
+                }
+            }
+            catch {}
+
+            // Set up Session countdown & sync timer (runs every 1 second)
+            _sessionTimer = new DispatcherTimer();
+            _sessionTimer.Interval = TimeSpan.FromSeconds(1);
+            _sessionTimer.Tick += SessionTimer_Tick;
+            _sessionTimer.Start();
+
+            // Setup new auth & session commands
+            LoginCommand = new RelayCommand(async _ => await ExecuteLoginAsync());
+            SignupCommand = new RelayCommand(async _ => await ExecuteSignupAsync());
+            LogoutCommand = new RelayCommand(_ => ExecuteLogout());
+            SubmitPaymentCommand = new RelayCommand(async _ => await ExecuteSubmitPaymentAsync());
+            StartPaidSessionCommand = new RelayCommand(async _ => await ExecuteStartPaidSessionAsync());
+            RefreshSessionStatusCommand = new RelayCommand(async _ => await CheckSessionStatusAsync(true));
+
+            // Run initial check if we have a saved token
+            if (IsLoggedIn)
+            {
+                Dispatcher.CurrentDispatcher.BeginInvoke(new Action(async () => {
+                    await CheckSessionStatusAsync(false);
+                }));
+            }
+            else
+            {
+                UpdateOverlayVisibilities();
+            }
+
             // Auto-save settings on change
             this.PropertyChanged += (s, e) =>
             {
@@ -183,7 +262,9 @@ namespace OverlayApp.ViewModels
                     e.PropertyName == nameof(IsLiveMode) ||
                     e.PropertyName == nameof(IsMcqScanMode) ||
                     e.PropertyName == nameof(IsCodingScanMode) ||
-                    e.PropertyName == nameof(IsNormalScanMode))
+                    e.PropertyName == nameof(IsNormalScanMode) ||
+                    e.PropertyName == nameof(SessionToken) ||
+                    e.PropertyName == nameof(UserEmail))
                 {
                     _settingsService.SaveSettings(_settings);
                 }
@@ -622,6 +703,11 @@ namespace OverlayApp.ViewModels
 
         private void TriggerScreenScan()
         {
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible)
+            {
+                return;
+            }
+
             var selectionWindow = new Views.SelectionWindow();
             selectionWindow.AreaSelected = async rect =>
             {
@@ -636,8 +722,10 @@ namespace OverlayApp.ViewModels
 
                     if (imageBytes != null && imageBytes.Length > 0)
                     {
+                        string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+
                         // Stage 1: Send cropped screenshot to Groq (Llama 4 Scout) for OCR
-                        string ocrText = await _llmService.ExtractTextFromImageAsync(GroqKey, imageBytes);
+                        string ocrText = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
                         
                         // Handle Stage 1 errors or empty results
                         if (ocrText.StartsWith("Error") || ocrText.StartsWith("Groq OCR Error"))
@@ -668,8 +756,8 @@ namespace OverlayApp.ViewModels
                             });
 
                             // Run dual models concurrently to verify answers
-                            var task1 = _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory, "openai/gpt-oss-120b");
-                            var task2 = _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory, "llama-3.3-70b-versatile");
+                            var task1 = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, "openai/gpt-oss-120b");
+                            var task2 = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, "llama-3.3-70b-versatile");
                             
                             await Task.WhenAll(task1, task2);
                             string answer1 = await task1;
@@ -715,7 +803,7 @@ namespace OverlayApp.ViewModels
                                 Content = $"Here is the raw text from a coding problem:\n\n{ocrText}"
                             });
 
-                            string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
+                            string finalResult = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory);
                             ScanResponseText = finalResult;
 
                             _txtChatHistory.Add(new ChatMessage {
@@ -735,7 +823,7 @@ namespace OverlayApp.ViewModels
                                 Content = $"Here is the raw text from my screen:\n\n{ocrText}"
                             });
 
-                            string finalResult = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
+                            string finalResult = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory);
                             ScanResponseText = finalResult;
 
                             _txtChatHistory.Add(new ChatMessage {
@@ -875,6 +963,7 @@ namespace OverlayApp.ViewModels
 
         private async Task ProcessVoiceCaptureAsync()
         {
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible) return;
             if (_isProcessingVoice) return;
             _isProcessingVoice = true;
 
@@ -884,7 +973,9 @@ namespace OverlayApp.ViewModels
                 string sourceDesc = IsSystemAudioSource ? "system loopback audio" : "speech query";
                 VoiceScanResponseText = $"Transcribing {sourceDesc} (Groq Whisper)...";
 
-                string transcribedText = await _llmService.TranscribeAudioAsync(GroqKey, _audioRecorder.TempFilePath);
+                string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+
+                string transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath);
 
                 if (transcribedText.StartsWith("Error"))
                 {
@@ -910,7 +1001,7 @@ namespace OverlayApp.ViewModels
                     Content = transcribedText
                 });
 
-                string explanation = await _llmService.ProcessChatWithGroqAsync(GroqKey, _voiceChatHistory);
+                string explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _voiceChatHistory);
                 VoiceScanResponseText = $"Transcribed Query:\n\"{transcribedText}\"\n\n---\n\n{explanation}";
 
                 _voiceChatHistory.Add(new ChatMessage {
@@ -991,8 +1082,14 @@ namespace OverlayApp.ViewModels
 
         private async void SubmitFollowUpPrompt()
         {
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible)
+            {
+                return;
+            }
             if (string.IsNullOrWhiteSpace(FollowUpText)) return;
-            if (string.IsNullOrWhiteSpace(GroqKey))
+
+            string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+            if (string.IsNullOrWhiteSpace(effectiveGroqKey))
             {
                 if (ActiveWidget == WidgetType.TxtScan)
                     ScanResponseText = "Error: Please set your Groq API Key in Settings first.";
@@ -1021,7 +1118,7 @@ namespace OverlayApp.ViewModels
                         Content = finalQuestion
                     });
 
-                    string answer = await _llmService.ProcessChatWithGroqAsync(GroqKey, _txtChatHistory);
+                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory);
                     
                     ScanResponseText = ScanResponseText.Replace("Thinking...", answer);
 
@@ -1053,7 +1150,7 @@ namespace OverlayApp.ViewModels
                         Content = question
                     });
 
-                    string answer = await _llmService.ProcessChatWithGroqAsync(GroqKey, _voiceChatHistory);
+                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _voiceChatHistory);
                     
                     VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", answer);
 
@@ -1080,7 +1177,8 @@ namespace OverlayApp.ViewModels
 
         private async void ToggleFollowUpVoiceRecording()
         {
-            if (string.IsNullOrWhiteSpace(GroqKey))
+            string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+            if (string.IsNullOrWhiteSpace(effectiveGroqKey))
             {
                 VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
                 return;
@@ -1120,7 +1218,7 @@ namespace OverlayApp.ViewModels
 
                 try
                 {
-                    string transcribedText = await _llmService.TranscribeAudioAsync(GroqKey, _audioRecorder.TempFilePath);
+                    string transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath);
                     
                     if (transcribedText.StartsWith("Error"))
                     {
@@ -1196,6 +1294,464 @@ namespace OverlayApp.ViewModels
                 }
             }
             return cleaned;
+        }
+
+        #endregion
+
+        #region Authentication Properties
+        public string SessionToken
+        {
+            get => _settings.SessionToken;
+            set
+            {
+                if (SetProperty(ref _settings.SessionToken, value))
+                {
+                    OnPropertyChanged(nameof(IsLoggedIn));
+                    UpdateOverlayVisibilities();
+                }
+            }
+        }
+
+        public string UserEmail
+        {
+            get => _settings.UserEmail;
+            set => SetProperty(ref _settings.UserEmail, value);
+        }
+
+        public bool IsLoggedIn => !string.IsNullOrEmpty(SessionToken);
+
+        public string SessionTimerDisplay
+        {
+            get => _sessionTimerDisplay;
+            set => SetProperty(ref _sessionTimerDisplay, value);
+        }
+
+        public bool IsTrialActive
+        {
+            get => _isTrialActive;
+            set
+            {
+                if (SetProperty(ref _isTrialActive, value))
+                {
+                    UpdateOverlayVisibilities();
+                }
+            }
+        }
+
+        public bool IsPaidActive
+        {
+            get => _isPaidActive;
+            set
+            {
+                if (SetProperty(ref _isPaidActive, value))
+                {
+                    UpdateOverlayVisibilities();
+                }
+            }
+        }
+
+        public string SystemGroqKey
+        {
+            get => _systemGroqKey;
+            set => SetProperty(ref _systemGroqKey, value);
+        }
+
+        public bool IsLoginOverlayVisible
+        {
+            get => _isLoginOverlayVisible;
+            set => SetProperty(ref _isLoginOverlayVisible, value);
+        }
+
+        public bool IsPaymentOverlayVisible
+        {
+            get => _isPaymentOverlayVisible;
+            set => SetProperty(ref _isPaymentOverlayVisible, value);
+        }
+
+        public bool IsPaymentCreditAvailable
+        {
+            get => _isPaymentCreditAvailable;
+            set => SetProperty(ref _isPaymentCreditAvailable, value);
+        }
+
+        public string PaymentQrUrl
+        {
+            get => _paymentQrUrl;
+            set => SetProperty(ref _paymentQrUrl, value);
+        }
+
+        public string LoginEmail
+        {
+            get => _loginEmail;
+            set => SetProperty(ref _loginEmail, value);
+        }
+
+        public string LoginPassword
+        {
+            get => _loginPassword;
+            set => SetProperty(ref _loginPassword, value);
+        }
+
+        public string AuthErrorMessage
+        {
+            get => _authErrorMessage;
+            set => SetProperty(ref _authErrorMessage, value);
+        }
+
+        public bool IsAuthLoading
+        {
+            get => _isAuthLoading;
+            set => SetProperty(ref _isAuthLoading, value);
+        }
+
+        public string PaymentUtr
+        {
+            get => _paymentUtr;
+            set => SetProperty(ref _paymentUtr, value);
+        }
+
+        public string PaymentErrorMessage
+        {
+            get => _paymentErrorMessage;
+            set => SetProperty(ref _paymentErrorMessage, value);
+        }
+
+        public bool IsPaymentLoading
+        {
+            get => _isPaymentLoading;
+            set => SetProperty(ref _isPaymentLoading, value);
+        }
+        #endregion
+
+        #region Session Management & API Calls
+
+        private void UpdateOverlayVisibilities()
+        {
+            if (!IsLoggedIn)
+            {
+                IsLoginOverlayVisible = true;
+                IsPaymentOverlayVisible = false;
+            }
+            else
+            {
+                IsLoginOverlayVisible = false;
+                IsPaymentOverlayVisible = !IsTrialActive && !IsPaidActive;
+            }
+        }
+
+        private async Task ExecuteLoginAsync()
+        {
+            if (string.IsNullOrWhiteSpace(LoginEmail) || string.IsNullOrWhiteSpace(LoginPassword))
+            {
+                AuthErrorMessage = "Email and password are required.";
+                return;
+            }
+
+            AuthErrorMessage = "";
+            IsAuthLoading = true;
+            try
+            {
+                var payload = new { email = LoginEmail.Trim(), password = LoginPassword.Trim() };
+                string json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                
+                var response = await _httpClient.PostAsync($"{_apiBaseUrl}/api/auth/login", content);
+                string responseStr = await response.Content.ReadAsStringAsync();
+                
+                var result = JsonSerializer.Deserialize<AuthResponse>(responseStr);
+                
+                if (response.IsSuccessStatusCode && result != null)
+                {
+                    UserEmail = result.email;
+                    SessionToken = result.token;
+                    
+                    LoginEmail = "";
+                    LoginPassword = "";
+                    
+                    await CheckSessionStatusAsync(true);
+                }
+                else
+                {
+                    AuthErrorMessage = result?.error ?? "Login failed. Please check credentials.";
+                }
+            }
+            catch (Exception ex)
+            {
+                AuthErrorMessage = $"Connection error: {ex.Message}";
+            }
+            finally
+            {
+                IsAuthLoading = false;
+            }
+        }
+
+        private async Task ExecuteSignupAsync()
+        {
+            if (string.IsNullOrWhiteSpace(LoginEmail) || string.IsNullOrWhiteSpace(LoginPassword))
+            {
+                AuthErrorMessage = "Email and password are required.";
+                return;
+            }
+
+            if (LoginPassword.Length < 6)
+            {
+                AuthErrorMessage = "Password must be at least 6 characters.";
+                return;
+            }
+
+            AuthErrorMessage = "";
+            IsAuthLoading = true;
+            try
+            {
+                var payload = new { email = LoginEmail.Trim(), password = LoginPassword.Trim() };
+                string json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                
+                var response = await _httpClient.PostAsync($"{_apiBaseUrl}/api/auth/signup", content);
+                string responseStr = await response.Content.ReadAsStringAsync();
+                
+                var result = JsonSerializer.Deserialize<AuthResponse>(responseStr);
+                
+                if (response.IsSuccessStatusCode && result != null)
+                {
+                    UserEmail = result.email;
+                    SessionToken = result.token;
+                    
+                    LoginEmail = "";
+                    LoginPassword = "";
+                    
+                    await CheckSessionStatusAsync(true);
+                }
+                else
+                {
+                    AuthErrorMessage = result?.error ?? "Sign up failed.";
+                }
+            }
+            catch (Exception ex)
+            {
+                AuthErrorMessage = $"Connection error: {ex.Message}";
+            }
+            finally
+            {
+                IsAuthLoading = false;
+            }
+        }
+
+        private void ExecuteLogout()
+        {
+            SessionToken = "";
+            UserEmail = "";
+            SystemGroqKey = "";
+            IsTrialActive = false;
+            IsPaidActive = false;
+            _trialEndsAt = null;
+            _paidUntil = null;
+            IsPaymentCreditAvailable = false;
+            UpdateOverlayVisibilities();
+        }
+
+        private async Task ExecuteSubmitPaymentAsync()
+        {
+            if (string.IsNullOrWhiteSpace(PaymentUtr) || !System.Text.RegularExpressions.Regex.IsMatch(PaymentUtr.Trim(), @"^\d{12}$"))
+            {
+                PaymentErrorMessage = "Invalid Ref No. UTR must be exactly 12 digits.";
+                return;
+            }
+
+            PaymentErrorMessage = "";
+            IsPaymentLoading = true;
+            try
+            {
+                var payload = new { utr = PaymentUtr.Trim() };
+                string json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{_apiBaseUrl}/api/pay/verify")
+                {
+                    Content = content
+                };
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
+
+                var response = await _httpClient.SendAsync(request);
+                string responseStr = await response.Content.ReadAsStringAsync();
+                
+                var result = JsonSerializer.Deserialize<PaymentVerifyResponse>(responseStr);
+                
+                if (response.IsSuccessStatusCode && result != null && result.success)
+                {
+                    PaymentUtr = "";
+                    await CheckSessionStatusAsync(true);
+                }
+                else
+                {
+                    PaymentErrorMessage = result?.error ?? "Payment verification failed.";
+                }
+            }
+            catch (Exception ex)
+            {
+                PaymentErrorMessage = $"Connection error: {ex.Message}";
+            }
+            finally
+            {
+                IsPaymentLoading = false;
+            }
+        }
+
+        private async Task ExecuteStartPaidSessionAsync()
+        {
+            PaymentErrorMessage = "";
+            IsPaymentLoading = true;
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{_apiBaseUrl}/api/session/start");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
+
+                var response = await _httpClient.SendAsync(request);
+                string responseStr = await response.Content.ReadAsStringAsync();
+                
+                var result = JsonSerializer.Deserialize<SessionStartResponse>(responseStr);
+                
+                if (response.IsSuccessStatusCode && result != null)
+                {
+                    await CheckSessionStatusAsync(true);
+                }
+                else
+                {
+                    PaymentErrorMessage = result?.error ?? "Failed to start session.";
+                }
+            }
+            catch (Exception ex)
+            {
+                PaymentErrorMessage = $"Connection error: {ex.Message}";
+            }
+            finally
+            {
+                IsPaymentLoading = false;
+            }
+        }
+
+        private int _statusSyncCounter = 0;
+
+        private async Task CheckSessionStatusAsync(bool forceUiUpdate)
+        {
+            if (string.IsNullOrEmpty(SessionToken)) return;
+
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{_apiBaseUrl}/api/session/status");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
+
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    string responseStr = await response.Content.ReadAsStringAsync();
+                    var result = JsonSerializer.Deserialize<SessionStatusResponse>(responseStr);
+                    if (result != null)
+                    {
+                        SystemGroqKey = result.system_groq_key;
+                        IsTrialActive = result.isTrialActive;
+                        IsPaidActive = result.isPaidActive;
+                        IsPaymentCreditAvailable = result.payment_credit;
+
+                        _trialEndsAt = result.trial_ends_at != null ? DateTime.Parse(result.trial_ends_at).ToUniversalTime() : null;
+                        _paidUntil = result.paid_until != null ? DateTime.Parse(result.paid_until).ToUniversalTime() : null;
+                        _isSessionActive = result.is_session_active;
+
+                        // Generate UPI QR Code URL
+                        string upiLink = $"upi://pay?pa=udayv132@ybl&pn=ShadowAI&am=50&cu=INR&tn=ShadowAI_{UserEmail}";
+                        PaymentQrUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={Uri.EscapeDataString(upiLink)}";
+                    }
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    ExecuteLogout();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to sync session status: {ex.Message}");
+            }
+            finally
+            {
+                if (forceUiUpdate)
+                {
+                    UpdateOverlayVisibilities();
+                }
+            }
+        }
+
+        private async void SessionTimer_Tick(object? sender, EventArgs e)
+        {
+            if (!IsLoggedIn)
+            {
+                SessionTimerDisplay = "Please log in";
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            
+            if (IsPaidActive && _paidUntil != null && _paidUntil > now)
+            {
+                var diff = _paidUntil.Value - now;
+                SessionTimerDisplay = $"Session: {((int)diff.TotalHours):D2}h {diff.Minutes:D2}m {diff.Seconds:D2}s left";
+            }
+            else if (IsTrialActive && _trialEndsAt != null && _trialEndsAt > now)
+            {
+                var diff = _trialEndsAt.Value - now;
+                SessionTimerDisplay = $"Free Trial: {diff.Minutes:D2}m {diff.Seconds:D2}s left";
+            }
+            else
+            {
+                IsTrialActive = false;
+                IsPaidActive = false;
+                SessionTimerDisplay = "Session Locked";
+            }
+
+            _statusSyncCounter++;
+            if (_statusSyncCounter >= 30)
+            {
+                _statusSyncCounter = 0;
+                await CheckSessionStatusAsync(true);
+            }
+        }
+
+        private class AuthResponse
+        {
+            public string token { get; set; } = "";
+            public string email { get; set; } = "";
+            public string? trial_ends_at { get; set; }
+            public string? paid_until { get; set; }
+            public bool is_session_active { get; set; }
+            public string error { get; set; } = "";
+        }
+
+        private class SessionStatusResponse
+        {
+            public string email { get; set; } = "";
+            public bool isTrialActive { get; set; }
+            public bool isPaidActive { get; set; }
+            public string? trial_ends_at { get; set; }
+            public string? paid_until { get; set; }
+            public string? session_started_at { get; set; }
+            public bool is_session_active { get; set; }
+            public bool payment_credit { get; set; }
+            public string system_groq_key { get; set; } = "";
+            public string error { get; set; } = "";
+        }
+
+        private class PaymentVerifyResponse
+        {
+            public bool success { get; set; }
+            public string message { get; set; } = "";
+            public string error { get; set; } = "";
+        }
+
+        private class SessionStartResponse
+        {
+            public string message { get; set; } = "";
+            public string? paid_until { get; set; }
+            public string? session_started_at { get; set; }
+            public string error { get; set; } = "";
         }
 
         #endregion

@@ -14,3 +14,7 @@ obj/
 
 # Ignore publish output EXCEPT in the Website directory (since we want to keep setup.exe)
 !d:/uday/projects/WebSites/Overlays/Website/setup.exe
+
+# Node.js
+node_modules/
+Website/node_modules/

@@ -23,5 +23,7 @@ namespace OverlayApp.Models
         [JsonInclude] public bool IsSystemAudioSource = false;
         [JsonInclude] public bool IsLiveMode = false;
         [JsonInclude] public string TextScanType = "Normal";
+        [JsonInclude] public string SessionToken = "";
+        [JsonInclude] public string UserEmail = "";
     }
 }
