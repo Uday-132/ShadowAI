@@ -1722,10 +1722,7 @@ namespace OverlayApp.ViewModels
             }
             finally
             {
-                if (forceUiUpdate)
-                {
-                    UpdateOverlayVisibilities();
-                }
+                UpdateOverlayVisibilities();
             }
         }
 
@@ -1751,9 +1748,14 @@ namespace OverlayApp.ViewModels
             }
             else
             {
+                bool stateChanged = IsTrialActive || IsPaidActive;
                 IsTrialActive = false;
                 IsPaidActive = false;
                 SessionTimerDisplay = "Session Locked";
+                if (stateChanged)
+                {
+                    UpdateOverlayVisibilities();
+                }
             }
 
             _statusSyncCounter++;
