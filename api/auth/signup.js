@@ -17,7 +17,11 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, password } = req.body || {};
+  let body = req.body || {};
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) {}
+  }
+  const { email, password } = body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
