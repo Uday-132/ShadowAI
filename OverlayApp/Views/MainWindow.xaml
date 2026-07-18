@@ -1314,7 +1314,7 @@
             <!-- ========================================== -->
             <!--            LOGIN / SIGNUP OVERLAY          -->
             <!-- ========================================== -->
-            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#EE0B0F19">
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#FF0B0F19">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -1444,7 +1444,7 @@
             <!-- ========================================== -->
             <!--           PAYMENT / STATUS OVERLAY         -->
             <!-- ========================================== -->
-            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="998" Background="#EE0B0F19">
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="998" Background="#FF0B0F19">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed"/>

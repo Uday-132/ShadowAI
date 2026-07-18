@@ -1431,6 +1431,30 @@ namespace OverlayApp.ViewModels
 
         #region Session Management & API Calls
 
+        private string GetApiEndpoint(string relativePath)
+        {
+            string baseUrl = (ApiBaseUrl ?? "").Trim().TrimEnd('/');
+            string path = relativePath.StartsWith("/") ? relativePath : "/" + relativePath;
+            return $"{baseUrl}{path}";
+        }
+
+        private bool TryParseJson<T>(string text, out T? result)
+        {
+            result = default;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string trimmed = text.Trim();
+            if (!trimmed.StartsWith("{") && !trimmed.StartsWith("[")) return false;
+            try
+            {
+                result = JsonSerializer.Deserialize<T>(trimmed);
+                return result != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void UpdateOverlayVisibilities()
         {
             if (!IsLoggedIn)
@@ -1461,24 +1485,29 @@ namespace OverlayApp.ViewModels
                 string json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 
-                var response = await _httpClient.PostAsync($"{ApiBaseUrl}/api/auth/login", content);
+                var response = await _httpClient.PostAsync(GetApiEndpoint("/api/auth/login"), content);
                 string responseStr = await response.Content.ReadAsStringAsync();
                 
-                var result = JsonSerializer.Deserialize<AuthResponse>(responseStr);
-                
-                if (response.IsSuccessStatusCode && result != null)
+                if (TryParseJson<AuthResponse>(responseStr, out var result) && result != null)
                 {
-                    UserEmail = result.email;
-                    SessionToken = result.token;
-                    
-                    LoginEmail = "";
-                    LoginPassword = "";
-                    
-                    await CheckSessionStatusAsync(true);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        UserEmail = result.email;
+                        SessionToken = result.token;
+                        
+                        LoginEmail = "";
+                        LoginPassword = "";
+                        
+                        await CheckSessionStatusAsync(true);
+                    }
+                    else
+                    {
+                        AuthErrorMessage = result.error ?? "Login failed. Please check credentials.";
+                    }
                 }
                 else
                 {
-                    AuthErrorMessage = result?.error ?? "Login failed. Please check credentials.";
+                    AuthErrorMessage = $"Server Error ({(int)response.StatusCode}): Invalid server endpoint URL or Vercel 404 response.";
                 }
             }
             catch (Exception ex)
@@ -1513,24 +1542,29 @@ namespace OverlayApp.ViewModels
                 string json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 
-                var response = await _httpClient.PostAsync($"{ApiBaseUrl}/api/auth/signup", content);
+                var response = await _httpClient.PostAsync(GetApiEndpoint("/api/auth/signup"), content);
                 string responseStr = await response.Content.ReadAsStringAsync();
                 
-                var result = JsonSerializer.Deserialize<AuthResponse>(responseStr);
-                
-                if (response.IsSuccessStatusCode && result != null)
+                if (TryParseJson<AuthResponse>(responseStr, out var result) && result != null)
                 {
-                    UserEmail = result.email;
-                    SessionToken = result.token;
-                    
-                    LoginEmail = "";
-                    LoginPassword = "";
-                    
-                    await CheckSessionStatusAsync(true);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        UserEmail = result.email;
+                        SessionToken = result.token;
+                        
+                        LoginEmail = "";
+                        LoginPassword = "";
+                        
+                        await CheckSessionStatusAsync(true);
+                    }
+                    else
+                    {
+                        AuthErrorMessage = result.error ?? "Sign up failed.";
+                    }
                 }
                 else
                 {
-                    AuthErrorMessage = result?.error ?? "Sign up failed.";
+                    AuthErrorMessage = $"Server Error ({(int)response.StatusCode}): Invalid server endpoint URL or Vercel 404 response.";
                 }
             }
             catch (Exception ex)
@@ -1572,7 +1606,7 @@ namespace OverlayApp.ViewModels
                 string json = JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/api/pay/verify")
+                var request = new HttpRequestMessage(HttpMethod.Post, GetApiEndpoint("/api/pay/verify"))
                 {
                     Content = content
                 };
@@ -1581,16 +1615,21 @@ namespace OverlayApp.ViewModels
                 var response = await _httpClient.SendAsync(request);
                 string responseStr = await response.Content.ReadAsStringAsync();
                 
-                var result = JsonSerializer.Deserialize<PaymentVerifyResponse>(responseStr);
-                
-                if (response.IsSuccessStatusCode && result != null && result.success)
+                if (TryParseJson<PaymentVerifyResponse>(responseStr, out var result) && result != null)
                 {
-                    PaymentUtr = "";
-                    await CheckSessionStatusAsync(true);
+                    if (response.IsSuccessStatusCode && result.success)
+                    {
+                        PaymentUtr = "";
+                        await CheckSessionStatusAsync(true);
+                    }
+                    else
+                    {
+                        PaymentErrorMessage = result.error ?? "Payment verification failed.";
+                    }
                 }
                 else
                 {
-                    PaymentErrorMessage = result?.error ?? "Payment verification failed.";
+                    PaymentErrorMessage = $"Server Error ({(int)response.StatusCode}): Invalid server endpoint URL.";
                 }
             }
             catch (Exception ex)
@@ -1609,21 +1648,26 @@ namespace OverlayApp.ViewModels
             IsPaymentLoading = true;
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiBaseUrl}/api/session/start");
+                var request = new HttpRequestMessage(HttpMethod.Post, GetApiEndpoint("/api/session/start"));
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
 
                 var response = await _httpClient.SendAsync(request);
                 string responseStr = await response.Content.ReadAsStringAsync();
                 
-                var result = JsonSerializer.Deserialize<SessionStartResponse>(responseStr);
-                
-                if (response.IsSuccessStatusCode && result != null)
+                if (TryParseJson<SessionStartResponse>(responseStr, out var result) && result != null)
                 {
-                    await CheckSessionStatusAsync(true);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        await CheckSessionStatusAsync(true);
+                    }
+                    else
+                    {
+                        PaymentErrorMessage = result.error ?? "Failed to start session.";
+                    }
                 }
                 else
                 {
-                    PaymentErrorMessage = result?.error ?? "Failed to start session.";
+                    PaymentErrorMessage = $"Server Error ({(int)response.StatusCode}): Invalid server endpoint URL.";
                 }
             }
             catch (Exception ex)
@@ -1644,15 +1688,14 @@ namespace OverlayApp.ViewModels
 
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiBaseUrl}/api/session/status");
+                var request = new HttpRequestMessage(HttpMethod.Get, GetApiEndpoint("/api/session/status"));
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
 
                 var response = await _httpClient.SendAsync(request);
                 if (response.IsSuccessStatusCode)
                 {
                     string responseStr = await response.Content.ReadAsStringAsync();
-                    var result = JsonSerializer.Deserialize<SessionStatusResponse>(responseStr);
-                    if (result != null)
+                    if (TryParseJson<SessionStatusResponse>(responseStr, out var result) && result != null)
                     {
                         SystemGroqKey = result.system_groq_key;
                         IsTrialActive = result.isTrialActive;
