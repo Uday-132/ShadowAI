@@ -61,11 +61,84 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
-        /// Stage 1: Extracts visible text from screen capture using Native Windows OCR.
+        /// Stage 1: Extracts text from screen capture using qwen/qwen3.6-27b Groq Vision model.
         /// </summary>
         public async Task<string> ExtractTextFromImageAsync(string groqKey, byte[] imageBytes)
         {
-            // Primary: Try native Windows WinRT OCR (Instant, 100% offline, 0 token cost)
+            if (imageBytes == null || imageBytes.Length == 0) return "(no image captured)";
+
+            string[] visionModels = new[]
+            {
+                "qwen/qwen3.6-27b",
+                "qwen/qwen-2.5-vl-72b-instruct",
+                "qwen-2.5-coder-32b-instruct"
+            };
+
+            if (!string.IsNullOrWhiteSpace(groqKey))
+            {
+                string base64Image = Convert.ToBase64String(imageBytes);
+                string url = "https://api.groq.com/openai/v1/chat/completions";
+
+                foreach (var visionModel in visionModels)
+                {
+                    try
+                    {
+                        var payload = new
+                        {
+                            model = visionModel,
+                            max_tokens = 1000,
+                            messages = new[]
+                            {
+                                new
+                                {
+                                    role = "user",
+                                    content = new object[]
+                                    {
+                                        new
+                                        {
+                                            type = "text",
+                                            text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
+                                        },
+                                        new
+                                        {
+                                            type = "image_url",
+                                            image_url = new
+                                            {
+                                                url = $"data:image/png;base64,{base64Image}"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+
+                        string jsonPayload = JsonSerializer.Serialize(payload);
+
+                        using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                        {
+                            request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                            var response = await _httpClient.SendAsync(request);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                string responseJson = await response.Content.ReadAsStringAsync();
+                                string ocrResult = ParseOpenAiMessageContent(responseJson);
+                                if (!string.IsNullOrWhiteSpace(ocrResult))
+                                {
+                                    return ocrResult;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Groq Vision OCR Error ({visionModel}): {ex.Message}");
+                    }
+                }
+            }
+
+            // Fallback: Native Windows WinRT OCR (Offline backup)
             string localOcrText = await PerformWindowsOcrAsync(imageBytes);
             if (!string.IsNullOrWhiteSpace(localOcrText))
             {
