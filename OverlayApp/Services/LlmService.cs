@@ -25,63 +25,74 @@ namespace OverlayApp.Services
                 return "Error: Groq API Key is not configured.";
             }
 
-            try
+            string[] visionModels = new[]
             {
-                string base64Image = Convert.ToBase64String(imageBytes);
-                string url = "https://api.groq.com/openai/v1/chat/completions";
+                "llama-4-maverick-17b-128e-instruct",
+                "llama-4-scout-17b-16e-instruct",
+                "llama-3.3-70b-versatile"
+            };
 
-                // Build Groq multimodal payload using Llama 3.2 11B Vision
-                var payload = new
+            string lastError = "";
+            string base64Image = Convert.ToBase64String(imageBytes);
+            string url = "https://api.groq.com/openai/v1/chat/completions";
+
+            foreach (var visionModel in visionModels)
+            {
+                try
                 {
-                    model = "llama-3.2-11b-vision-preview",
-                    max_tokens = 1000,
-                    messages = new[]
+                    var payload = new
                     {
-                        new
+                        model = visionModel,
+                        max_tokens = 1000,
+                        messages = new[]
                         {
-                            role = "user",
-                            content = new object[]
+                            new
                             {
-                                new
+                                role = "user",
+                                content = new object[]
                                 {
-                                    type = "text",
-                                    text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
-                                },
-                                new
-                                {
-                                    type = "image_url",
-                                    image_url = new
+                                    new
                                     {
-                                        url = $"data:image/png;base64,{base64Image}"
+                                        type = "text",
+                                        text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
+                                    },
+                                    new
+                                    {
+                                        type = "image_url",
+                                        image_url = new
+                                        {
+                                            url = $"data:image/png;base64,{base64Image}"
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                };
+                    };
 
-                string jsonPayload = JsonSerializer.Serialize(payload);
+                    string jsonPayload = JsonSerializer.Serialize(payload);
 
-                using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                {
-                    request.Headers.Add("Authorization", $"Bearer {groqKey}");
-                    request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                    var response = await _httpClient.SendAsync(request);
-                    if (!response.IsSuccessStatusCode)
+                    using (var request = new HttpRequestMessage(HttpMethod.Post, url))
                     {
-                        string errorContent = await response.Content.ReadAsStringAsync();
-                        return $"Groq OCR Error (HTTP {response.StatusCode}):\n{errorContent}";
-                    }
+                        request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-                    string responseJson = await response.Content.ReadAsStringAsync();
-                    return ParseOpenAiMessageContent(responseJson);
+                        var response = await _httpClient.SendAsync(request);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            string responseJson = await response.Content.ReadAsStringAsync();
+                            return ParseOpenAiMessageContent(responseJson);
+                        }
+
+                        lastError = await response.Content.ReadAsStringAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
                 }
             }
-            catch (Exception ex)
-            {
-                return $"Error contacting Groq OCR API: {ex.Message}";
-            }
+
+            return $"Groq OCR Error:\n{lastError}";
         }
 
         /// <summary>
