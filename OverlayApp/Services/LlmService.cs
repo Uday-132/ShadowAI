@@ -30,10 +30,10 @@ namespace OverlayApp.Services
                 string base64Image = Convert.ToBase64String(imageBytes);
                 string url = "https://api.groq.com/openai/v1/chat/completions";
 
-                // Build Groq multimodal payload using Llama 4 Scout
+                // Build Groq multimodal payload using Llama 3.2 11B Vision
                 var payload = new
                 {
-                    model = "meta-llama/llama-4-scout-17b-16e-instruct",
+                    model = "llama-3.2-11b-vision-preview",
                     max_tokens = 1000,
                     messages = new[]
                     {
