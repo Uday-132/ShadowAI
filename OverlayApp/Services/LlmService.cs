@@ -3,53 +3,17 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Sdcb.PaddleOCR;
-using Sdcb.PaddleOCR.Models.Local;
-using OpenCvSharp;
 
 namespace OverlayApp.Services
 {
     /// <summary>
     /// Service that coordinates the Dual-LLM scanning pipeline.
-    /// Stage 1: Uses PaddleOCR (Primary) / Windows OCR / Groq Vision to extract text from screen capture.
+    /// Stage 1: Uses Groq Vision API or Windows WinRT OCR (Offline backup) to extract text from screen capture.
     /// Stage 2: Calls Groq OpenAI models (qwen/qwen3.6-27b / gpt-oss-120b / llama-3.3-70b) to process transcribed text.
     /// </summary>
     public class LlmService
     {
         private static readonly HttpClient _httpClient = new HttpClient();
-
-        /// <summary>
-        /// Local PaddleOCR Engine.
-        /// Transcribes text from screen capture with high accuracy offline.
-        /// </summary>
-        private Task<string> PerformPaddleOcrAsync(byte[] imageBytes)
-        {
-            if (imageBytes == null || imageBytes.Length == 0) return Task.FromResult("");
-            try
-            {
-                using (Mat src = Cv2.ImDecode(imageBytes, ImreadModes.Color))
-                {
-                    if (src.Empty()) return Task.FromResult("");
-
-                    using (PaddleOcrAll all = new PaddleOcrAll(LocalFullModels.EnglishV5))
-                    {
-                        all.AllowRotateDetection = true;
-                        all.Enable180Classification = false;
-
-                        PaddleOcrResult result = all.Run(src);
-                        if (result != null && !string.IsNullOrWhiteSpace(result.Text))
-                        {
-                            return Task.FromResult(result.Text.Trim());
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"PaddleOCR Error:\n {ex}");
-            }
-            return Task.FromResult("");
-        }
 
         /// <summary>
         /// Native Windows 10/11 WinRT OCR Engine.
@@ -97,121 +61,143 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
-        /// <summary>
-        /// Python PaddleOCR Execution.
-        /// Saves capture bytes to temporary PNG and executes python ocr.py.
+        /// Stage 1: Extracts text from screen capture using Groq Vision API or Windows WinRT OCR (Offline backup).
         /// </summary>
-        private async Task<(string Text, string Error)> PerformPaddleOcrPythonAsync(byte[] imageBytes)
+        public async Task<(string Text, string Method, string Error)> ExtractTextFromImageAsync(string groqKey, byte[] imageBytes)
         {
-            if (imageBytes == null || imageBytes.Length == 0) return ("", "");
+            if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured screen image data was empty.");
 
-            string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "shadow_ai_capture.png");
             string lastError = "";
-            try
+
+            // 1. Primary: Groq Vision API
+            if (!string.IsNullOrWhiteSpace(groqKey))
             {
-                await System.IO.File.WriteAllBytesAsync(tempPath, imageBytes);
+                string base64Image = Convert.ToBase64String(imageBytes);
+                string url = "https://api.groq.com/openai/v1/chat/completions";
 
-                string scriptPath = "ocr.py";
-                if (!System.IO.File.Exists(scriptPath))
+                string[] visionModels = new[]
                 {
-                    scriptPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ocr.py");
-                }
+                    "qwen/qwen3.6-27b",
+                    "qwen/qwen-2.5-vl-72b-instruct"
+                };
 
-                if (System.IO.File.Exists(scriptPath))
+                foreach (var visionModel in visionModels)
                 {
-                    string[] pythonCandidates = new[]
-                    {
-                        "python",
-                        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python\Python310\python.exe"),
-                        @"C:\Users\udayv\AppData\Local\Programs\Python\Python310\python.exe",
-                        "py"
-                    };
-
-                    foreach (var pythonExe in pythonCandidates)
+                    foreach (var tokenParam in new[] { "max_completion_tokens", "max_tokens" })
                     {
                         try
                         {
-                            var psi = new System.Diagnostics.ProcessStartInfo
-                            {
-                                FileName = pythonExe,
-                                Arguments = $"\"{scriptPath}\" \"{tempPath}\"",
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true,
-                                UseShellExecute = false,
-                                CreateNoWindow = true
-                            };
-
-                            using (var process = System.Diagnostics.Process.Start(psi))
-                            {
-                                if (process != null)
+                            object payload = tokenParam == "max_completion_tokens"
+                                ? new
                                 {
-                                    string output = await process.StandardOutput.ReadToEndAsync();
-                                    string error = await process.StandardError.ReadToEndAsync();
-                                    await process.WaitForExitAsync();
+                                    model = visionModel,
+                                    max_completion_tokens = 1024,
+                                    temperature = 1,
+                                    top_p = 1,
+                                    stream = false,
+                                    messages = new[]
+                                    {
+                                        new
+                                        {
+                                            role = "user",
+                                            content = new object[]
+                                            {
+                                                new
+                                                {
+                                                    type = "text",
+                                                    text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
+                                                },
+                                                new
+                                                {
+                                                    type = "image_url",
+                                                    image_url = new
+                                                    {
+                                                        url = $"data:image/png;base64,{base64Image}"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                : new
+                                {
+                                    model = visionModel,
+                                    max_tokens = 1024,
+                                    temperature = 1,
+                                    top_p = 1,
+                                    stream = false,
+                                    messages = new[]
+                                    {
+                                        new
+                                        {
+                                            role = "user",
+                                            content = new object[]
+                                            {
+                                                new
+                                                {
+                                                    type = "text",
+                                                    text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
+                                                },
+                                                new
+                                                {
+                                                    type = "image_url",
+                                                    image_url = new
+                                                    {
+                                                        url = $"data:image/png;base64,{base64Image}"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                };
 
-                                    if (!string.IsNullOrWhiteSpace(output))
+                            string jsonPayload = JsonSerializer.Serialize(payload);
+
+                            using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                            {
+                                request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                                request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                                var response = await _httpClient.SendAsync(request);
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    string responseJson = await response.Content.ReadAsStringAsync();
+                                    string ocrText = ParseOpenAiMessageContent(responseJson);
+                                    if (!string.IsNullOrWhiteSpace(ocrText) && ocrText.Trim() != "(no text detected)")
                                     {
-                                        return (output.Trim(), "");
+                                        return (ocrText.Trim(), $"Groq Vision OCR ({visionModel})", "");
                                     }
-                                    if (!string.IsNullOrWhiteSpace(error))
-                                    {
-                                        lastError = error;
-                                    }
+                                }
+                                else
+                                {
+                                    string error = await response.Content.ReadAsStringAsync();
+                                    lastError = $"Groq vision response error: HTTP {response.StatusCode} - {error}";
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
                             lastError = ex.Message;
-                            System.Diagnostics.Debug.WriteLine($"Python candidate '{pythonExe}' failed: {ex.Message}");
                         }
                     }
                 }
-                else
+            }
+
+            // 2. Secondary Fallback: Windows WinRT OCR
+            try
+            {
+                string localOcrText = await PerformWindowsOcrAsync(imageBytes);
+                if (!string.IsNullOrWhiteSpace(localOcrText))
                 {
-                    lastError = $"ocr.py script not found at {scriptPath}";
+                    return (localOcrText, "Windows WinRT OCR", "");
                 }
             }
             catch (Exception ex)
             {
-                lastError = ex.Message;
-                System.Diagnostics.Debug.WriteLine($"Python PaddleOCR Error: {ex.Message}");
-            }
-            finally
-            {
-                try { if (System.IO.File.Exists(tempPath)) System.IO.File.Delete(tempPath); } catch { }
+                lastError += $"\nWindows OCR Exception: {ex.Message}";
             }
 
-            return ("", lastError);
-        }
-
-        /// <summary>
-        /// Stage 1: Extracts text from screen capture using PaddleOCR Engine exclusively (No Fallbacks).
-        /// </summary>
-        public async Task<(string Text, string Method, string Error)> ExtractTextFromImageAsync(string groqKey, byte[] imageBytes)
-        {
-            if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured screen image data was empty.");
-
-            // 1. Primary: Python PaddleOCR Script (High Accuracy)
-            var (pythonOcrText, pythonError) = await PerformPaddleOcrPythonAsync(imageBytes);
-            if (!string.IsNullOrWhiteSpace(pythonOcrText))
-            {
-                return (pythonOcrText, "Python PaddleOCR", "");
-            }
-
-            // 2. Local C# PaddleOCR Engine (Pure C#)
-            string paddleText = await PerformPaddleOcrAsync(imageBytes);
-            if (!string.IsNullOrWhiteSpace(paddleText))
-            {
-                return (paddleText, "Local C# PaddleOCR", "");
-            }
-
-            string combinedError = "No text detected by PaddleOCR.";
-            if (!string.IsNullOrWhiteSpace(pythonError))
-            {
-                combinedError += $"\nPython Error details:\n{pythonError.Trim()}";
-            }
-            return ("", "None", combinedError);
+            return ("", "None", $"OCR transcription failed. {lastError}".Trim());
         }
 
         /// <summary>
