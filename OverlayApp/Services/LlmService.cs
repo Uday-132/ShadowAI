@@ -3,17 +3,53 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Sdcb.PaddleOCR;
+using Sdcb.PaddleOCR.Models.Local;
+using OpenCvSharp;
 
 namespace OverlayApp.Services
 {
     /// <summary>
     /// Service that coordinates the Dual-LLM scanning pipeline.
-    /// Stage 1: Calls OpenRouter (amazon/nova-2-lite-v1:free) to extract text via OCR from the screen capture.
-    /// Stage 2: Calls Groq (llama-3.1-8b-instant) to process the extracted text (solve, explain, summarize).
+    /// Stage 1: Uses PaddleOCR (Primary) / Windows OCR / Groq Vision to extract text from screen capture.
+    /// Stage 2: Calls Groq OpenAI models (qwen/qwen3.6-27b / gpt-oss-120b / llama-3.3-70b) to process transcribed text.
     /// </summary>
     public class LlmService
     {
         private static readonly HttpClient _httpClient = new HttpClient();
+
+        /// <summary>
+        /// Local PaddleOCR Engine.
+        /// Transcribes text from screen capture with high accuracy offline.
+        /// </summary>
+        private Task<string> PerformPaddleOcrAsync(byte[] imageBytes)
+        {
+            if (imageBytes == null || imageBytes.Length == 0) return Task.FromResult("");
+            try
+            {
+                using (Mat src = Cv2.ImDecode(imageBytes, ImreadModes.Color))
+                {
+                    if (src.Empty()) return Task.FromResult("");
+
+                    using (PaddleOcrAll all = new PaddleOcrAll(LocalFullModels.EnglishV5))
+                    {
+                        all.AllowRotateDetection = true;
+                        all.Enable180Classification = false;
+
+                        PaddleOcrResult result = all.Run(src);
+                        if (result != null && !string.IsNullOrWhiteSpace(result.Text))
+                        {
+                            return Task.FromResult(result.Text.Trim());
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"PaddleOCR Error: {ex.Message}");
+            }
+            return Task.FromResult("");
+        }
 
         /// <summary>
         /// Native Windows 10/11 WinRT OCR Engine.
@@ -61,11 +97,25 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
-        /// Stage 1: Extracts text from screen capture using qwen/qwen3.6-27b Groq Vision model.
+        /// Stage 1: Extracts text from screen capture using PaddleOCR (Primary), Windows OCR, or Groq Vision models.
         /// </summary>
         public async Task<string> ExtractTextFromImageAsync(string groqKey, byte[] imageBytes)
         {
             if (imageBytes == null || imageBytes.Length == 0) return "(no image captured)";
+
+            // 1. Primary: PaddleOCR Engine (Offline, high accuracy)
+            string paddleText = await PerformPaddleOcrAsync(imageBytes);
+            if (!string.IsNullOrWhiteSpace(paddleText))
+            {
+                return paddleText;
+            }
+
+            // 2. Secondary: Windows WinRT OCR (Offline backup)
+            string localOcrText = await PerformWindowsOcrAsync(imageBytes);
+            if (!string.IsNullOrWhiteSpace(localOcrText))
+            {
+                return localOcrText;
+            }
 
             string[] visionModels = new[]
             {
@@ -182,10 +232,10 @@ namespace OverlayApp.Services
             }
 
             // Fallback: Native Windows WinRT OCR (Offline backup)
-            string localOcrText = await PerformWindowsOcrAsync(imageBytes);
-            if (!string.IsNullOrWhiteSpace(localOcrText))
+            string winOcrText = await PerformWindowsOcrAsync(imageBytes);
+            if (!string.IsNullOrWhiteSpace(winOcrText))
             {
-                return localOcrText;
+                return winOcrText;
             }
 
             return "(no text detected)";
