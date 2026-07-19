@@ -86,7 +86,10 @@ namespace OverlayApp.Services
                         var payload = new
                         {
                             model = visionModel,
-                            max_tokens = 1000,
+                            max_completion_tokens = 1024,
+                            temperature = 1,
+                            top_p = 1,
+                            stream = false,
                             messages = new[]
                             {
                                 new
