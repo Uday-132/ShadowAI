@@ -23,12 +23,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows\win-x64\publish\SystemCoreHost.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows\win-x64\publish\D3DCompiler_47_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows\win-x64\publish\PenImc_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows\win-x64\publish\PresentationNative_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows\win-x64\publish\vcruntime140_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows\win-x64\publish\wpfgfx_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\SystemCoreHost.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\D3DCompiler_47_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\PenImc_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\PresentationNative_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\vcruntime140_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\wpfgfx_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "d:\uday\projects\WebSites\Overlays\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\ocr.py"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Shadow AI"; Filename: "{app}\SystemCoreHost.exe"
