@@ -1,4 +1,4 @@
-# pyrefly: ignore [missing-import]
+
 from paddleocr import PaddleOCR
 from PIL import Image
 import sys

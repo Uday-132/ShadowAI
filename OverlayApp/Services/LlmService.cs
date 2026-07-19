@@ -117,26 +117,44 @@ namespace OverlayApp.Services
 
                 if (System.IO.File.Exists(scriptPath))
                 {
-                    var psi = new System.Diagnostics.ProcessStartInfo
+                    string[] pythonCandidates = new[]
                     {
-                        FileName = "python",
-                        Arguments = $"\"{scriptPath}\" \"{tempPath}\"",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
+                        "python",
+                        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python\Python310\python.exe"),
+                        @"C:\Users\udayv\AppData\Local\Programs\Python\Python310\python.exe",
+                        "py"
                     };
 
-                    using (var process = System.Diagnostics.Process.Start(psi))
+                    foreach (var pythonExe in pythonCandidates)
                     {
-                        if (process != null)
+                        try
                         {
-                            string output = await process.StandardOutput.ReadToEndAsync();
-                            await process.WaitForExitAsync();
-                            if (!string.IsNullOrWhiteSpace(output))
+                            var psi = new System.Diagnostics.ProcessStartInfo
                             {
-                                return output.Trim();
+                                FileName = pythonExe,
+                                Arguments = $"\"{scriptPath}\" \"{tempPath}\"",
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+
+                            using (var process = System.Diagnostics.Process.Start(psi))
+                            {
+                                if (process != null)
+                                {
+                                    string output = await process.StandardOutput.ReadToEndAsync();
+                                    await process.WaitForExitAsync();
+                                    if (!string.IsNullOrWhiteSpace(output))
+                                    {
+                                        return output.Trim();
+                                    }
+                                }
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Python candidate '{pythonExe}' failed: {ex.Message}");
                         }
                     }
                 }
