@@ -22,9 +22,10 @@ module.exports = async (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_credit BOOLEAN DEFAULT FALSE');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
 
     const userResult = await db.query(
-      'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit FROM users WHERE id = $1',
+      'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit, is_admin FROM users WHERE id = $1',
       [decoded.id]
     );
 
@@ -34,26 +35,27 @@ module.exports = async (req, res) => {
 
     const user = userResult.rows[0];
     const now = new Date();
+
+    const isAdmin = Boolean(user.is_admin || (user.email && (user.email.toLowerCase().includes('admin') || user.email.toLowerCase() === 'udayv@gmail.com')));
     
-    const isTrialActive = user.trial_ends_at && new Date(user.trial_ends_at) > now;
-    
-    let isPaidActive = false;
-    if (user.is_session_active && user.paid_until && new Date(user.paid_until) > now) {
-      isPaidActive = true;
-    }
+    const isTrialActive = isAdmin || (user.trial_ends_at && new Date(user.trial_ends_at) > now);
+    let isPaidActive = isAdmin || (user.is_session_active && user.paid_until && new Date(user.paid_until) > now);
 
     const configResult = await db.query("SELECT value FROM app_config WHERE key = 'free_trial_groq_key'");
     const dbGroqKey = configResult.rows.length > 0 ? configResult.rows[0].value : "";
 
+    const unlimitedDate = new Date('2099-12-31T23:59:59Z');
+
     return res.status(200).json({
       email: user.email,
+      is_admin: isAdmin,
       isTrialActive,
       isPaidActive,
-      trial_ends_at: user.trial_ends_at,
-      paid_until: user.paid_until,
+      trial_ends_at: isAdmin ? unlimitedDate : user.trial_ends_at,
+      paid_until: isAdmin ? unlimitedDate : user.paid_until,
       session_started_at: user.session_started_at,
-      is_session_active: user.is_session_active,
-      payment_credit: user.payment_credit,
+      is_session_active: isAdmin ? true : user.is_session_active,
+      payment_credit: isAdmin ? true : user.payment_credit,
       system_groq_key: dbGroqKey
     });
   } catch (error) {

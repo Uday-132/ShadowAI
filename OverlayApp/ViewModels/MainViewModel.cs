@@ -53,6 +53,7 @@ namespace OverlayApp.ViewModels
         private readonly DispatcherTimer _sessionTimer;
         
         private string _sessionTimerDisplay = "Please log in";
+        private bool _isAdmin;
         private bool _isTrialActive;
         private bool _isPaidActive;
         private DateTime? _trialEndsAt;
@@ -656,6 +657,19 @@ namespace OverlayApp.ViewModels
         {
             get => _timerDisplay;
             private set => SetProperty(ref _timerDisplay, value);
+        }
+
+        public bool IsAdmin
+        {
+            get => _isAdmin;
+            set
+            {
+                if (SetProperty(ref _isAdmin, value))
+                {
+                    OnPropertyChanged(nameof(IsPaymentOverlayVisible));
+                    OnPropertyChanged(nameof(IsLoginOverlayVisible));
+                }
+            }
         }
 
         #endregion
@@ -1457,6 +1471,13 @@ namespace OverlayApp.ViewModels
 
         private void UpdateOverlayVisibilities()
         {
+            if (IsAdmin)
+            {
+                IsLoginOverlayVisible = false;
+                IsPaymentOverlayVisible = false;
+                return;
+            }
+
             if (!IsLoggedIn)
             {
                 IsLoginOverlayVisible = true;
@@ -1698,13 +1719,15 @@ namespace OverlayApp.ViewModels
                     if (TryParseJson<SessionStatusResponse>(responseStr, out var result) && result != null)
                     {
                         SystemGroqKey = result.system_groq_key;
-                        IsTrialActive = result.isTrialActive;
-                        IsPaidActive = result.isPaidActive;
-                        IsPaymentCreditAvailable = result.payment_credit;
+                        IsAdmin = result.is_admin || (!string.IsNullOrEmpty(UserEmail) && (UserEmail.ToLower().Contains("admin") || UserEmail.ToLower() == "udayv@gmail.com"));
+
+                        IsTrialActive = IsAdmin || result.isTrialActive;
+                        IsPaidActive = IsAdmin || result.isPaidActive;
+                        IsPaymentCreditAvailable = IsAdmin || result.payment_credit;
 
                         _trialEndsAt = result.trial_ends_at != null ? DateTime.Parse(result.trial_ends_at).ToUniversalTime() : null;
                         _paidUntil = result.paid_until != null ? DateTime.Parse(result.paid_until).ToUniversalTime() : null;
-                        _isSessionActive = result.is_session_active;
+                        _isSessionActive = IsAdmin || result.is_session_active;
 
                         // Generate UPI QR Code URL
                         string upiLink = $"upi://pay?pa=udayv132@ybl&pn=ShadowAI&am=50&cu=INR&tn=ShadowAI_{UserEmail}";
@@ -1731,6 +1754,14 @@ namespace OverlayApp.ViewModels
             if (!IsLoggedIn)
             {
                 SessionTimerDisplay = "Please log in";
+                return;
+            }
+
+            if (IsAdmin)
+            {
+                IsTrialActive = true;
+                IsPaidActive = true;
+                SessionTimerDisplay = "Admin: Unlimited Access";
                 return;
             }
 
@@ -1773,12 +1804,14 @@ namespace OverlayApp.ViewModels
             public string? trial_ends_at { get; set; }
             public string? paid_until { get; set; }
             public bool is_session_active { get; set; }
+            public bool is_admin { get; set; }
             public string error { get; set; } = "";
         }
 
         private class SessionStatusResponse
         {
             public string email { get; set; } = "";
+            public bool is_admin { get; set; }
             public bool isTrialActive { get; set; }
             public bool isPaidActive { get; set; }
             public string? trial_ends_at { get; set; }
