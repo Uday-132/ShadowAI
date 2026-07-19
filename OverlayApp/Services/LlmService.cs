@@ -81,62 +81,102 @@ namespace OverlayApp.Services
 
                 foreach (var visionModel in visionModels)
                 {
-                    try
+                    foreach (var tokenParam in new[] { "max_completion_tokens", "max_tokens" })
                     {
-                        var payload = new
+                        try
                         {
-                            model = visionModel,
-                            max_completion_tokens = 1024,
-                            temperature = 1,
-                            top_p = 1,
-                            stream = false,
-                            messages = new[]
-                            {
-                                new
+                            object payload = tokenParam == "max_completion_tokens"
+                                ? new
                                 {
-                                    role = "user",
-                                    content = new object[]
+                                    model = visionModel,
+                                    max_completion_tokens = 1024,
+                                    temperature = 1,
+                                    top_p = 1,
+                                    stream = false,
+                                    messages = new[]
                                     {
                                         new
                                         {
-                                            type = "text",
-                                            text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
-                                        },
-                                        new
-                                        {
-                                            type = "image_url",
-                                            image_url = new
+                                            role = "user",
+                                            content = new object[]
                                             {
-                                                url = $"data:image/png;base64,{base64Image}"
+                                                new
+                                                {
+                                                    type = "text",
+                                                    text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
+                                                },
+                                                new
+                                                {
+                                                    type = "image_url",
+                                                    image_url = new
+                                                    {
+                                                        url = $"data:image/png;base64,{base64Image}"
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        };
-
-                        string jsonPayload = JsonSerializer.Serialize(payload);
-
-                        using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                        {
-                            request.Headers.Add("Authorization", $"Bearer {groqKey}");
-                            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                            var response = await _httpClient.SendAsync(request);
-                            if (response.IsSuccessStatusCode)
-                            {
-                                string responseJson = await response.Content.ReadAsStringAsync();
-                                string ocrResult = ParseOpenAiMessageContent(responseJson);
-                                if (!string.IsNullOrWhiteSpace(ocrResult))
+                                : new
                                 {
-                                    return ocrResult;
+                                    model = visionModel,
+                                    max_tokens = 1024,
+                                    temperature = 1,
+                                    top_p = 1,
+                                    stream = false,
+                                    messages = new[]
+                                    {
+                                        new
+                                        {
+                                            role = "user",
+                                            content = new object[]
+                                            {
+                                                new
+                                                {
+                                                    type = "text",
+                                                    text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'."
+                                                },
+                                                new
+                                                {
+                                                    type = "image_url",
+                                                    image_url = new
+                                                    {
+                                                        url = $"data:image/png;base64,{base64Image}"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                };
+
+                            string jsonPayload = JsonSerializer.Serialize(payload);
+
+                            using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                            {
+                                request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                                request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                                var response = await _httpClient.SendAsync(request);
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    string responseJson = await response.Content.ReadAsStringAsync();
+                                    string ocrResult = ParseOpenAiMessageContent(responseJson);
+                                    if (!string.IsNullOrWhiteSpace(ocrResult))
+                                    {
+                                        return ocrResult;
+                                    }
+                                }
+                                else
+                                {
+                                    string error = await response.Content.ReadAsStringAsync();
+                                    System.Diagnostics.Debug.WriteLine($"Groq Vision OCR Response Error ({visionModel}, {tokenParam}): HTTP {response.StatusCode} - {error}");
                                 }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Groq Vision OCR Error ({visionModel}): {ex.Message}");
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Groq Vision OCR Exception ({visionModel}): {ex.Message}");
+                        }
                     }
                 }
             }
