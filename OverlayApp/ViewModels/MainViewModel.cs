@@ -738,24 +738,32 @@ namespace OverlayApp.ViewModels
                     {
                         string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
 
-                        // Stage 1: Send cropped screenshot to Groq (Llama 4 Scout) for OCR
-                        string ocrText = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
+                        // Stage 1: Send cropped screenshot to PaddleOCR
+                        var ocrResult = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
                         
-                        // Handle Stage 1 errors or empty results
-                        if (ocrText.StartsWith("Error") || ocrText.StartsWith("Groq OCR Error"))
+                        bool hasText = !string.IsNullOrWhiteSpace(ocrResult.Text) && ocrResult.Text.Trim() != "(no text detected)";
+                        string textExtractedStatus = hasText ? $"Yes ({ocrResult.Text.Length} characters)" : "No";
+
+                        // Build scan details metadata header
+                        string metadataHeader = $"**🔍 Scan Meta Information**\n" +
+                                                $"* **OCR Method:** {ocrResult.Method}\n" +
+                                                $"* **Text Extracted:** {textExtractedStatus}\n";
+
+                        if (!string.IsNullOrWhiteSpace(ocrResult.Error))
                         {
-                            ScanResponseText = ocrText;
-                            return;
+                            metadataHeader += $"* **OCR Error Details:** {ocrResult.Error}\n";
                         }
-                        
-                        if (ocrText.Trim() == "(no text detected)" || string.IsNullOrWhiteSpace(ocrText))
+                        metadataHeader += "\n---\n\n";
+
+                        if (!hasText)
                         {
-                            ScanResponseText = "No text was detected in the captured area.";
+                            ScanResponseText = metadataHeader + "⚠️ No text detected in the captured area. Please try scanning again.";
                             return;
                         }
 
                         // Send extracted text to Groq for explanation/solving
-                        ScanResponseText = $"[LLM] Analyzing transcribed text (Groq)...\n\nExtracted Text:\n\"{ocrText.Trim()}\"";
+                        string singleModel = "openai/gpt-oss-120b";
+                        ScanResponseText = metadataHeader + $"[LLM] Analyzing text with **{singleModel}**...";
                         
                         _txtChatHistory.Clear();
                         if (IsMcqScanMode)
@@ -766,39 +774,15 @@ namespace OverlayApp.ViewModels
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
-                                Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrText}"
+                                Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrResult.Text}"
                             });
 
-                            // Run dual models concurrently to verify answers
-                            var task1 = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, "openai/gpt-oss-120b");
-                            var task2 = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, "llama-3.3-70b-versatile");
+                            string finalAnswer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
                             
-                            await Task.WhenAll(task1, task2);
-                            string answer1 = await task1;
-                            string answer2 = await task2;
+                            string finalResult = metadataHeader + 
+                                                 $"### 🤖 MCQ Solver Answer ({singleModel})\n\n" +
+                                                 $"**Correct Option:** {finalAnswer.Trim()}";
 
-                            string clean1 = CleanMcqResponse(answer1);
-                            string clean2 = CleanMcqResponse(answer2);
-                            bool isMatch = !string.IsNullOrEmpty(clean1) && !string.IsNullOrEmpty(clean2) && clean1 == clean2;
-
-                            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-                            sb.AppendLine("### 🤖 MCQ Double-Model Verification");
-                            sb.AppendLine();
-                            sb.AppendLine($"* **Model A (GPT-OSS-120B):** {answer1.Trim()}");
-                            sb.AppendLine($"* **Model B (Llama-3.3-70B):** {answer2.Trim()}");
-                            sb.AppendLine();
-                            sb.AppendLine("---");
-                            sb.AppendLine();
-                            if (isMatch)
-                            {
-                                sb.AppendLine($"✅ **Match!** Both models agree on the option: **{clean1.ToUpperInvariant()}**");
-                            }
-                            else
-                            {
-                                sb.AppendLine("⚠️ **Mismatch!** The models returned different answers. You should probably **rescan** the question.");
-                            }
-
-                            string finalResult = sb.ToString();
                             ScanResponseText = finalResult;
 
                             _txtChatHistory.Add(new ChatMessage {
@@ -814,10 +798,11 @@ namespace OverlayApp.ViewModels
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
-                                Content = $"Here is the raw text from a coding problem:\n\n{ocrText}"
+                                Content = $"Here is the raw text from a coding problem:\n\n{ocrResult.Text}"
                             });
 
-                            string finalResult = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory);
+                            string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                            string finalResult = metadataHeader + responseBody;
                             ScanResponseText = finalResult;
 
                             _txtChatHistory.Add(new ChatMessage {
@@ -834,10 +819,11 @@ namespace OverlayApp.ViewModels
                             });
                             _txtChatHistory.Add(new ChatMessage {
                                 Role = "user",
-                                Content = $"Here is the raw text from my screen:\n\n{ocrText}"
+                                Content = $"Here is the raw text from my screen:\n\n{ocrResult.Text}"
                             });
 
-                            string finalResult = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory);
+                            string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                            string finalResult = metadataHeader + responseBody;
                             ScanResponseText = finalResult;
 
                             _txtChatHistory.Add(new ChatMessage {

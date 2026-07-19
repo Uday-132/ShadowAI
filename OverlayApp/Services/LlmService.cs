@@ -97,14 +97,16 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
+        /// <summary>
         /// Python PaddleOCR Execution.
         /// Saves capture bytes to temporary PNG and executes python ocr.py.
         /// </summary>
-        private async Task<string> PerformPaddleOcrPythonAsync(byte[] imageBytes)
+        private async Task<(string Text, string Error)> PerformPaddleOcrPythonAsync(byte[] imageBytes)
         {
-            if (imageBytes == null || imageBytes.Length == 0) return "";
+            if (imageBytes == null || imageBytes.Length == 0) return ("", "");
 
             string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "shadow_ai_capture.png");
+            string lastError = "";
             try
             {
                 await System.IO.File.WriteAllBytesAsync(tempPath, imageBytes);
@@ -144,23 +146,35 @@ namespace OverlayApp.Services
                                 if (process != null)
                                 {
                                     string output = await process.StandardOutput.ReadToEndAsync();
+                                    string error = await process.StandardError.ReadToEndAsync();
                                     await process.WaitForExitAsync();
+
                                     if (!string.IsNullOrWhiteSpace(output))
                                     {
-                                        return output.Trim();
+                                        return (output.Trim(), "");
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(error))
+                                    {
+                                        lastError = error;
                                     }
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
+                            lastError = ex.Message;
                             System.Diagnostics.Debug.WriteLine($"Python candidate '{pythonExe}' failed: {ex.Message}");
                         }
                     }
                 }
+                else
+                {
+                    lastError = $"ocr.py script not found at {scriptPath}";
+                }
             }
             catch (Exception ex)
             {
+                lastError = ex.Message;
                 System.Diagnostics.Debug.WriteLine($"Python PaddleOCR Error: {ex.Message}");
             }
             finally
@@ -168,31 +182,36 @@ namespace OverlayApp.Services
                 try { if (System.IO.File.Exists(tempPath)) System.IO.File.Delete(tempPath); } catch { }
             }
 
-            return "";
+            return ("", lastError);
         }
 
         /// <summary>
         /// Stage 1: Extracts text from screen capture using PaddleOCR Engine exclusively (No Fallbacks).
         /// </summary>
-        public async Task<string> ExtractTextFromImageAsync(string groqKey, byte[] imageBytes)
+        public async Task<(string Text, string Method, string Error)> ExtractTextFromImageAsync(string groqKey, byte[] imageBytes)
         {
-            if (imageBytes == null || imageBytes.Length == 0) return "(no image captured)";
+            if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured screen image data was empty.");
 
             // 1. Primary: Python PaddleOCR Script (High Accuracy)
-            string pythonOcrText = await PerformPaddleOcrPythonAsync(imageBytes);
+            var (pythonOcrText, pythonError) = await PerformPaddleOcrPythonAsync(imageBytes);
             if (!string.IsNullOrWhiteSpace(pythonOcrText))
             {
-                return pythonOcrText;
+                return (pythonOcrText, "Python PaddleOCR", "");
             }
 
             // 2. Local C# PaddleOCR Engine (Pure C#)
             string paddleText = await PerformPaddleOcrAsync(imageBytes);
             if (!string.IsNullOrWhiteSpace(paddleText))
             {
-                return paddleText;
+                return (paddleText, "Local C# PaddleOCR", "");
             }
 
-            return "(no text detected)";
+            string combinedError = "No text detected by PaddleOCR.";
+            if (!string.IsNullOrWhiteSpace(pythonError))
+            {
+                combinedError += $"\nPython Error details:\n{pythonError.Trim()}";
+            }
+            return ("", "None", combinedError);
         }
 
         /// <summary>
