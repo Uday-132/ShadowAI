@@ -447,6 +447,42 @@ namespace OverlayApp.Services
                 return $"Error contacting Groq API: {ex.Message}";
             }
         }
+
+        /// <summary>
+        /// Validates a Groq API key by testing it against the Groq models endpoint.
+        /// </summary>
+        public async Task<(bool IsValid, string ErrorMessage)> ValidateGroqKeyAsync(string groqKey)
+        {
+            if (string.IsNullOrWhiteSpace(groqKey))
+            {
+                return (false, "Please paste your Groq API Key.");
+            }
+
+            groqKey = groqKey.Trim();
+
+            try
+            {
+                string url = "https://api.groq.com/openai/v1/models";
+                using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+                {
+                    request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                    var response = await _httpClient.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return (true, "");
+                    }
+                    else
+                    {
+                        string err = await response.Content.ReadAsStringAsync();
+                        return (false, $"Invalid Groq API Key (HTTP {response.StatusCode}). Please check key.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Connection Error: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>

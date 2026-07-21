@@ -10,7 +10,7 @@ namespace OverlayApp.Models
     {
         [JsonInclude] public double Opacity = 0.9;
         [JsonInclude] public bool AlwaysOnTop = true;
-        [JsonInclude] public bool IsClickThrough = false;
+        [JsonInclude] public bool IsClickThrough = true;
         [JsonInclude] public bool IsLocked = false;
         public WidgetType ActiveWidget = WidgetType.Notes; // Not persisted — always starts on Notes
         [JsonInclude] public string Theme = "Onyx";
@@ -18,6 +18,8 @@ namespace OverlayApp.Models
         [JsonInclude] public bool IsFirstRun = true;
         [JsonInclude] public double FontSize = 12.0;
         [JsonInclude] public string GroqKey = "";
+        [JsonInclude] public bool IsGroqKeyValidated = false;
+        [JsonInclude] public bool IsTrialStarted = false;
         [JsonInclude] public string ScanResponseText = "";
         [JsonInclude] public string VoiceScanResponseText = "";
         [JsonInclude] public bool IsSystemAudioSource = false;
@@ -25,6 +27,6 @@ namespace OverlayApp.Models
         [JsonInclude] public string TextScanType = "Normal";
         [JsonInclude] public string SessionToken = "";
         [JsonInclude] public string UserEmail = "";
-        [JsonInclude] public string ApiBaseUrl = "https://shadow-ai-1vjz-six.vercel.app";
+        [JsonInclude] public string ApiBaseUrl = "https://shadow-ai-iota.vercel.app";
     }
 }

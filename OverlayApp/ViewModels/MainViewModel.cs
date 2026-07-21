@@ -94,6 +94,14 @@ namespace OverlayApp.ViewModels
         public ICommand SkipOnboardingCommand { get; }
         public ICommand FinishOnboardingCommand { get; }
 
+        // Copy Commands
+        public ICommand CopyTxtCommand { get; }
+        public ICommand CopyVoiceCommand { get; }
+
+        // Preset Follow-ups
+        public System.Collections.ObjectModel.ObservableCollection<string> PresetFollowUps { get; } = new System.Collections.ObjectModel.ObservableCollection<string>();
+        public ICommand AskFollowUpCommand { get; }
+
         // Authentication Commands
         public ICommand LoginCommand { get; }
         public ICommand SignupCommand { get; }
@@ -101,6 +109,11 @@ namespace OverlayApp.ViewModels
         public ICommand SubmitPaymentCommand { get; }
         public ICommand StartPaidSessionCommand { get; }
         public ICommand RefreshSessionStatusCommand { get; }
+
+        // Groq Key Validation & Free Trial Commands
+        public ICommand ValidateGroqKeyCommand { get; }
+        public ICommand OpenGroqConsoleCommand { get; }
+        public ICommand StartFreeTrialCommand { get; }
 
         private readonly SettingsService _settingsService;
 
@@ -111,6 +124,13 @@ namespace OverlayApp.ViewModels
         {
             _settingsService = new SettingsService();
             _settings = _settingsService.LoadSettings();
+
+            // Migrate old Vercel URL instances to the new production server
+            if (string.IsNullOrEmpty(_settings.ApiBaseUrl) || 
+                _settings.ApiBaseUrl.Contains("shadow-ai-1vjz-six.vercel.app"))
+            {
+                _settings.ApiBaseUrl = "https://shadow-ai-iota.vercel.app";
+            }
             
             // Always start scan outputs empty, bypassing settings load persistence
             _settings.ScanResponseText = "";
@@ -118,6 +138,16 @@ namespace OverlayApp.ViewModels
             _monitorService = monitorService;
             _hotkeyService = hotkeyService;
             _styleService = styleService;
+
+            GroqInputKey = _settings.GroqKey;
+            ValidateGroqKeyCommand = new RelayCommand(async _ => await ValidateGroqKeyAsync());
+            OpenGroqConsoleCommand = new RelayCommand(_ => OpenGroqConsole());
+            StartFreeTrialCommand = new RelayCommand(_ => StartFreeTrial());
+            AskFollowUpCommand = new RelayCommand(param => AskFollowUp(param as string));
+
+            // Initialize presets based on default scan type
+            UpdatePresetFollowUps();
+            UpdateOverlayVisibilities();
 
             // Initialize ICommands
             ToggleSettingsCommand = new RelayCommand(_ => IsSettingsOpen = !IsSettingsOpen);
@@ -165,6 +195,15 @@ namespace OverlayApp.ViewModels
             SubmitFollowUpCommand = new RelayCommand(_ => SubmitFollowUpPrompt());
             ToggleFollowUpVoiceCommand = new RelayCommand(_ => ToggleFollowUpVoiceRecording());
 
+            CopyTxtCommand = new RelayCommand(_ => { 
+                if (!string.IsNullOrEmpty(ScanResponseText)) 
+                    System.Windows.Clipboard.SetText(ScanResponseText); 
+            });
+            CopyVoiceCommand = new RelayCommand(_ => { 
+                if (!string.IsNullOrEmpty(VoiceScanResponseText)) 
+                    System.Windows.Clipboard.SetText(VoiceScanResponseText); 
+            });
+
             NextOnboardingCommand = new RelayCommand(_ =>
             {
                 if (CurrentOnboardingSlide < 3)
@@ -193,11 +232,27 @@ namespace OverlayApp.ViewModels
                 MemoryUsage = ram;
             };
 
-            // Register Hotkey Hook callback (Ctrl+Shift+C calls this)
-            _hotkeyService.HotkeyPressed += () =>
+            // Register Hotkey Hook callbacks
+            _hotkeyService.HotkeyPressed += (id) =>
             {
-                // Flip click-through interactivity
-                IsClickThrough = !IsClickThrough;
+                switch (id)
+                {
+                    case Services.HotkeyService.HOTKEY_SCAN_ID:
+                        TriggerSilentScan();
+                        break;
+                    case Services.HotkeyService.HOTKEY_COPY_ID:
+                        if (!string.IsNullOrEmpty(ScanResponseText))
+                        {
+                            System.Windows.Clipboard.SetText(ScanResponseText);
+                        }
+                        break;
+                    case Services.HotkeyService.HOTKEY_CLEAR_ID:
+                        ScanResponseText = "";
+                        CapturedPreview = null;
+                        _txtChatHistory.Clear();
+                        OnPropertyChanged(nameof(IsFollowUpVisible));
+                        break;
+                }
             };
 
             // Set up Stopwatch stopwatch update interval
@@ -291,6 +346,12 @@ namespace OverlayApp.ViewModels
             {
                 _monitorService.Start();
             }
+
+            // Re-apply modal overlay state now that _styleService has a valid window reference.
+            // The constructor's SyncStealthForModalOverlays() call had no effect because
+            // _targetWindow was null at that point. This ensures Login/Groq overlays
+            // properly disable stealth and activate the window for keyboard input.
+            SyncStealthForModalOverlays();
         }
 
         public void Cleanup()
@@ -339,6 +400,7 @@ namespace OverlayApp.ViewModels
                 if (SetProperty(ref _settings.IsClickThrough, value))
                 {
                     _styleService.SetClickThrough(value);
+                    // Stealth mode stays ON always — never disable it when toggling click-through
                     
                     // Close settings panel when activating click-through for UI clarity
                     if (value)
@@ -370,6 +432,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsTimerActive));
                     OnPropertyChanged(nameof(IsTxtScanActive));
                     OnPropertyChanged(nameof(IsVoiceScanActive));
+                    OnPropertyChanged(nameof(IsProfileActive));
                     OnPropertyChanged(nameof(IsFollowUpVisible));
 
                     // Manage performance statistics updates (avoid querying background stats when hidden)
@@ -403,11 +466,42 @@ namespace OverlayApp.ViewModels
         public bool IsAiScanActive => ActiveWidget == WidgetType.TxtScan || ActiveWidget == WidgetType.VoiceScan;
         public bool IsTxtScanActive => ActiveWidget == WidgetType.TxtScan;
         public bool IsVoiceScanActive => ActiveWidget == WidgetType.VoiceScan;
+        public bool IsProfileActive => ActiveWidget == WidgetType.Profile;
+
+        public string ProfileName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(UserEmail)) return "User";
+                int index = UserEmail.IndexOf('@');
+                if (index > 0)
+                {
+                    return UserEmail.Substring(0, index);
+                }
+                return UserEmail;
+            }
+        }
+
+        public string MaskedGroqKey
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(GroqKey)) return "Not Configured";
+                if (GroqKey.Length <= 10) return "****";
+                return GroqKey.Substring(0, 7) + "..." + GroqKey.Substring(GroqKey.Length - 4);
+            }
+        }
 
         public string GroqKey
         {
             get => _settings.GroqKey;
-            set => SetProperty(ref _settings.GroqKey, value);
+            set
+            {
+                if (SetProperty(ref _settings.GroqKey, value))
+                {
+                    OnPropertyChanged(nameof(MaskedGroqKey));
+                }
+            }
         }
 
         public string ScanResponseText
@@ -508,6 +602,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
                     OnPropertyChanged(nameof(IsNormalScanMode));
+                    UpdatePresetFollowUps();
                 }
             }
         }
@@ -523,6 +618,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
                     OnPropertyChanged(nameof(IsNormalScanMode));
+                    UpdatePresetFollowUps();
                 }
             }
         }
@@ -538,6 +634,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
                     OnPropertyChanged(nameof(IsNormalScanMode));
+                    UpdatePresetFollowUps();
                 }
             }
         }
@@ -632,7 +729,17 @@ namespace OverlayApp.ViewModels
         public bool IsSettingsOpen
         {
             get => _isSettingsOpen;
-            set => SetProperty(ref _isSettingsOpen, value);
+            set
+            {
+                if (SetProperty(ref _isSettingsOpen, value))
+                {
+                    if (!value)
+                    {
+                        // Save current Groq Key to database persistently in background when settings drawer closes
+                        Task.Run(async () => await SaveGroqKeyToServerAsync(GroqKey));
+                    }
+                }
+            }
         }
 
         public double CpuUsage
@@ -715,140 +822,214 @@ namespace OverlayApp.ViewModels
 
         #region AI Scan Core Logic
 
+        private System.Windows.Int32Rect _lastSelectedRect = System.Windows.Int32Rect.Empty;
+
         private void TriggerScreenScan()
         {
-            if (IsLoginOverlayVisible || IsPaymentOverlayVisible)
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible || IsFeatureLocked)
             {
                 return;
             }
 
             var selectionWindow = new Views.SelectionWindow();
+            selectionWindow.ShowActivated = false;
             selectionWindow.AreaSelected = async rect =>
             {
-                IsScanning = true;
-                ScanResponseText = "[LLM 1] Extracting text from screen area (Groq Llama 4 Scout)...";
-                
-                try
-                {
-                    byte[] imageBytes;
-                    var previewSource = CaptureScreenArea(rect, out imageBytes);
-                    CapturedPreview = previewSource;
-
-                    if (imageBytes != null && imageBytes.Length > 0)
-                    {
-                        string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
-
-                        // Stage 1: Send cropped screenshot to PaddleOCR
-                        var ocrResult = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
-                        
-                        bool hasText = !string.IsNullOrWhiteSpace(ocrResult.Text) && ocrResult.Text.Trim() != "(no text detected)";
-                        string textExtractedStatus = hasText ? $"Yes ({ocrResult.Text.Length} characters)" : "No";
-
-                        // Build scan details metadata header
-                        string metadataHeader = $"**🔍 Scan Meta Information**\n" +
-                                                $"* **OCR Method:** {ocrResult.Method}\n" +
-                                                $"* **Text Extracted:** {textExtractedStatus}\n";
-
-                        if (!string.IsNullOrWhiteSpace(ocrResult.Error))
-                        {
-                            metadataHeader += $"* **OCR Error Details:** {ocrResult.Error}\n";
-                        }
-                        metadataHeader += "\n---\n\n";
-
-                        if (!hasText)
-                        {
-                            ScanResponseText = metadataHeader + "⚠️ No text detected in the captured area. Please try scanning again.";
-                            return;
-                        }
-
-                        // Send extracted text to Groq for explanation/solving
-                        string singleModel = "openai/gpt-oss-120b";
-                        ScanResponseText = metadataHeader + $"[LLM] Analyzing text with **{singleModel}**...";
-                        
-                        _txtChatHistory.Clear();
-                        if (IsMcqScanMode)
-                        {
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "system",
-                                Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice question (MCQ) for aptitude, reasoning, or technical content, and output ONLY the correct option letter (e.g., A, B, C, or D) or the exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
-                            });
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "user",
-                                Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrResult.Text}"
-                            });
-
-                            string finalAnswer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
-                            
-                            string finalResult = metadataHeader + 
-                                                 $"### 🤖 MCQ Solver Answer ({singleModel})\n\n" +
-                                                 $"**Correct Option:** {finalAnswer.Trim()}";
-
-                            ScanResponseText = finalResult;
-
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "assistant",
-                                Content = finalResult
-                            });
-                        }
-                        else if (IsCodingScanMode)
-                        {
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "system",
-                                Content = "You are a strict code generator. Solve the programming challenge. You must output ONLY the source code in Python language by default. Write the code in a humanized style as if written by a developer in a real coding interview (use natural variable names, standard spacing, and write clean logic without adding excessive comments on every line). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
-                            });
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "user",
-                                Content = $"Here is the raw text from a coding problem:\n\n{ocrResult.Text}"
-                            });
-
-                            string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
-                            string finalResult = metadataHeader + responseBody;
-                            ScanResponseText = finalResult;
-
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "assistant",
-                                Content = finalResult
-                            });
-                        }
-                        else
-                        {
-                            // Normal Scan Mode: returns general explanation / summary
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "system",
-                                Content = "You are a helpful overlay productivity assistant. You analyze raw transcribed text from the user's screen. Solve problems step-by-step if it is a general question. Keep your output concise and formatted in markdown. Crucial constraint: You must write in a natural, conversational, humanized style. Avoid typical robotic AI phrases, transitions, templates, or preambles (like 'Here is...'). Write like an experienced developer explaining something casually to a peer. Do not mention you are an AI."
-                            });
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "user",
-                                Content = $"Here is the raw text from my screen:\n\n{ocrResult.Text}"
-                            });
-
-                            string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
-                            string finalResult = metadataHeader + responseBody;
-                            ScanResponseText = finalResult;
-
-                            _txtChatHistory.Add(new ChatMessage {
-                                Role = "assistant",
-                                Content = finalResult
-                            });
-                        }
-                        OnPropertyChanged(nameof(IsFollowUpVisible));
-                    }
-                    else
-                    {
-                        ScanResponseText = "Error: Captured screen image data was empty.";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ScanResponseText = $"Pipeline error: {ex.Message}";
-                }
-                finally
-                {
-                    IsScanning = false;
-                }
+                _lastSelectedRect = rect;
+                await ExecuteScanWithRectAsync(rect);
             };
 
             selectionWindow.Show();
+        }
+
+        private async void TriggerSilentScan()
+        {
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible || IsFeatureLocked)
+            {
+                return;
+            }
+
+            System.Windows.Int32Rect rectToScan;
+            if (_lastSelectedRect.Width > 0 && _lastSelectedRect.Height > 0)
+            {
+                rectToScan = _lastSelectedRect;
+            }
+            else
+            {
+                // Capture primary screen completely in physical coordinates
+                double scaleX = 1.0;
+                double scaleY = 1.0;
+                if (System.Windows.Application.Current.MainWindow != null)
+                {
+                    var source = System.Windows.PresentationSource.FromVisual(System.Windows.Application.Current.MainWindow);
+                    if (source?.CompositionTarget != null)
+                    {
+                        scaleX = source.CompositionTarget.TransformToDevice.M11;
+                        scaleY = source.CompositionTarget.TransformToDevice.M22;
+                    }
+                }
+                int w = (int)Math.Round(System.Windows.SystemParameters.PrimaryScreenWidth * scaleX);
+                int h = (int)Math.Round(System.Windows.SystemParameters.PrimaryScreenHeight * scaleY);
+                rectToScan = new System.Windows.Int32Rect(0, 0, w, h);
+            }
+
+            await ExecuteScanWithRectAsync(rectToScan);
+        }
+
+        private async Task ExecuteScanWithRectAsync(System.Windows.Int32Rect rect)
+        {
+            IsScanning = true;
+            ScanResponseText = "[LLM 1] Extracting text from screen area...";
+            
+            try
+            {
+                byte[] imageBytes;
+                var previewSource = CaptureScreenArea(rect, out imageBytes);
+                CapturedPreview = previewSource;
+
+                if (imageBytes != null && imageBytes.Length > 0)
+                {
+                    string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+
+                    // Send cropped screenshot to Groq Vision
+                    var ocrResult = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
+                    
+                    bool hasText = !string.IsNullOrWhiteSpace(ocrResult.Text) && ocrResult.Text.Trim() != "(no text detected)";
+                    string textExtractedStatus = hasText ? $"Yes ({ocrResult.Text.Length} characters)" : "No";
+
+                    // Build scan details metadata header
+                    string metadataHeader = $"**🔍 Scan Meta Information**\n" +
+                                            $"* **OCR Method:** {ocrResult.Method}\n" +
+                                            $"* **Text Extracted:** {textExtractedStatus}\n";
+
+                    if (!string.IsNullOrWhiteSpace(ocrResult.Error))
+                    {
+                        metadataHeader += $"* **Error:** {ocrResult.Error}\n";
+                    }
+                    metadataHeader += "\n";
+
+                    if (!hasText)
+                    {
+                        ScanResponseText = metadataHeader + "⚠️ No text detected in the captured area. Please try scanning again.";
+                        return;
+                    }
+
+                    // Send extracted text to Groq for explanation/solving
+                    string singleModel = "openai/gpt-oss-120b";
+                    
+                    _txtChatHistory.Clear();
+                    if (IsMcqScanMode)
+                    {
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice question (MCQ) for aptitude, reasoning, or technical content, and output ONLY the correct option letter (e.g., A, B, C, or D) or the exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrResult.Text}"
+                        });
+
+                        string modelA = "openai/gpt-oss-120b";
+                        string modelB = "llama-3.3-70b-versatile";
+
+                        ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer with dual models ({modelA} and {modelB})...";
+
+                        // Run dual models concurrently to verify answers
+                        var taskA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
+                        var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
+
+                        await Task.WhenAll(taskA, taskB);
+                        string answerA = await taskA;
+                        string answerB = await taskB;
+
+                        string cleanA = CleanMcqResponse(answerA);
+                        string cleanB = CleanMcqResponse(answerB);
+                        bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
+
+                        var sbVerify = new System.Text.StringBuilder();
+                        sbVerify.AppendLine(metadataHeader);
+                        sbVerify.AppendLine("### 🤖 MCQ Double-Model Verification");
+                        sbVerify.AppendLine();
+                        sbVerify.AppendLine($"* **Model A ({modelA}):** {answerA.Trim()}");
+                        sbVerify.AppendLine($"* **Model B ({modelB}):** {answerB.Trim()}");
+                        sbVerify.AppendLine();
+                        sbVerify.AppendLine("---");
+                        sbVerify.AppendLine();
+                        if (isMatch)
+                        {
+                            sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
+                        }
+                        else
+                        {
+                            sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. You should probably **rescan** the question.");
+                        }
+
+                        string finalResult = sbVerify.ToString();
+                        ScanResponseText = finalResult;
+
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "assistant",
+                            Content = finalResult
+                        });
+                    }
+                    else if (IsCodingScanMode)
+                    {
+                        ScanResponseText = metadataHeader + $"[LLM] Analyzing coding problem with **{singleModel}**...";
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a strict code generator. Solve the programming challenge. You must output ONLY the source code in Python language by default. Write the code in a humanized style as if written by a developer in a real coding interview (use natural variable names, standard spacing, and write clean logic without adding excessive comments on every line). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the raw text from a coding problem:\n\n{ocrResult.Text}"
+                        });
+
+                        string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                        string finalResult = metadataHeader + responseBody;
+                        ScanResponseText = finalResult;
+
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "assistant",
+                            Content = finalResult
+                        });
+                    }
+                    else
+                    {
+                        ScanResponseText = metadataHeader + $"[LLM] Explaining text with **{singleModel}**...";
+                        // Normal Scan Mode: returns general explanation / summary
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a helpful overlay productivity assistant. Your task is to analyze the extracted text from the user's screen and explain it clearly and comprehensively. If the text contains a question, problem, or concepts, explain the answers or concepts step-by-step. Keep your output concise, clear, and formatted in markdown. Write in a natural, conversational, humanized style. Avoid typical robotic AI transitions, templates, or preambles. Explain it casually like an experienced developer explaining to a peer. Do not mention you are an AI."
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the raw text from my screen:\n\n{ocrResult.Text}"
+                        });
+
+                        string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                        string finalResult = metadataHeader + responseBody;
+                        ScanResponseText = finalResult;
+
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "assistant",
+                            Content = finalResult
+                        });
+                    }
+                    OnPropertyChanged(nameof(IsFollowUpVisible));
+                }
+                else
+                {
+                    ScanResponseText = "Error: Captured screen image data was empty.";
+                }
+            }
+            catch (Exception ex)
+            {
+                ScanResponseText = $"Pipeline error: {ex.Message}";
+            }
+            finally
+            {
+                IsScanning = false;
+            }
         }
 
         private void RestartRecordingWithCurrentSettings()
@@ -873,6 +1054,12 @@ namespace OverlayApp.ViewModels
 
         private async void ToggleVoiceRecording()
         {
+            if (IsFeatureLocked)
+            {
+                VoiceScanResponseText = "Access Locked: Your free trial has ended. Please verify a paid session credit to use voice scanning features.";
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(GroqKey))
             {
                 VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
@@ -1021,6 +1208,31 @@ namespace OverlayApp.ViewModels
             }
         }
 
+        private string CleanMcqResponse(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            
+            // Trim whitespaces, quotes, and punctuation
+            string cleaned = input.Trim().Trim('"', '\'', '.', ':', ')', '(', '[', ']');
+            
+            // Convert to lower case for case-insensitive comparison
+            cleaned = cleaned.ToLowerInvariant();
+            
+            // If it is long, just take the first word or first character if it starts with a/b/c/d/e
+            if (cleaned.Length > 0)
+            {
+                char first = cleaned[0];
+                if (first >= 'a' && first <= 'e')
+                {
+                    if (cleaned.Length == 1 || !char.IsLetter(cleaned[1]))
+                    {
+                        return first.ToString();
+                    }
+                }
+            }
+            return cleaned;
+        }
+
         private System.Windows.Media.ImageSource? CaptureScreenArea(System.Windows.Int32Rect rect, out byte[] imageBytes)
         {
             imageBytes = Array.Empty<byte>();
@@ -1078,6 +1290,175 @@ namespace OverlayApp.ViewModels
             Win32.ReleaseDC(IntPtr.Zero, hdcSrc);
 
             return bitmapSource;
+        }
+
+        #region Groq Key Setup & Dashboard Overlay Properties
+
+        private string _groqInputKey = "";
+        private string _groqKeyValidationError = "";
+        private bool _isValidatingGroqKey;
+
+        public string GroqInputKey
+        {
+            get => _groqInputKey;
+            set => SetProperty(ref _groqInputKey, value);
+        }
+
+        public string GroqKeyValidationError
+        {
+            get => _groqKeyValidationError;
+            set => SetProperty(ref _groqKeyValidationError, value);
+        }
+
+        public bool IsValidatingGroqKey
+        {
+            get => _isValidatingGroqKey;
+            set => SetProperty(ref _isValidatingGroqKey, value);
+        }
+
+        public bool IsGroqKeyValidated
+        {
+            get => _settings.IsGroqKeyValidated;
+            set
+            {
+                if (SetProperty(ref _settings.IsGroqKeyValidated, value))
+                {
+                    OnPropertyChanged(nameof(IsGroqKeyOverlayVisible));
+                    OnPropertyChanged(nameof(IsDashboardOverlayVisible));
+                    SyncStealthForModalOverlays();
+                }
+            }
+        }
+
+        public bool IsTrialStarted
+        {
+            get => _settings.IsTrialStarted;
+            set
+            {
+                if (SetProperty(ref _settings.IsTrialStarted, value))
+                {
+                    OnPropertyChanged(nameof(IsDashboardOverlayVisible));
+                    SyncStealthForModalOverlays();
+                }
+            }
+        }
+
+        public bool IsGroqKeyOverlayVisible => !IsGroqKeyValidated;
+
+        public bool IsDashboardOverlayVisible => IsGroqKeyValidated && !IsTrialStarted;
+
+        private async Task ValidateGroqKeyAsync()
+        {
+            if (string.IsNullOrWhiteSpace(GroqInputKey))
+            {
+                GroqKeyValidationError = "Please paste your Groq API Key to continue.";
+                return;
+            }
+
+            IsValidatingGroqKey = true;
+            GroqKeyValidationError = "";
+
+            try
+            {
+                var (isValid, errorMessage) = await _llmService.ValidateGroqKeyAsync(GroqInputKey);
+                if (isValid)
+                {
+                    _settings.GroqKey = GroqInputKey.Trim();
+                    GroqKey = _settings.GroqKey;
+                    IsGroqKeyValidated = true;
+                    _settingsService.SaveSettings(_settings);
+                    
+                    // Save key to user account database persistently
+                    await SaveGroqKeyToServerAsync(GroqInputKey.Trim());
+                }
+                else
+                {
+                    GroqKeyValidationError = errorMessage;
+                }
+            }
+            catch (Exception ex)
+            {
+                GroqKeyValidationError = $"Validation failed: {ex.Message}";
+            }
+            finally
+            {
+                IsValidatingGroqKey = false;
+            }
+        }
+
+        private void OpenGroqConsole()
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://console.groq.com/keys",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                GroqKeyValidationError = $"Could not open browser: {ex.Message}";
+            }
+        }
+
+        private void StartFreeTrial()
+        {
+            IsTrialStarted = true;
+            _settingsService.SaveSettings(_settings);
+        }
+
+        #endregion
+
+        private void AskFollowUp(string? question)
+        {
+            if (string.IsNullOrWhiteSpace(question)) return;
+            FollowUpText = question;
+            SubmitFollowUpPrompt();
+        }
+
+        private void UpdatePresetFollowUps()
+        {
+            PresetFollowUps.Clear();
+            if (IsMcqScanMode)
+            {
+                PresetFollowUps.Add("Why is this option correct?");
+                PresetFollowUps.Add("Why are other options wrong?");
+                PresetFollowUps.Add("Double check the question");
+                PresetFollowUps.Add("Provide formula/theory used");
+                PresetFollowUps.Add("Explain step-by-step");
+                PresetFollowUps.Add("Show shortcut to solve");
+                PresetFollowUps.Add("Verify Option A");
+                PresetFollowUps.Add("Verify Option B");
+                PresetFollowUps.Add("Verify Option C");
+                PresetFollowUps.Add("Verify Option D");
+            }
+            else if (IsCodingScanMode)
+            {
+                PresetFollowUps.Add("Optimize code");
+                PresetFollowUps.Add("Explain approach/logic");
+                PresetFollowUps.Add("Add code comments");
+                PresetFollowUps.Add("Dry run with example");
+                PresetFollowUps.Add("Rewrite in Python");
+                PresetFollowUps.Add("Rewrite in C++");
+                PresetFollowUps.Add("Rewrite in Java");
+                PresetFollowUps.Add("Rewrite in JS");
+                PresetFollowUps.Add("Check boundary cases");
+                PresetFollowUps.Add("Time complexity");
+            }
+            else // Normal Scan Mode
+            {
+                PresetFollowUps.Add("Explain simpler");
+                PresetFollowUps.Add("Give examples");
+                PresetFollowUps.Add("List key points");
+                PresetFollowUps.Add("Summarize");
+                PresetFollowUps.Add("Related concepts");
+                PresetFollowUps.Add("Pros and cons");
+                PresetFollowUps.Add("Simple English");
+                PresetFollowUps.Add("Detailed breakdown");
+                PresetFollowUps.Add("Explain to beginner");
+                PresetFollowUps.Add("Background theory");
+            }
         }
 
         private async void SubmitFollowUpPrompt()
@@ -1270,32 +1651,6 @@ namespace OverlayApp.ViewModels
             }
         }
 
-        private string CleanMcqResponse(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-            
-            // Trim whitespaces, quotes, and punctuation
-            string cleaned = input.Trim().Trim('"', '\'', '.', ':', ')', '(', '[', ']');
-            
-            // Convert to lower case for case-insensitive comparison
-            cleaned = cleaned.ToLowerInvariant();
-            
-            // If it is long, just take the first word or first character if it starts with a/b/c/d/e
-            if (cleaned.Length > 0)
-            {
-                // Check if first character is a letter followed by a space, period, or end of string
-                char first = cleaned[0];
-                if (first >= 'a' && first <= 'e')
-                {
-                    if (cleaned.Length == 1 || !char.IsLetter(cleaned[1]))
-                    {
-                        return first.ToString();
-                    }
-                }
-            }
-            return cleaned;
-        }
-
         #endregion
 
         #region Authentication Properties
@@ -1352,9 +1707,12 @@ namespace OverlayApp.ViewModels
                 if (SetProperty(ref _isPaidActive, value))
                 {
                     UpdateOverlayVisibilities();
+                    OnPropertyChanged(nameof(IsFeatureLocked));
                 }
             }
         }
+
+        public bool IsFeatureLocked => !IsAdmin && IsLoggedIn && !IsTrialActive && !IsPaidActive;
 
         public string SystemGroqKey
         {
@@ -1365,13 +1723,25 @@ namespace OverlayApp.ViewModels
         public bool IsLoginOverlayVisible
         {
             get => _isLoginOverlayVisible;
-            set => SetProperty(ref _isLoginOverlayVisible, value);
+            set
+            {
+                if (SetProperty(ref _isLoginOverlayVisible, value))
+                {
+                    SyncStealthForModalOverlays();
+                }
+            }
         }
 
         public bool IsPaymentOverlayVisible
         {
             get => _isPaymentOverlayVisible;
-            set => SetProperty(ref _isPaymentOverlayVisible, value);
+            set
+            {
+                if (SetProperty(ref _isPaymentOverlayVisible, value))
+                {
+                    SyncStealthForModalOverlays();
+                }
+            }
         }
 
         public bool IsPaymentCreditAvailable
@@ -1461,10 +1831,8 @@ namespace OverlayApp.ViewModels
             {
                 IsLoginOverlayVisible = false;
                 IsPaymentOverlayVisible = false;
-                return;
             }
-
-            if (!IsLoggedIn)
+            else if (!IsLoggedIn)
             {
                 IsLoginOverlayVisible = true;
                 IsPaymentOverlayVisible = false;
@@ -1473,6 +1841,24 @@ namespace OverlayApp.ViewModels
             {
                 IsLoginOverlayVisible = false;
                 IsPaymentOverlayVisible = !IsTrialActive && !IsPaidActive;
+            }
+
+            SyncStealthForModalOverlays();
+        }
+
+        public void SyncStealthForModalOverlays()
+        {
+            bool hasModalOverlay = IsLoginOverlayVisible || IsPaymentOverlayVisible || IsGroqKeyOverlayVisible || IsDashboardOverlayVisible;
+            if (hasModalOverlay)
+            {
+                _styleService.SetClickThrough(false);
+                _styleService.SetStealthMode(false);
+                _styleService.ActivateWindow(); // Activate so TextBoxes can receive keyboard input
+            }
+            else
+            {
+                _styleService.SetClickThrough(_settings.IsClickThrough);
+                _styleService.SetStealthMode(true); // ALWAYS keep stealth ON when no modal overlay
             }
         }
 
@@ -1486,6 +1872,14 @@ namespace OverlayApp.ViewModels
 
             AuthErrorMessage = "";
             IsAuthLoading = true;
+
+            // Clear local key state first so we don't inherit old keys from this PC
+            _settings.GroqKey = "";
+            GroqKey = "";
+            GroqInputKey = "";
+            IsGroqKeyValidated = false;
+            _settingsService.SaveSettings(_settings);
+
             try
             {
                 var payload = new { email = LoginEmail.Trim(), password = LoginPassword.Trim() };
@@ -1497,7 +1891,7 @@ namespace OverlayApp.ViewModels
                 
                 if (TryParseJson<AuthResponse>(responseStr, out var result) && result != null)
                 {
-                    if (response.IsSuccessStatusCode)
+                    if (response.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(result.token))
                     {
                         UserEmail = result.email;
                         SessionToken = result.token;
@@ -1509,12 +1903,15 @@ namespace OverlayApp.ViewModels
                     }
                     else
                     {
-                        AuthErrorMessage = result.error ?? "Login failed. Please check credentials.";
+                        string errStr = !string.IsNullOrWhiteSpace(result.error) 
+                            ? result.error 
+                            : (!string.IsNullOrWhiteSpace(result.message) ? result.message : "Invalid email or password.");
+                        AuthErrorMessage = errStr;
                     }
                 }
                 else
                 {
-                    AuthErrorMessage = $"Server Error ({(int)response.StatusCode}): Invalid server endpoint URL or Vercel 404 response.";
+                    AuthErrorMessage = $"Server Error ({(int)response.StatusCode}): {responseStr}";
                 }
             }
             catch (Exception ex)
@@ -1543,6 +1940,14 @@ namespace OverlayApp.ViewModels
 
             AuthErrorMessage = "";
             IsAuthLoading = true;
+
+            // Clear local key state first so we don't inherit old keys from this PC
+            _settings.GroqKey = "";
+            GroqKey = "";
+            GroqInputKey = "";
+            IsGroqKeyValidated = false;
+            _settingsService.SaveSettings(_settings);
+
             try
             {
                 var payload = new { email = LoginEmail.Trim(), password = LoginPassword.Trim() };
@@ -1589,12 +1994,23 @@ namespace OverlayApp.ViewModels
             SessionToken = "";
             UserEmail = "";
             SystemGroqKey = "";
+            IsAdmin = false;
             IsTrialActive = false;
             IsPaidActive = false;
             _trialEndsAt = null;
             _paidUntil = null;
             IsPaymentCreditAvailable = false;
+            IsSettingsOpen = false;
+            
+            // Clear Groq key states to protect user privacy
+            _settings.GroqKey = "";
+            GroqKey = "";
+            GroqInputKey = "";
+            IsGroqKeyValidated = false;
+            _settingsService.SaveSettings(_settings);
+
             UpdateOverlayVisibilities();
+            OnPropertyChanged(nameof(IsFeatureLocked));
         }
 
         private async Task ExecuteSubmitPaymentAsync()
@@ -1718,6 +2134,25 @@ namespace OverlayApp.ViewModels
                         // Generate UPI QR Code URL
                         string upiLink = $"upi://pay?pa=udayv132@ybl&pn=ShadowAI&am=50&cu=INR&tn=ShadowAI_{UserEmail}";
                         PaymentQrUrl = $"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={Uri.EscapeDataString(upiLink)}";
+                        
+                        // Load saved custom Groq key if present on the server database
+                        if (!string.IsNullOrEmpty(result.user_groq_key))
+                        {
+                            _settings.GroqKey = result.user_groq_key.Trim();
+                            GroqKey = _settings.GroqKey;
+                            GroqInputKey = _settings.GroqKey;
+                            IsGroqKeyValidated = true;
+                            _settingsService.SaveSettings(_settings);
+                        }
+                        else
+                        {
+                            // If there is no custom key on the database, check if we can fall back to the system key.
+                            // If both are missing, we must ask the user for a key so that the app functionality works.
+                            bool hasSystemKey = !string.IsNullOrEmpty(result.system_groq_key);
+                            IsGroqKeyValidated = hasSystemKey;
+                        }
+
+                        OnPropertyChanged(nameof(IsFeatureLocked));
                     }
                 }
                 else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -1772,6 +2207,7 @@ namespace OverlayApp.ViewModels
                 if (stateChanged)
                 {
                     UpdateOverlayVisibilities();
+                    OnPropertyChanged(nameof(IsFeatureLocked));
                 }
             }
 
@@ -1792,6 +2228,7 @@ namespace OverlayApp.ViewModels
             public bool is_session_active { get; set; }
             public bool is_admin { get; set; }
             public string error { get; set; } = "";
+            public string message { get; set; } = "";
         }
 
         private class SessionStatusResponse
@@ -1806,7 +2243,27 @@ namespace OverlayApp.ViewModels
             public bool is_session_active { get; set; }
             public bool payment_credit { get; set; }
             public string system_groq_key { get; set; } = "";
+            public string user_groq_key { get; set; } = "";
             public string error { get; set; } = "";
+        }
+
+        private async Task SaveGroqKeyToServerAsync(string key)
+        {
+            if (string.IsNullOrEmpty(SessionToken)) return;
+            try
+            {
+                var payload = new { groq_key = key };
+                string jsonPayload = JsonSerializer.Serialize(payload);
+                var request = new HttpRequestMessage(HttpMethod.Post, GetApiEndpoint("/api/user/save-key"));
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
+                request.Content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+                await _httpClient.SendAsync(request);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to save Groq Key on server database: {ex.Message}");
+            }
         }
 
         private class PaymentVerifyResponse

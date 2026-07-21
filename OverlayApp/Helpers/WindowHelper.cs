@@ -43,5 +43,26 @@ namespace OverlayApp.Helpers
             int extendedStyle = Win32.GetWindowLong(hwnd, Win32.GWL_EXSTYLE);
             Win32.SetWindowLong(hwnd, Win32.GWL_EXSTYLE, extendedStyle | Win32.WS_EX_TOOLWINDOW);
         }
+
+        /// <summary>
+        /// Toggles WS_EX_NOACTIVATE on the window.
+        /// When enabled, the window never steals focus (stealth mode for exams).
+        /// When disabled, the window can receive keyboard focus (for typing follow-up questions).
+        /// </summary>
+        public static void SetNoActivate(Window window, bool enable = true)
+        {
+            IntPtr hwnd = new WindowInteropHelper(window).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            int extendedStyle = Win32.GetWindowLong(hwnd, Win32.GWL_EXSTYLE);
+            if (enable)
+            {
+                Win32.SetWindowLong(hwnd, Win32.GWL_EXSTYLE, extendedStyle | Win32.WS_EX_NOACTIVATE);
+            }
+            else
+            {
+                Win32.SetWindowLong(hwnd, Win32.GWL_EXSTYLE, extendedStyle & ~Win32.WS_EX_NOACTIVATE);
+            }
+        }
     }
 }

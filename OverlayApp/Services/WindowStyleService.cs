@@ -46,5 +46,33 @@ namespace OverlayApp.Services
             if (_targetWindow == null) return;
             _targetWindow.Opacity = Math.Clamp(opacity, 0.1, 1.0);
         }
+
+        /// <summary>
+        /// Toggles stealth mode (WS_EX_NOACTIVATE + WndProc activation blocking).
+        /// When stealth=true: overlay is invisible to browser focus detection.
+        /// When stealth=false: overlay can receive keyboard input for typing follow-ups.
+        /// </summary>
+        public void SetStealthMode(bool stealth)
+        {
+            if (_targetWindow == null) return;
+            
+            // Toggle WS_EX_NOACTIVATE flag
+            WindowHelper.SetNoActivate(_targetWindow, stealth);
+
+            // Tell the WndProc whether to block activation messages
+            if (_targetWindow is Views.MainWindow mainWindow)
+            {
+                mainWindow.IsStealthMode = stealth;
+            }
+        }
+
+        /// <summary>
+        /// Explicitly activates the window so it can receive keyboard input.
+        /// Only called for modal overlays (Login, Groq Key, Dashboard) — NEVER during exams.
+        /// </summary>
+        public void ActivateWindow()
+        {
+            _targetWindow?.Activate();
+        }
     }
 }

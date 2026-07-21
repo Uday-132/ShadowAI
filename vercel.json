@@ -48,6 +48,10 @@
       "dest": "/api/session/status.js"
     },
     {
+      "src": "/api/user/save-key",
+      "dest": "/api/user/save-key.js"
+    },
+    {
       "src": "/api/session/start",
       "dest": "/api/session/start.js"
     },

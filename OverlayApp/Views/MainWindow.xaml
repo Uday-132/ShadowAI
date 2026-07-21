@@ -16,6 +16,7 @@
         Topmost="True"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen"
+        ShowActivated="False"
         ResizeMode="NoResize">
 
     <Window.Triggers>
@@ -372,7 +373,7 @@
                 <!-- Actions (Pin, Settings, Exit) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,2,0">
                     <!-- Pin (Interactivity Lock) -->
-                    <Button Command="{Binding ToggleClickThroughCommand}" ToolTip="Toggle Click-Through" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Hand">
+                    <Button x:Name="PinButton" Command="{Binding ToggleClickThroughCommand}" ToolTip="Toggle Click-Through" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Hand">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
@@ -452,6 +453,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 
                 <RadioButton Grid.Column="0" Content="NOTES" Style="{StaticResource TabButtonStyle}" 
@@ -462,13 +464,51 @@
                              IsChecked="{Binding IsTimerActive, Mode=OneWay}"
                              Command="{Binding SelectWidgetCommand}" CommandParameter="Timer"/>
                              
-                <RadioButton Grid.Column="2" Content="TXT SCAN" Style="{StaticResource TabButtonStyle}" 
-                             IsChecked="{Binding IsTxtScanActive, Mode=OneWay}"
-                             Command="{Binding SelectWidgetCommand}" CommandParameter="TxtScan"/>
+                <RadioButton Grid.Column="2" Style="{StaticResource TabButtonStyle}" 
+                              IsChecked="{Binding IsTxtScanActive, Mode=OneWay}"
+                              Command="{Binding SelectWidgetCommand}" CommandParameter="TxtScan">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="TXT SCAN" VerticalAlignment="Center"/>
+                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
+                              Fill="#FFFF5555" Width="9" Height="9" Stretch="Uniform" Margin="4,0,0,0" VerticalAlignment="Center">
+                            <Path.Style>
+                                <Style TargetType="Path">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Path.Style>
+                        </Path>
+                    </StackPanel>
+                </RadioButton>
 
-                <RadioButton Grid.Column="3" Content="VOICE" Style="{StaticResource TabButtonStyle}" 
-                             IsChecked="{Binding IsVoiceScanActive, Mode=OneWay}"
-                             Command="{Binding SelectWidgetCommand}" CommandParameter="VoiceScan"/>
+                <RadioButton Grid.Column="3" Style="{StaticResource TabButtonStyle}" 
+                              IsChecked="{Binding IsVoiceScanActive, Mode=OneWay}"
+                              Command="{Binding SelectWidgetCommand}" CommandParameter="VoiceScan">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="VOICE" VerticalAlignment="Center"/>
+                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
+                              Fill="#FFFF5555" Width="9" Height="9" Stretch="Uniform" Margin="4,0,0,0" VerticalAlignment="Center">
+                            <Path.Style>
+                                <Style TargetType="Path">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Path.Style>
+                        </Path>
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton Grid.Column="4" Content="PROFILE" Style="{StaticResource TabButtonStyle}" 
+                              IsChecked="{Binding IsProfileActive, Mode=OneWay}"
+                              Command="{Binding SelectWidgetCommand}" CommandParameter="Profile"/>
             </Grid>
 
             <!-- Content Area -->
@@ -583,6 +623,7 @@
                                  <Grid.ColumnDefinitions>
                                      <ColumnDefinition Width="*"/>
                                      <ColumnDefinition Width="Auto"/>
+                                     <ColumnDefinition Width="Auto"/>
                                  </Grid.ColumnDefinitions>
 
                                  <!-- Crop Scan Button -->
@@ -605,8 +646,25 @@
                                      </Button.Template>
                                  </Button>
 
+                                 <!-- Copy Button -->
+                                 <Button Grid.Column="1" Command="{Binding CopyTxtCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy results text" Margin="0,0,4,0">
+                                     <Button.Template>
+                                         <ControlTemplate TargetType="Button">
+                                             <Border x:Name="CopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
+                                                 <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" 
+                                                       Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                             </Border>
+                                             <ControlTemplate.Triggers>
+                                                 <Trigger Property="IsMouseOver" Value="True">
+                                                     <Setter TargetName="CopyBorder" Property="Background" Value="#28FFFFFF"/>
+                                                 </Trigger>
+                                             </ControlTemplate.Triggers>
+                                         </ControlTemplate>
+                                     </Button.Template>
+                                 </Button>
+
                                  <!-- Clear/Refresh Button -->
-                                 <Button Grid.Column="1" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear results">
+                                 <Button Grid.Column="2" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear results">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="ClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -647,56 +705,50 @@
                                 </ScrollViewer>
                             </Border>
 
-                            <!-- Follow-up Chat Input Bar -->
-                            <Border Grid.Row="3" Margin="0,8,0,0" Background="#11FFFFFF" CornerRadius="4" Padding="4,2" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Chat Input TextBox -->
-                                    <TextBox Grid.Column="0" Text="{Binding FollowUpText, UpdateSourceTrigger=PropertyChanged}" 
-                                             Foreground="#E0FFFFFF" FontSize="10.5" Background="Transparent" BorderThickness="0" 
-                                             VerticalContentAlignment="Center" Margin="4,2" CaretBrush="#FFFFFF" SelectionBrush="{Binding Tag, ElementName=MainBorder}">
-                                        <TextBox.InputBindings>
-                                            <KeyBinding Key="Enter" Command="{Binding SubmitFollowUpCommand}"/>
-                                        </TextBox.InputBindings>
-                                    </TextBox>
-
-                                    <!-- Follow-up Microphone Button (takes external mic only) -->
-                                    <Button Grid.Column="1" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="Transparent" Padding="4">
-                                                    <!-- Simple mic SVG -->
-                                                    <Path x:Name="MicIcon" Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
-                                                          Fill="{Binding FollowUpMicColor}" Width="10.5" Height="10.5" Stretch="Uniform"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-
-                                    <!-- Send Button -->
-                                    <Button Grid.Column="2" Command="{Binding SubmitFollowUpCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="Transparent" Padding="4">
-                                                    <!-- Simple paper plane Send SVG -->
-                                                    <Path x:Name="SendIcon" Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
-                                                          Fill="#88FFFFFF" Width="10.5" Height="10.5" Stretch="Uniform"/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="SendIcon" Property="Fill" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                </Grid>
-                            </Border>
+                            <!-- Preset Follow-up Buttons for Text Scan -->
+                            <ItemsControl Grid.Row="3" Margin="0,6,0,0" 
+                                          ItemsSource="{Binding PresetFollowUps}" 
+                                          Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" 
+                                                Margin="2,2" 
+                                                Padding="7,3" 
+                                                FontSize="10" 
+                                                FontWeight="Medium"
+                                                Cursor="Hand"
+                                                Command="{Binding DataContext.AskFollowUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                                    <Setter Property="Foreground" Value="#DDFFFFFF"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#44FFFFFF"/>
+                                                            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
                             <!-- Loader Spinner Bar -->
                             <ProgressBar Grid.Row="4" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
@@ -743,6 +795,7 @@
                                  <Grid.ColumnDefinitions>
                                      <ColumnDefinition Width="*"/>
                                      <ColumnDefinition Width="Auto"/>
+                                     <ColumnDefinition Width="Auto"/>
                                  </Grid.ColumnDefinitions>
 
                                  <!-- Voice Record Button -->
@@ -788,8 +841,25 @@
                                      </Button.Style>
                                  </Button>
 
+                                 <!-- Copy Button -->
+                                 <Button Grid.Column="1" Command="{Binding CopyVoiceCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy response text" Margin="0,0,4,0">
+                                     <Button.Template>
+                                         <ControlTemplate TargetType="Button">
+                                             <Border x:Name="VoiceCopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
+                                                 <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" 
+                                                       Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                             </Border>
+                                             <ControlTemplate.Triggers>
+                                                 <Trigger Property="IsMouseOver" Value="True">
+                                                     <Setter TargetName="VoiceCopyBorder" Property="Background" Value="#28FFFFFF"/>
+                                                 </Trigger>
+                                             </ControlTemplate.Triggers>
+                                         </ControlTemplate>
+                                     </Button.Template>
+                                 </Button>
+
                                  <!-- Clear/Refresh Button -->
-                                 <Button Grid.Column="1" Command="{Binding ClearVoiceScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear results">
+                                 <Button Grid.Column="2" Command="{Binding ClearVoiceScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear results">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="VoiceClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -867,6 +937,51 @@
                             <!-- Loader Spinner Bar -->
                             <ProgressBar Grid.Row="4" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
                         </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- PROFILE WIDGET -->
+                <Grid Visibility="{Binding IsProfileActive, Converter={StaticResource BoolToVis}}">
+                    <Border Background="#11FFFFFF" CornerRadius="6" Padding="14">
+                        <StackPanel VerticalAlignment="Center">
+                            <Border Width="36" Height="36" CornerRadius="18" Background="#2000FFCC" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                <TextBlock Text="👤" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="ACCOUNT PROFILE" Foreground="#FFFFFF" FontSize="12.5" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                            
+                            <!-- Name Row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Name:" Foreground="#88FFFFFF" FontSize="10.5" Width="70"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ProfileName}" Foreground="#00FFCC" FontSize="11" FontWeight="SemiBold"/>
+                            </Grid>
+
+                            <!-- Email Row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Email:" Foreground="#88FFFFFF" FontSize="10.5" Width="70"/>
+                                <TextBlock Grid.Column="1" Text="{Binding UserEmail}" Foreground="#FFFFFF" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            </Grid>
+
+                            <!-- Groq Key Row -->
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Groq Key:" Foreground="#88FFFFFF" FontSize="10.5" Width="70"/>
+                                <TextBlock Grid.Column="1" Text="{Binding MaskedGroqKey}" Foreground="#FFFFFF" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            </Grid>
+                            
+                            <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,10"/>
+                            <TextBlock Text="To edit your key, please use the settings drawer or log out and log back in." Foreground="#66FFFFFF" FontSize="8.5" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Grid>
@@ -1093,9 +1208,202 @@
                         <TextBlock Grid.Row="6" Text="Press Ctrl+Shift+C to exit click-through mode." 
                                    Foreground="#88FFFFFF" FontSize="9" HorizontalAlignment="Center" Margin="0,6,0,0" Opacity="0.8"/>
 
-                        <!-- Quotation Footer -->
-                        <TextBlock Grid.Row="7" Text="&quot;It's not cheating, it's optimization.&quot;" 
-                                   FontStyle="Italic" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="8.5" HorizontalAlignment="Center" Margin="0,6,0,0" Opacity="0.6"/>
+                        <!-- Logout Button in Settings Drawer -->
+                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,8,0,0" Height="26" Cursor="Hand" Background="#33FF3333" BorderBrush="#55FF3333" BorderThickness="1" Foreground="#FFFF6666" FontSize="10" FontWeight="Bold">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Path Data="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" Fill="#FFFF6666" Width="10" Height="10" Stretch="Uniform" Margin="0,0,6,0"/>
+                                            <TextBlock Text="LOGOUT FROM ACCOUNT" Foreground="#FFFF6666" FontSize="9.5" FontWeight="Bold"/>
+                                        </StackPanel>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!--   MANDATORY GROQ API KEY SETUP OVERLAY     -->
+            <!-- ========================================== -->
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#FF0B0F19" Visibility="{Binding IsGroqKeyOverlayVisible, Converter={StaticResource BoolToVis}}">
+                <Border Width="340" Height="410" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#30FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+                    </Border.Effect>
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <!-- Back Button to log out / change account -->
+                            <Button Command="{Binding LogoutCommand}" Content="← Back" Foreground="#A0FFFFFF" FontSize="10" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Cursor="Hand" Margin="0,-4,0,0"/>
+
+                            <StackPanel HorizontalAlignment="Center">
+                                <Border Width="40" Height="40" CornerRadius="20" Background="#2000D2FF" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                    <TextBlock Text="🔑" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="GROQ API KEY REQUIRED" Foreground="#FFFFFF" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Compulsory setup — Groq API key is required to activate OCR &amp; fast AI models." Foreground="#88FFFFFF" FontSize="10" TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Steps & Instructions -->
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,4">
+                            <!-- Step 1: Open Website -->
+                            <TextBlock Text="1. Get your free API Key from Groq Console:" Foreground="#CCCCCC" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <Button Command="{Binding OpenGroqConsoleCommand}" Cursor="Hand" Background="#2500D2FF" BorderBrush="#5000D2FF" BorderThickness="1" Height="28" Margin="0,0,0,10">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="🌐 Open https://console.groq.com/keys" Foreground="#00D2FF" FontSize="10" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Step 2: Instruction -->
+                            <TextBlock Text="2. Sign in &amp; click 'Create API Key', then copy it." Foreground="#CCCCCC" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                            <!-- Step 3: Paste Key -->
+                            <TextBlock Text="3. Paste your Groq API Key below:" Foreground="#CCCCCC" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <Border CornerRadius="6" Background="#20000000" BorderThickness="1" BorderBrush="#33FFFFFF" Padding="8,6">
+                                <TextBox Text="{Binding GroqInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
+                            </Border>
+
+                            <!-- Error Message -->
+                            <TextBlock Text="{Binding GroqKeyValidationError}" Foreground="#FFFF5555" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Actions -->
+                        <StackPanel Grid.Row="2">
+                            <!-- Loading Text -->
+                            <TextBlock Text="Testing key with Groq servers..." Foreground="#00D2FF" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,4">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsValidatingGroqKey}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+
+                            <!-- Verify Button -->
+                            <Button Command="{Binding ValidateGroqKeyCommand}" Content="VERIFY &amp; CONTINUE" Height="36" FontWeight="Bold" Cursor="Hand" Foreground="#FFFFFF" FontSize="11">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="#FF00D2FF"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FF33E0FF"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!--            DASHBOARD OVERLAY               -->
+            <!-- ========================================== -->
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="997" Background="#FF0B0F19" Visibility="{Binding IsDashboardOverlayVisible, Converter={StaticResource BoolToVis}}">
+                <Border Width="340" Height="420" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#30FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+                    </Border.Effect>
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header -->
+                        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,10">
+                            <Border Width="40" Height="40" CornerRadius="20" Background="#2000FFCC" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="SHADOW AI DASHBOARD" Foreground="#FFFFFF" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Next-Generation Invisible Productivity &amp; Exam Overlay" Foreground="#88FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Status Overview Cards -->
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,4">
+                            <!-- Groq Key Status -->
+                            <Border CornerRadius="8" Background="#18FFFFFF" BorderThickness="1" BorderBrush="#20FFFFFF" Padding="10" Margin="0,0,0,8">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="Groq API Key Status" Foreground="#88FFFFFF" FontSize="9.5" FontWeight="Bold"/>
+                                        <TextBlock Text="Connected &amp; Verified ✅" Foreground="#00FFCC" FontSize="11" FontWeight="Bold" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Anti-Detection Status -->
+                            <Border CornerRadius="8" Background="#18FFFFFF" BorderThickness="1" BorderBrush="#20FFFFFF" Padding="10" Margin="0,0,0,8">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="Anti-Detection Shield" Foreground="#88FFFFFF" FontSize="9.5" FontWeight="Bold"/>
+                                        <TextBlock Text="OS WS_EX_NOACTIVATE &amp; Tampermonkey Active ✅" Foreground="#00FFCC" FontSize="10.5" FontWeight="Bold" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Gate Info -->
+                            <TextBlock Text="Core app features are currently locked until you start your trial." Foreground="#AAAAAA" FontSize="10" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Action Button -->
+                        <StackPanel Grid.Row="2">
+                            <Button Command="{Binding StartFreeTrialCommand}" Content="🚀 START FREE TRIAL" Height="38" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11.5">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Background" Value="#FF00FFCC"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#FF55FFDD"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </Grid>
@@ -1344,21 +1652,6 @@
                                 <TextBlock Text="SHADOW AI" Foreground="#FFFFFF" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 <TextBlock Text="Enter credentials to activate overlay" Foreground="#A0FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                             </StackPanel>
-                            <Button Command="{Binding CloseAppCommand}" ToolTip="Close Application" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Cursor="Hand" Margin="0,-8,-8,0">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="Transparent" Padding="6">
-                                            <Path x:Name="Icon" Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                                                  Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Icon" Property="Fill" Value="#FFFF3B30"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
                         </Grid>
 
                         <!-- Form -->
@@ -1372,16 +1665,6 @@
                             <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4" Margin="0,0,0,12">
                                 <TextBox Text="{Binding LoginPassword, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
                             </Border>
-
-                            <!-- Server Settings Expander -->
-                            <Expander Header="Server Settings" Foreground="#55FFFFFF" FontSize="9.5" FontWeight="Normal" HorizontalAlignment="Stretch" Margin="0,0,0,6">
-                                <StackPanel Margin="2,6,2,2">
-                                    <TextBlock Text="API BASE URL" Foreground="#77FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,0,4"/>
-                                    <Border CornerRadius="4" Background="#20FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="6,3">
-                                        <TextBox Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF"/>
-                                    </Border>
-                                </StackPanel>
-                            </Expander>
                         </StackPanel>
 
                         <!-- Error / Loading -->
@@ -1461,37 +1744,30 @@
             <!-- ========================================== -->
             <!--           PAYMENT / STATUS OVERLAY         -->
             <!-- ========================================== -->
-            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="998" Background="#FF0B0F19">
+            <Grid Grid.Row="2" Grid.RowSpan="1" Panel.ZIndex="998" Background="#FF0B0F19">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsPaymentOverlayVisible}" Value="True">
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsPaymentOverlayVisible}" Value="True"/>
+                                    <Condition Binding="{Binding IsTxtScanActive}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsPaymentOverlayVisible}" Value="True"/>
+                                    <Condition Binding="{Binding IsVoiceScanActive}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </MultiDataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Grid.Style>
 
                 <Grid>
-                    <!-- Top Action Header -->
-                    <Grid VerticalAlignment="Top" Margin="16" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
-                        <TextBlock Text="{Binding UserEmail}" Foreground="#55FFFFFF" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                        <Button Command="{Binding LogoutCommand}" Content="LOGOUT" Foreground="#FFFF5555" FontSize="10.5" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" VerticalAlignment="Center" Background="Transparent" BorderThickness="0">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <ContentPresenter/>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </Grid>
-
                     <!-- Main Portal Card -->
                     <Border Width="320" Height="390" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border.Effect>
@@ -1623,7 +1899,7 @@
             <!-- Custom Resize Grip (only active when not locked) -->
             <Grid Grid.Row="2" Grid.RowSpan="2" Width="10" Height="10" 
                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" 
-                  MouseDown="ResizeGrip_MouseDown" Background="Transparent">
+                  MouseDown="ResizeGrip_MouseDown" Background="Transparent" Panel.ZIndex="10000">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Visible"/>

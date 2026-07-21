@@ -10,6 +10,7 @@ namespace OverlayApp.Models
         Timer,
         AiScan,      // kept for backward compatibility with saved settings (maps to TxtScan)
         TxtScan,
-        VoiceScan
+        VoiceScan,
+        Profile
     }
 }

@@ -23,9 +23,10 @@ module.exports = async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_credit BOOLEAN DEFAULT FALSE');
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS user_groq_key VARCHAR(255)');
 
     const userResult = await db.query(
-      'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit, is_admin FROM users WHERE id = $1',
+      'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit, is_admin, user_groq_key FROM users WHERE id = $1',
       [decoded.id]
     );
 
@@ -56,7 +57,8 @@ module.exports = async (req, res) => {
       session_started_at: user.session_started_at,
       is_session_active: isAdmin ? true : user.is_session_active,
       payment_credit: isAdmin ? true : user.payment_credit,
-      system_groq_key: dbGroqKey
+      system_groq_key: dbGroqKey,
+      user_groq_key: user.user_groq_key || ""
     });
   } catch (error) {
     console.error('Session status error:', error);
