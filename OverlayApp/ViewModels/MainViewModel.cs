@@ -1363,8 +1363,7 @@ namespace OverlayApp.ViewModels
                 var (isValid, errorMessage) = await _llmService.ValidateGroqKeyAsync(GroqInputKey);
                 if (isValid)
                 {
-                    _settings.GroqKey = GroqInputKey.Trim();
-                    GroqKey = _settings.GroqKey;
+                    GroqKey = GroqInputKey.Trim();
                     IsGroqKeyValidated = true;
                     _settingsService.SaveSettings(_settings);
                     
@@ -2138,9 +2137,9 @@ namespace OverlayApp.ViewModels
                         // Load saved custom Groq key if present on the server database
                         if (!string.IsNullOrEmpty(result.user_groq_key))
                         {
-                            _settings.GroqKey = result.user_groq_key.Trim();
-                            GroqKey = _settings.GroqKey;
-                            GroqInputKey = _settings.GroqKey;
+                            string fetchedKey = result.user_groq_key.Trim();
+                            GroqKey = fetchedKey;
+                            GroqInputKey = fetchedKey;
                             IsGroqKeyValidated = true;
                             _settingsService.SaveSettings(_settings);
                         }
