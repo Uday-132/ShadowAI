@@ -23,6 +23,21 @@ module.exports = async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_credit BOOLEAN DEFAULT FALSE');
     await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
+    
+    // Ensure the new user_api_keys table is initialized
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS user_api_keys (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL,
+        key_prefix VARCHAR(8) NOT NULL,
+        key_hash VARCHAR(64) NOT NULL UNIQUE,
+        api_key VARCHAR(255),
+        name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used_at TIMESTAMP
+      )
+    `);
+    await db.query('CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON user_api_keys(key_hash)');
 
     const userResult = await db.query(
       'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit, is_admin FROM users WHERE id = $1',
@@ -44,6 +59,13 @@ module.exports = async (req, res) => {
     const configResult = await db.query("SELECT value FROM app_config WHERE key = 'free_trial_groq_key'");
     const dbGroqKey = configResult.rows.length > 0 ? configResult.rows[0].value : "";
 
+    // Fetch key from the user_api_keys table
+    const keysResult = await db.query(
+      'SELECT api_key FROM user_api_keys WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
+      [decoded.id]
+    );
+    const dbUserKey = keysResult.rows.length > 0 ? keysResult.rows[0].api_key : "";
+
     const unlimitedDate = new Date('2099-12-31T23:59:59Z');
 
     return res.status(200).json({
@@ -56,7 +78,8 @@ module.exports = async (req, res) => {
       session_started_at: user.session_started_at,
       is_session_active: isAdmin ? true : user.is_session_active,
       payment_credit: isAdmin ? true : user.payment_credit,
-      system_groq_key: dbGroqKey
+      system_groq_key: dbGroqKey,
+      user_groq_key: dbUserKey
     });
   } catch (error) {
     console.error('Session status error:', error);
