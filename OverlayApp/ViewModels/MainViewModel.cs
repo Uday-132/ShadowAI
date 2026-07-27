@@ -720,6 +720,51 @@ namespace OverlayApp.ViewModels
             set => SetProperty(ref _followUpText, value);
         }
 
+        private int _followUpCooldownSeconds = 0;
+        private System.Windows.Threading.DispatcherTimer? _followUpCooldownTimer;
+
+        public int FollowUpCooldownSeconds
+        {
+            get => _followUpCooldownSeconds;
+            set
+            {
+                if (SetProperty(ref _followUpCooldownSeconds, value))
+                {
+                    OnPropertyChanged(nameof(IsFollowUpCooldownActive));
+                    OnPropertyChanged(nameof(FollowUpCooldownText));
+                }
+            }
+        }
+
+        public bool IsFollowUpCooldownActive => _followUpCooldownSeconds > 0;
+
+        public string FollowUpCooldownText => _followUpCooldownSeconds > 0 ? $"⏳ Wait {_followUpCooldownSeconds}s" : "";
+
+        private void StartFollowUpCooldown()
+        {
+            FollowUpCooldownSeconds = 7;
+            if (_followUpCooldownTimer == null)
+            {
+                _followUpCooldownTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(1)
+                };
+                _followUpCooldownTimer.Tick += (s, e) =>
+                {
+                    if (FollowUpCooldownSeconds > 1)
+                    {
+                        FollowUpCooldownSeconds--;
+                    }
+                    else
+                    {
+                        FollowUpCooldownSeconds = 0;
+                        _followUpCooldownTimer?.Stop();
+                    }
+                };
+            }
+            _followUpCooldownTimer.Start();
+        }
+
         public bool IsFollowUpRecording
         {
             get => _isFollowUpRecording;
@@ -1761,7 +1806,7 @@ namespace OverlayApp.ViewModels
 
         private async void SubmitFollowUpPrompt()
         {
-            if (IsLoginOverlayVisible || IsPaymentOverlayVisible)
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible || IsFollowUpCooldownActive)
             {
                 return;
             }
@@ -1819,6 +1864,8 @@ namespace OverlayApp.ViewModels
                         Role = "assistant",
                         Content = answer
                     });
+
+                    StartFollowUpCooldown();
                 }
                 catch (Exception ex)
                 {
