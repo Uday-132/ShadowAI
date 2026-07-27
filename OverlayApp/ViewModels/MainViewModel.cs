@@ -101,10 +101,10 @@ namespace OverlayApp.ViewModels
             get
             {
                 if (CapturedScreenshots.Count == 0)
-                    return "📸 Captured: 0 / 3 min (Click + CAPTURE to add)";
+                    return "📸 Captured: 0 / 3 max (Click + CAPTURE to add)";
                 if (CapturedScreenshots.Count < 3)
-                    return $"📸 Captured: {CapturedScreenshots.Count} / 3 min (Add {3 - CapturedScreenshots.Count} more)";
-                return $"✅ Captured: {CapturedScreenshots.Count} / 3 min (Ready to SEND)";
+                    return $"📸 Captured: {CapturedScreenshots.Count} / 3 max (Ready to SEND or add more)";
+                return $"✅ Captured: 3 / 3 max (Max limit reached - Ready to SEND)";
             }
         }
 
@@ -865,6 +865,14 @@ namespace OverlayApp.ViewModels
                 return;
             }
 
+            if (CapturedScreenshots.Count >= 3)
+            {
+                ScanResponseText = "⚠️ **Maximum limit of 3 screenshots reached.**\n\n" +
+                                   "You have already captured **3** screenshots (the maximum allowed).\n\n" +
+                                   "Click **SEND (3)** to process your screenshots, or click **✕** on a thumbnail to remove a screenshot.";
+                return;
+            }
+
             var selectionWindow = new Views.SelectionWindow();
             selectionWindow.ShowActivated = false;
             selectionWindow.AreaSelected = rect =>
@@ -880,6 +888,13 @@ namespace OverlayApp.ViewModels
         {
             if (IsLoginOverlayVisible || IsPaymentOverlayVisible || IsFeatureLocked)
             {
+                return;
+            }
+
+            if (CapturedScreenshots.Count >= 3)
+            {
+                ScanResponseText = "⚠️ **Maximum limit of 3 screenshots reached.**\n\n" +
+                                   "Click **SEND (3)** to process your screenshots, or remove a screenshot to capture a new one.";
                 return;
             }
 
@@ -911,6 +926,13 @@ namespace OverlayApp.ViewModels
 
         private void AddCapturedScreenshot(System.Windows.Int32Rect rect)
         {
+            if (CapturedScreenshots.Count >= 3)
+            {
+                ScanResponseText = "⚠️ **Maximum limit of 3 screenshots reached.**\n\n" +
+                                   "Click **SEND (3)** to process your screenshots, or remove a screenshot to capture a new one.";
+                return;
+            }
+
             byte[] imageBytes;
             var previewSource = CaptureScreenArea(rect, out imageBytes);
             if (imageBytes != null && imageBytes.Length > 0 && previewSource != null)
@@ -928,14 +950,14 @@ namespace OverlayApp.ViewModels
                 if (CapturedScreenshots.Count < 3)
                 {
                     ScanResponseText = $"📸 **Captured Screenshot #{item.Index}.**\n\n" +
-                                       $"Current total: **{CapturedScreenshots.Count} / 3 minimum**.\n" +
-                                       $"Please click **+ CAPTURE** to add at least {3 - CapturedScreenshots.Count} more screenshot{(3 - CapturedScreenshots.Count == 1 ? "" : "s")} before clicking **SEND**.";
+                                       $"Total captured: **{CapturedScreenshots.Count} / 3 max**.\n" +
+                                       $"Click **SEND ({CapturedScreenshots.Count})** to process now, or click **+ CAPTURE** to add up to {3 - CapturedScreenshots.Count} more.";
                 }
                 else
                 {
                     ScanResponseText = $"✅ **Captured Screenshot #{item.Index}.**\n\n" +
-                                       $"Total captured: **{CapturedScreenshots.Count}** screenshots.\n" +
-                                       $"Minimum requirement met! Click **SEND ({CapturedScreenshots.Count})** to process all screenshots with AI.";
+                                       $"Maximum limit reached (**3 / 3** screenshots).\n" +
+                                       $"Click **SEND (3)** to process all screenshots with AI!";
                 }
             }
         }
@@ -964,16 +986,14 @@ namespace OverlayApp.ViewModels
 
         private async Task ExecuteSendBatchScreenshotsAsync()
         {
-            if (CapturedScreenshots.Count < 3)
+            if (CapturedScreenshots.Count == 0)
             {
-                ScanResponseText = $"⚠️ **Minimum 3 screenshots required to scan.**\n\n" +
-                                   $"You have currently captured **{CapturedScreenshots.Count}** out of **3** required screenshots.\n\n" +
-                                   $"Please click **+ CAPTURE** to add at least {3 - CapturedScreenshots.Count} more screenshot{(3 - CapturedScreenshots.Count == 1 ? "" : "s")} before clicking **SEND**.";
+                ScanResponseText = "⚠️ **No screenshots captured.**\n\nPlease click **+ CAPTURE** to capture at least 1 screenshot (up to 3 max) before clicking **SEND**.";
                 return;
             }
 
             IsScanning = true;
-            ScanResponseText = $"[OCR] Processing {CapturedScreenshots.Count} captured screenshots...";
+            ScanResponseText = $"[OCR] Processing {CapturedScreenshots.Count} captured screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")}...";
 
             try
             {
