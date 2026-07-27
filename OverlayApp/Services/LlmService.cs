@@ -406,48 +406,96 @@ namespace OverlayApp.Services
         /// <summary>
         /// Sends the entire conversational message history to Groq for stateful chat completions.
         /// </summary>
-        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "openai/gpt-oss-120b")
+        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "llama-3.3-70b-versatile")
         {
             if (string.IsNullOrWhiteSpace(groqKey))
             {
                 return "Error: Groq API Key is not configured.";
             }
 
-            try
+            // Estimate input tokens from history
+            int totalChars = 0;
+            if (history != null)
             {
-                string url = "https://api.groq.com/openai/v1/chat/completions";
-
-                int maxTokens = modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ? 3500 : 4096;
-
-                var payload = new
+                foreach (var msg in history)
                 {
-                    model = modelName,
-                    max_tokens = maxTokens,
-                    messages = history
-                };
-
-                string jsonPayload = JsonSerializer.Serialize(payload);
-
-                using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                {
-                    request.Headers.Add("Authorization", $"Bearer {groqKey}");
-                    request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                    var response = await _httpClient.SendAsync(request);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        string errorContent = await response.Content.ReadAsStringAsync();
-                        return $"Groq API Error (HTTP {response.StatusCode}):\n{errorContent}";
-                    }
-
-                    string responseJson = await response.Content.ReadAsStringAsync();
-                    return ParseOpenAiMessageContent(responseJson);
+                    totalChars += msg.Content?.Length ?? 0;
                 }
             }
-            catch (Exception ex)
+            int approxInputTokens = totalChars / 4;
+
+            // Dynamically optimize max_tokens so (input_tokens + max_tokens) stays well below TPM limits
+            int maxTokens;
+            if (modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
             {
-                return $"Error contacting Groq API: {ex.Message}";
+                maxTokens = Math.Clamp(3800 - approxInputTokens, 1000, 2500);
             }
+            else if (modelName.Contains("llama-3.3", StringComparison.OrdinalIgnoreCase))
+            {
+                maxTokens = Math.Clamp(5500 - approxInputTokens, 1500, 3000);
+            }
+            else
+            {
+                maxTokens = 2000;
+            }
+
+            string[] fallbackModels = new[]
+            {
+                modelName,
+                "llama-3.1-8b-instant",
+                "mixtral-8x7b-32768"
+            };
+
+            string lastError = "";
+
+            foreach (var currentModel in fallbackModels)
+            {
+                try
+                {
+                    string url = "https://api.groq.com/openai/v1/chat/completions";
+
+                    var payload = new
+                    {
+                        model = currentModel,
+                        max_tokens = maxTokens,
+                        messages = history
+                    };
+
+                    string jsonPayload = JsonSerializer.Serialize(payload);
+
+                    using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                    {
+                        request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                        var response = await _httpClient.SendAsync(request);
+                        string responseStr = await response.Content.ReadAsStringAsync();
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            return ParseOpenAiMessageContent(responseStr);
+                        }
+
+                        lastError = $"Groq API Error ({currentModel} HTTP {(int)response.StatusCode}):\n{responseStr}";
+
+                        // If rate limit / TPM exceeded, try next fallback model (llama-3.1-8b-instant has 50,000 TPM limit)
+                        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
+                            responseStr.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase) ||
+                            responseStr.Contains("RequestEntityTooLarge", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        return lastError;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastError = $"Error contacting Groq API ({currentModel}): {ex.Message}";
+                }
+            }
+
+            return lastError;
         }
 
         /// <summary>

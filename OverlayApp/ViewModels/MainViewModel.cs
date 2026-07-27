@@ -1420,6 +1420,51 @@ namespace OverlayApp.ViewModels
             return cleaned.Trim();
         }
 
+        private System.Collections.Generic.List<ChatMessage> PruneChatHistory(System.Collections.Generic.List<ChatMessage> fullHistory)
+        {
+            if (fullHistory == null || fullHistory.Count <= 3)
+            {
+                return fullHistory ?? new System.Collections.Generic.List<ChatMessage>();
+            }
+
+            var pruned = new System.Collections.Generic.List<ChatMessage>();
+            
+            // 1. Keep System Message
+            var sysMsg = fullHistory.FirstOrDefault(m => m.Role == "system");
+            if (sysMsg != null)
+            {
+                pruned.Add(sysMsg);
+            }
+
+            // 2. Keep Initial User Problem Statement
+            var firstUser = fullHistory.FirstOrDefault(m => m.Role == "user");
+            if (firstUser != null)
+            {
+                pruned.Add(firstUser);
+            }
+
+            // 3. Keep Initial Code/Solution Output (compact version)
+            var firstAssistant = fullHistory.FirstOrDefault(m => m.Role == "assistant");
+            if (firstAssistant != null)
+            {
+                string content = firstAssistant.Content ?? "";
+                if (content.Length > 2000)
+                {
+                    content = content.Substring(0, 2000) + "\n...[truncated for token optimization]...";
+                }
+                pruned.Add(new ChatMessage { Role = "assistant", Content = content });
+            }
+
+            // 4. Keep Current User Question
+            var lastUser = fullHistory.LastOrDefault(m => m.Role == "user");
+            if (lastUser != null && !pruned.Contains(lastUser))
+            {
+                pruned.Add(lastUser);
+            }
+
+            return pruned;
+        }
+
         private string CleanMcqResponse(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
@@ -1702,7 +1747,18 @@ namespace OverlayApp.ViewModels
                 {
                     if (IsCodingScanMode)
                     {
-                        finalQuestion = question + "\n\n(Reminder: Output ONLY the source code in a humanized developer style. Do not include markdown code block wrappers, descriptions, warnings, or explanations. Return ONLY the code.)";
+                        bool isCodeOnlyQuery = question.Contains("Rewrite", StringComparison.OrdinalIgnoreCase) ||
+                                               question.Contains("Optimize code", StringComparison.OrdinalIgnoreCase) ||
+                                               question.Contains("Add code comments", StringComparison.OrdinalIgnoreCase);
+
+                        if (isCodeOnlyQuery)
+                        {
+                            finalQuestion = question + "\n\n(Reminder: Output ONLY the updated source code in a humanized developer style. Do not include markdown code block wrappers, descriptions, or warnings. Return ONLY the code.)";
+                        }
+                        else
+                        {
+                            finalQuestion = question + "\n\n(Provide a clear, detailed, step-by-step markdown explanation or line-by-line execution dry-run trace for the code above.)";
+                        }
                     }
 
                     _txtChatHistory.Add(new ChatMessage {
@@ -1710,8 +1766,10 @@ namespace OverlayApp.ViewModels
                         Content = finalQuestion
                     });
 
+                    var optimizedHistory = PruneChatHistory(_txtChatHistory);
+
                     string followUpModel = IsCodingScanMode ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
-                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, followUpModel);
+                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, optimizedHistory, followUpModel);
                     
                     ScanResponseText = ScanResponseText.Replace("Thinking...", answer);
 
