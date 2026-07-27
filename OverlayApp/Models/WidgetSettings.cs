@@ -25,6 +25,7 @@ namespace OverlayApp.Models
         [JsonInclude] public bool IsSystemAudioSource = false;
         [JsonInclude] public bool IsLiveMode = false;
         [JsonInclude] public string TextScanType = "Normal";
+        [JsonInclude] public string ProgrammingLanguage = "Python";
         [JsonInclude] public string SessionToken = "";
         [JsonInclude] public string UserEmail = "";
         [JsonInclude] public string ApiBaseUrl = "https://shadow-ai-iota.vercel.app";
