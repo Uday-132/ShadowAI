@@ -218,7 +218,7 @@ namespace OverlayApp.Services
                 var payload = new
                 {
                     model = "openai/gpt-oss-120b",
-                    max_tokens = 1500,
+                    max_tokens = 8192,
                     messages = new[]
                     {
                         new
@@ -274,7 +274,7 @@ namespace OverlayApp.Services
                 var payload = new
                 {
                     model = "openai/gpt-oss-120b",
-                    max_tokens = 1500,
+                    max_tokens = 8192,
                     messages = new[]
                     {
                         new
@@ -420,7 +420,7 @@ namespace OverlayApp.Services
                 var payload = new
                 {
                     model = modelName,
-                    max_tokens = 1500,
+                    max_tokens = 8192,
                     messages = history
                 };
 

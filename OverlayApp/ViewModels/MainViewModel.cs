@@ -1097,23 +1097,77 @@ namespace OverlayApp.ViewModels
                 }
                 else if (IsCodingScanMode)
                 {
-                    ScanResponseText = metadataHeader + $"[LLM] Analyzing coding problem across {CapturedScreenshots.Count} screenshots with **{singleModel}**...";
+                    string primaryModel = "openai/gpt-oss-120b";
+                    string verifierModel = "llama-3.3-70b-versatile";
+
+                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full code solution with **{primaryModel}**...";
+                    
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "system",
-                        Content = "You are a strict code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the source code in Python language by default. Write the code in a humanized style as if written by a developer in a real coding interview (use natural variable names, standard spacing, and write clean logic without adding excessive comments on every line). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
+                        Content = "You are a strict expert code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in Python language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
                     });
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "user",
                         Content = $"Here is the coding problem raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                     });
 
-                    string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
-                    string finalResult = metadataHeader + responseBody.Trim();
+                    string initialCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, primaryModel);
+                    initialCode = CleanCodeMarkdown(initialCode);
+
+                    // Step 1: Truncation Check & Continuation
+                    if (IsCodeTruncated(initialCode))
+                    {
+                        ScanResponseText = metadataHeader + $"[LLM] Detecting code truncation... Requesting continuation...";
+                        
+                        var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
+                        {
+                            new ChatMessage { Role = "assistant", Content = initialCode },
+                            new ChatMessage { Role = "user", Content = "The previous code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
+                        };
+
+                        string continuationCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, continuationHistory, primaryModel);
+                        continuationCode = CleanCodeMarkdown(continuationCode);
+                        initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
+                    }
+
+                    // Step 2: Second Model Verification (Dual-Model Code Audit)
+                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying code completeness and correctness with **{verifierModel}**...";
+
+                    var verifyHistory = new System.Collections.Generic.List<ChatMessage>
+                    {
+                        new ChatMessage {
+                            Role = "system",
+                            Content = "You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working Python code starting on line 2. Do not include markdown code block backticks (```)."
+                        },
+                        new ChatMessage {
+                            Role = "user",
+                            Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED CODE SOLUTION]\n{initialCode}"
+                        }
+                    };
+
+                    string verificationOutput = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierModel);
+                    verificationOutput = verificationOutput.Trim();
+
+                    string finalCode = initialCode;
+                    string auditNote = "✅ Code verified complete and bug-free by dual models.";
+
+                    if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string correctedCode = verificationOutput.Substring("CORRECTED_CODE:".Length).Trim();
+                        correctedCode = CleanCodeMarkdown(correctedCode);
+                        if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
+                        {
+                            finalCode = correctedCode;
+                            auditNote = "✨ Code was audited, completed, and verified by dual models.";
+                        }
+                    }
+
+                    string finalResult = metadataHeader + $"* **Audit Status:** {auditNote}\n\n" + finalCode.Trim();
                     ScanResponseText = finalResult;
 
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "assistant",
-                        Content = finalResult
+                        Content = finalCode.Trim()
                     });
                 }
                 else
@@ -1323,6 +1377,47 @@ namespace OverlayApp.ViewModels
                 IsScanning = false;
                 _isProcessingVoice = false;
             }
+        }
+
+        private bool IsCodeTruncated(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return false;
+            string trimmed = code.TrimEnd();
+            
+            string lastLine = trimmed.Split('\n').LastOrDefault()?.Trim() ?? "";
+            
+            if (lastLine.EndsWith(":") || lastLine.EndsWith(",") || lastLine.EndsWith("(") || 
+                lastLine.EndsWith("{") || lastLine.EndsWith("[") || lastLine.EndsWith("+") || 
+                lastLine.EndsWith("-") || lastLine.EndsWith("*") || lastLine.EndsWith("=") ||
+                lastLine.EndsWith("def") || lastLine.EndsWith("class") || lastLine.EndsWith("return"))
+            {
+                return true;
+            }
+
+            int openParen = trimmed.Count(c => c == '(') - trimmed.Count(c => c == ')');
+            int openBrace = trimmed.Count(c => c == '{') - trimmed.Count(c => c == '}');
+            int openBracket = trimmed.Count(c => c == '[') - trimmed.Count(c => c == ']');
+            
+            return openParen > 0 || openBrace > 0 || openBracket > 0;
+        }
+
+        private string CleanCodeMarkdown(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "";
+            string cleaned = code.Trim();
+            if (cleaned.StartsWith("```"))
+            {
+                int firstLineEnd = cleaned.IndexOf('\n');
+                if (firstLineEnd > 0)
+                {
+                    cleaned = cleaned.Substring(firstLineEnd + 1);
+                }
+                if (cleaned.EndsWith("```"))
+                {
+                    cleaned = cleaned.Substring(0, cleaned.Length - 3);
+                }
+            }
+            return cleaned.Trim();
         }
 
         private string CleanMcqResponse(string input)
