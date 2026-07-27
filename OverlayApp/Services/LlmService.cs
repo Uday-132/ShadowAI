@@ -218,7 +218,7 @@ namespace OverlayApp.Services
                 var payload = new
                 {
                     model = "openai/gpt-oss-120b",
-                    max_tokens = 8192,
+                    max_tokens = 3500,
                     messages = new[]
                     {
                         new
@@ -274,7 +274,7 @@ namespace OverlayApp.Services
                 var payload = new
                 {
                     model = "openai/gpt-oss-120b",
-                    max_tokens = 8192,
+                    max_tokens = 3500,
                     messages = new[]
                     {
                         new
@@ -417,10 +417,12 @@ namespace OverlayApp.Services
             {
                 string url = "https://api.groq.com/openai/v1/chat/completions";
 
+                int maxTokens = modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase) ? 3500 : 4096;
+
                 var payload = new
                 {
                     model = modelName,
-                    max_tokens = 8192,
+                    max_tokens = maxTokens,
                     messages = history
                 };
 

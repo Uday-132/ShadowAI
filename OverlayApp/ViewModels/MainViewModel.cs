@@ -1097,8 +1097,8 @@ namespace OverlayApp.ViewModels
                 }
                 else if (IsCodingScanMode)
                 {
-                    string primaryModel = "openai/gpt-oss-120b";
-                    string verifierModel = "llama-3.3-70b-versatile";
+                    string primaryModel = "llama-3.3-70b-versatile";
+                    string verifierModel = "openai/gpt-oss-120b";
 
                     ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full code solution with **{primaryModel}**...";
                     
@@ -1710,7 +1710,8 @@ namespace OverlayApp.ViewModels
                         Content = finalQuestion
                     });
 
-                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory);
+                    string followUpModel = IsCodingScanMode ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
+                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, followUpModel);
                     
                     ScanResponseText = ScanResponseText.Replace("Thinking...", answer);
 
