@@ -609,14 +609,26 @@
                                 <RowDefinition Height="Auto"/> <!-- Row 5: Loader ProgressBar -->
                             </Grid.RowDefinitions>
 
-                             <!-- Option Toggles (Scan Type) -->
+                             <!-- Option Toggles (Scan Type & Language) -->
                              <Grid Grid.Row="0" Margin="0,0,0,8">
-                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                     <TextBlock Text="SCAN TYPE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
-                                     <RadioButton Content="NORMAL SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsNormalScanMode, Mode=TwoWay}"/>
-                                     <RadioButton Content="MCQ SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsMcqScanMode, Mode=TwoWay}"/>
-                                     <RadioButton Content="CODING SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsCodingScanMode, Mode=TwoWay}"/>
-                                 </StackPanel>
+                                 <DockPanel LastChildFill="True">
+                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                         <TextBlock Text="SCAN TYPE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
+                                         <RadioButton Content="NORMAL SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsNormalScanMode, Mode=TwoWay}"/>
+                                         <RadioButton Content="MCQ SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsMcqScanMode, Mode=TwoWay}"/>
+                                         <RadioButton Content="CODING SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsCodingScanMode, Mode=TwoWay}"/>
+                                     </StackPanel>
+
+                                     <!-- Language Selector (Active when Coding Scan is selected) -->
+                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" 
+                                                 Visibility="{Binding IsCodingScanMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                         <TextBlock Text="LANG:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="8,0,4,0"/>
+                                         <RadioButton Content="Python" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLangGroup" IsChecked="{Binding IsPythonSelected, Mode=TwoWay}"/>
+                                         <RadioButton Content="Java" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLangGroup" IsChecked="{Binding IsJavaSelected, Mode=TwoWay}"/>
+                                         <RadioButton Content="C++" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLangGroup" IsChecked="{Binding IsCppSelected, Mode=TwoWay}"/>
+                                         <RadioButton Content="C" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLangGroup" IsChecked="{Binding IsCSelected, Mode=TwoWay}"/>
+                                     </StackPanel>
+                                 </DockPanel>
                              </Grid>
 
                              <!-- Scan Controls Row -->

@@ -673,6 +673,48 @@ namespace OverlayApp.ViewModels
             }
         }
 
+        private string _selectedCodingLanguage = "Python";
+        public string SelectedCodingLanguage
+        {
+            get => string.IsNullOrWhiteSpace(_selectedCodingLanguage) ? "Python" : _selectedCodingLanguage;
+            set
+            {
+                if (_selectedCodingLanguage != value)
+                {
+                    _selectedCodingLanguage = value;
+                    OnPropertyChanged(nameof(SelectedCodingLanguage));
+                    OnPropertyChanged(nameof(IsPythonSelected));
+                    OnPropertyChanged(nameof(IsJavaSelected));
+                    OnPropertyChanged(nameof(IsCppSelected));
+                    OnPropertyChanged(nameof(IsCSelected));
+                }
+            }
+        }
+
+        public bool IsPythonSelected
+        {
+            get => SelectedCodingLanguage == "Python";
+            set { if (value) SelectedCodingLanguage = "Python"; }
+        }
+
+        public bool IsJavaSelected
+        {
+            get => SelectedCodingLanguage == "Java";
+            set { if (value) SelectedCodingLanguage = "Java"; }
+        }
+
+        public bool IsCppSelected
+        {
+            get => SelectedCodingLanguage == "C++";
+            set { if (value) SelectedCodingLanguage = "C++"; }
+        }
+
+        public bool IsCSelected
+        {
+            get => SelectedCodingLanguage == "C";
+            set { if (value) SelectedCodingLanguage = "C"; }
+        }
+
         public string FollowUpText
         {
             get => _followUpText;
@@ -1097,14 +1139,15 @@ namespace OverlayApp.ViewModels
                 }
                 else if (IsCodingScanMode)
                 {
+                    string targetLang = SelectedCodingLanguage;
                     string primaryModel = "llama-3.3-70b-versatile";
                     string verifierModel = "openai/gpt-oss-120b";
 
-                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full code solution with **{primaryModel}**...";
+                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full **{targetLang}** code solution with **{primaryModel}**...";
                     
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "system",
-                        Content = "You are a strict expert code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in Python language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
+                        Content = $"You are a strict expert code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in {targetLang} programming language. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
                     });
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "user",
@@ -1122,7 +1165,7 @@ namespace OverlayApp.ViewModels
                         var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
                         {
                             new ChatMessage { Role = "assistant", Content = initialCode },
-                            new ChatMessage { Role = "user", Content = "The previous code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
+                            new ChatMessage { Role = "user", Content = $"The previous code output was cut off mid-way. Continue the {targetLang} code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
                         };
 
                         string continuationCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, continuationHistory, primaryModel);
@@ -1131,13 +1174,13 @@ namespace OverlayApp.ViewModels
                     }
 
                     // Step 2: Second Model Verification (Dual-Model Code Audit)
-                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying code completeness and correctness with **{verifierModel}**...";
+                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel}**...";
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
                     {
                         new ChatMessage {
                             Role = "system",
-                            Content = "You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working Python code starting on line 2. Do not include markdown code block backticks (```)."
+                            Content = $"You are a strict senior code reviewer. Review the generated {targetLang} code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
                         },
                         new ChatMessage {
                             Role = "user",
@@ -1149,7 +1192,7 @@ namespace OverlayApp.ViewModels
                     verificationOutput = verificationOutput.Trim();
 
                     string finalCode = initialCode;
-                    string auditNote = "✅ Code verified complete and bug-free by dual models.";
+                    string auditNote = $"✅ **{targetLang}** code verified complete and bug-free by dual models.";
 
                     if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1158,7 +1201,7 @@ namespace OverlayApp.ViewModels
                         if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
                         {
                             finalCode = correctedCode;
-                            auditNote = "✨ Code was audited, completed, and verified by dual models.";
+                            auditNote = $"✨ **{targetLang}** code was audited, completed, and verified by dual models.";
                         }
                     }
 
