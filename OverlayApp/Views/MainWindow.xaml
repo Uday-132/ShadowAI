@@ -603,9 +603,10 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- Row 0: Option Toggles -->
                                 <RowDefinition Height="Auto"/> <!-- Row 1: Scan Buttons -->
-                                <RowDefinition Height="*"/>    <!-- Row 2: Response Area -->
-                                <RowDefinition Height="Auto"/> <!-- Row 3: Follow-up Chat Box -->
-                                <RowDefinition Height="Auto"/> <!-- Row 4: Loader ProgressBar -->
+                                <RowDefinition Height="Auto"/> <!-- Row 2: Screenshot Batch Strip -->
+                                <RowDefinition Height="*"/>    <!-- Row 3: Response Area -->
+                                <RowDefinition Height="Auto"/> <!-- Row 4: Follow-up Chat Box -->
+                                <RowDefinition Height="Auto"/> <!-- Row 5: Loader ProgressBar -->
                             </Grid.RowDefinitions>
 
                              <!-- Option Toggles (Scan Type) -->
@@ -619,27 +620,48 @@
                              </Grid>
 
                              <!-- Scan Controls Row -->
-                             <Grid Grid.Row="1" Margin="0,0,0,8">
+                             <Grid Grid.Row="1" Margin="0,0,0,6">
                                  <Grid.ColumnDefinitions>
+                                     <ColumnDefinition Width="*"/>
                                      <ColumnDefinition Width="*"/>
                                      <ColumnDefinition Width="Auto"/>
                                      <ColumnDefinition Width="Auto"/>
                                  </Grid.ColumnDefinitions>
 
-                                 <!-- Crop Scan Button -->
-                                 <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0">
+                                 <!-- + CAPTURE SCREENSHOT Button -->
+                                 <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Capture a screen region (Min 3 required)">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border CornerRadius="4" Background="{Binding Tag, ElementName=MainBorder}" Padding="6,4">
                                                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                     <Path Data="M4 4h7V2H4c-1.1 0-2 .9-2 2v7h2V4zm6 9l-4 5h12l-3-4-2.25 3L10 13z" 
-                                                           Fill="#000000" Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0"/>
-                                                     <TextBlock Text="CAPTURE &amp; SCAN" Foreground="#000000" FontSize="10.5" FontWeight="Bold"/>
+                                                     <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" 
+                                                           Fill="#000000" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                     <TextBlock Text="+ CAPTURE" Foreground="#000000" FontSize="10" FontWeight="Bold"/>
                                                  </StackPanel>
                                              </Border>
                                              <ControlTemplate.Triggers>
                                                  <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter Property="Opacity" Value="0.95"/>
+                                                     <Setter Property="Opacity" Value="0.9"/>
+                                                 </Trigger>
+                                             </ControlTemplate.Triggers>
+                                         </ControlTemplate>
+                                     </Button.Template>
+                                 </Button>
+
+                                 <!-- SEND BUTTON -->
+                                 <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Process all captured screenshots (Min 3 required)">
+                                     <Button.Template>
+                                         <ControlTemplate TargetType="Button">
+                                             <Border x:Name="SendBorder" CornerRadius="4" Background="#10B981" Padding="6,4">
+                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                     <Path Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
+                                                           Fill="#FFFFFF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                     <TextBlock Text="{Binding SendButtonText}" Foreground="#FFFFFF" FontSize="10" FontWeight="Bold"/>
+                                                 </StackPanel>
+                                             </Border>
+                                             <ControlTemplate.Triggers>
+                                                 <Trigger Property="IsMouseOver" Value="True">
+                                                     <Setter TargetName="SendBorder" Property="Background" Value="#059669"/>
                                                  </Trigger>
                                              </ControlTemplate.Triggers>
                                          </ControlTemplate>
@@ -647,7 +669,7 @@
                                  </Button>
 
                                  <!-- Copy Button -->
-                                 <Button Grid.Column="1" Command="{Binding CopyTxtCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy results text" Margin="0,0,4,0">
+                                 <Button Grid.Column="2" Command="{Binding CopyTxtCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy results text" Margin="0,0,4,0">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="CopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -664,7 +686,7 @@
                                  </Button>
 
                                  <!-- Clear/Refresh Button -->
-                                 <Button Grid.Column="2" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear results">
+                                 <Button Grid.Column="3" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear screenshots and results">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="ClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -681,80 +703,132 @@
                                  </Button>
                              </Grid>
 
-                            <!-- Response Area -->
-                            <Border Grid.Row="2" Background="#11FFFFFF" CornerRadius="4" Padding="6">
-                                <ScrollViewer x:Name="TxtScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
-                                    <StackPanel>
-                                        <!-- Captured Image Preview (if available) -->
-                                        <Border BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Width="100" Height="60" HorizontalAlignment="Left" Margin="0,0,0,8" ClipToBounds="True">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding CapturedPreview}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Image Source="{Binding CapturedPreview}" Stretch="UniformToFill"/>
-                                        </Border>
-                                        
-                                        <!-- Scan Results Text -->
-                                        <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent"/>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Border>
+                             <!-- Screenshot Batch Status & Thumbnails Bar -->
+                             <Grid Grid.Row="2" Margin="0,0,0,6">
+                                 <Grid.RowDefinitions>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                 </Grid.RowDefinitions>
 
-                            <!-- Preset Follow-up Buttons for Text Scan -->
-                            <ItemsControl Grid.Row="3" Margin="0,6,0,0" 
-                                          ItemsSource="{Binding PresetFollowUps}" 
-                                          Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Content="{Binding}" 
-                                                Margin="2,2" 
-                                                Padding="7,3" 
-                                                FontSize="10" 
-                                                FontWeight="Medium"
-                                                Cursor="Hand"
-                                                Command="{Binding DataContext.AskFollowUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}">
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Background" Value="#1AFFFFFF"/>
-                                                    <Setter Property="Foreground" Value="#DDFFFFFF"/>
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="Button">
-                                                                <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                </Border>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="#44FFFFFF"/>
-                                                            <Setter Property="Foreground" Value="#FFFFFFFF"/>
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                 <!-- Badge / Header Text -->
+                                 <Border Grid.Row="0" Background="#15FFFFFF" CornerRadius="4" Padding="6,3" Margin="0,0,0,4">
+                                     <DockPanel>
+                                         <TextBlock Text="{Binding ScreenshotsBadgeText}" Foreground="#D1D5DB" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                     </DockPanel>
+                                 </Border>
 
-                            <!-- Loader Spinner Bar -->
-                            <ProgressBar Grid.Row="4" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
-                        </Grid>
-                    </Border>
-                </Grid>
+                                 <!-- Thumbnails ScrollViewer -->
+                                 <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Visibility="{Binding HasCapturedScreenshots, Converter={StaticResource BoolToVis}}">
+                                     <ItemsControl ItemsSource="{Binding CapturedScreenshots}">
+                                         <ItemsControl.ItemsPanel>
+                                             <ItemsPanelTemplate>
+                                                 <StackPanel Orientation="Horizontal"/>
+                                             </ItemsPanelTemplate>
+                                         </ItemsControl.ItemsPanel>
+                                         <ItemsControl.ItemTemplate>
+                                             <DataTemplate>
+                                                 <Border CornerRadius="4" BorderBrush="#33FFFFFF" BorderThickness="1" Background="#22000000" Margin="0,0,6,0" Width="64" Height="42" ClipToBounds="True">
+                                                     <Grid>
+                                                         <Image Source="{Binding PreviewImage}" Stretch="UniformToFill"/>
+                                                         <!-- Label Badge -->
+                                                         <Border Background="#CC000000" CornerRadius="2" VerticalAlignment="Bottom" HorizontalAlignment="Left" Padding="3,1" Margin="2">
+                                                             <TextBlock Text="{Binding DisplayName}" Foreground="#FFFFFF" FontSize="7.5" FontWeight="Bold"/>
+                                                         </Border>
+                                                         <!-- Delete (x) Button -->
+                                                         <Button Command="{Binding DataContext.RemoveScreenshotCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                                 CommandParameter="{Binding}" 
+                                                                 HorizontalAlignment="Right" VerticalAlignment="Top" 
+                                                                 Margin="2" Width="14" Height="14" Cursor="Hand" ToolTip="Remove screenshot">
+                                                             <Button.Template>
+                                                                 <ControlTemplate TargetType="Button">
+                                                                     <Border CornerRadius="7" Background="#CCEF4444">
+                                                                         <TextBlock Text="✕" Foreground="#FFFFFF" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                                                     </Border>
+                                                                 </ControlTemplate>
+                                                             </Button.Template>
+                                                         </Button>
+                                                     </Grid>
+                                                 </Border>
+                                             </DataTemplate>
+                                         </ItemsControl.ItemTemplate>
+                                     </ItemsControl>
+                                 </ScrollViewer>
+                             </Grid>
+
+                             <!-- Response Area -->
+                             <Border Grid.Row="3" Background="#11FFFFFF" CornerRadius="4" Padding="6">
+                                 <ScrollViewer x:Name="TxtScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
+                                     <StackPanel>
+                                         <!-- Captured Image Preview (if available) -->
+                                         <Border BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Width="100" Height="60" HorizontalAlignment="Left" Margin="0,0,0,8" ClipToBounds="True">
+                                             <Border.Style>
+                                                 <Style TargetType="Border">
+                                                     <Style.Triggers>
+                                                         <DataTrigger Binding="{Binding CapturedPreview}" Value="{x:Null}">
+                                                             <Setter Property="Visibility" Value="Collapsed"/>
+                                                         </DataTrigger>
+                                                     </Style.Triggers>
+                                                 </Style>
+                                             </Border.Style>
+                                             <Image Source="{Binding CapturedPreview}" Stretch="UniformToFill"/>
+                                         </Border>
+                                         
+                                         <!-- Scan Results Text -->
+                                         <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent"/>
+                                     </StackPanel>
+                                 </ScrollViewer>
+                             </Border>
+
+                             <!-- Preset Follow-up Buttons for Text Scan -->
+                             <ItemsControl Grid.Row="4" Margin="0,6,0,0" 
+                                           ItemsSource="{Binding PresetFollowUps}" 
+                                           Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
+                                 <ItemsControl.ItemsPanel>
+                                     <ItemsPanelTemplate>
+                                         <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left"/>
+                                     </ItemsPanelTemplate>
+                                 </ItemsControl.ItemsPanel>
+                                 <ItemsControl.ItemTemplate>
+                                     <DataTemplate>
+                                         <Button Content="{Binding}" 
+                                                 Margin="2,2" 
+                                                 Padding="7,3" 
+                                                 FontSize="10" 
+                                                 FontWeight="Medium"
+                                                 Cursor="Hand"
+                                                 Command="{Binding DataContext.AskFollowUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                 CommandParameter="{Binding}">
+                                             <Button.Style>
+                                                 <Style TargetType="Button">
+                                                     <Setter Property="Background" Value="#1AFFFFFF"/>
+                                                     <Setter Property="Foreground" Value="#DDFFFFFF"/>
+                                                     <Setter Property="Template">
+                                                         <Setter.Value>
+                                                             <ControlTemplate TargetType="Button">
+                                                                 <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                 </Border>
+                                                             </ControlTemplate>
+                                                         </Setter.Value>
+                                                     </Setter>
+                                                     <Style.Triggers>
+                                                         <Trigger Property="IsMouseOver" Value="True">
+                                                             <Setter Property="Background" Value="#44FFFFFF"/>
+                                                             <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                                                         </Trigger>
+                                                     </Style.Triggers>
+                                                 </Style>
+                                             </Button.Style>
+                                         </Button>
+                                     </DataTemplate>
+                                 </ItemsControl.ItemTemplate>
+                             </ItemsControl>
+
+                             <!-- Loader Spinner Bar -->
+                             <ProgressBar Grid.Row="5" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                         </Grid>
+                     </Border>
+                 </Grid>
 
                 <!-- VOICE SCAN WIDGET -->
                 <Grid Visibility="{Binding IsVoiceScanActive, Converter={StaticResource BoolToVis}}">

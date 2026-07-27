@@ -84,8 +84,38 @@ namespace OverlayApp.ViewModels
         public ICommand TimerResetCommand { get; }
         public ICommand CloseAppCommand { get; }
         public ICommand StartScanCommand { get; }
+        public ICommand SendScreenshotsCommand { get; }
+        public ICommand RemoveScreenshotCommand { get; }
         public ICommand ToggleVoiceCommand { get; }
         public ICommand ClearTxtScanCommand { get; }
+
+        public System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem> CapturedScreenshots { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem>();
+
+        public int CapturedScreenshotsCount => CapturedScreenshots.Count;
+        public bool HasCapturedScreenshots => CapturedScreenshots.Count > 0;
+        public bool IsMinimumScreenshotsReached => CapturedScreenshots.Count >= 3;
+        public string SendButtonText => $"SEND ({CapturedScreenshots.Count})";
+
+        public string ScreenshotsBadgeText
+        {
+            get
+            {
+                if (CapturedScreenshots.Count == 0)
+                    return "📸 Captured: 0 / 3 min (Click + CAPTURE to add)";
+                if (CapturedScreenshots.Count < 3)
+                    return $"📸 Captured: {CapturedScreenshots.Count} / 3 min (Add {3 - CapturedScreenshots.Count} more)";
+                return $"✅ Captured: {CapturedScreenshots.Count} / 3 min (Ready to SEND)";
+            }
+        }
+
+        private void NotifyScreenshotStateChanged()
+        {
+            OnPropertyChanged(nameof(CapturedScreenshotsCount));
+            OnPropertyChanged(nameof(HasCapturedScreenshots));
+            OnPropertyChanged(nameof(IsMinimumScreenshotsReached));
+            OnPropertyChanged(nameof(SendButtonText));
+            OnPropertyChanged(nameof(ScreenshotsBadgeText));
+        }
         public ICommand ClearVoiceScanCommand { get; }
         public ICommand SubmitFollowUpCommand { get; }
         public ICommand ToggleFollowUpVoiceCommand { get; }
@@ -178,8 +208,12 @@ namespace OverlayApp.ViewModels
             TimerResetCommand = new RelayCommand(_ => ResetTimer());
             CloseAppCommand = new RelayCommand(_ => System.Windows.Application.Current.Shutdown());
             StartScanCommand = new RelayCommand(_ => TriggerScreenScan());
+            SendScreenshotsCommand = new RelayCommand(async _ => await ExecuteSendBatchScreenshotsAsync());
+            RemoveScreenshotCommand = new RelayCommand(param => RemoveScreenshot(param));
             ToggleVoiceCommand = new RelayCommand(_ => ToggleVoiceRecording());
             ClearTxtScanCommand = new RelayCommand(_ => { 
+                CapturedScreenshots.Clear();
+                NotifyScreenshotStateChanged();
                 ScanResponseText = ""; 
                 CapturedPreview = null; 
                 _txtChatHistory.Clear();
@@ -833,10 +867,10 @@ namespace OverlayApp.ViewModels
 
             var selectionWindow = new Views.SelectionWindow();
             selectionWindow.ShowActivated = false;
-            selectionWindow.AreaSelected = async rect =>
+            selectionWindow.AreaSelected = rect =>
             {
                 _lastSelectedRect = rect;
-                await ExecuteScanWithRectAsync(rect);
+                AddCapturedScreenshot(rect);
             };
 
             selectionWindow.Show();
@@ -856,7 +890,6 @@ namespace OverlayApp.ViewModels
             }
             else
             {
-                // Capture primary screen completely in physical coordinates
                 double scaleX = 1.0;
                 double scaleY = 1.0;
                 if (System.Windows.Application.Current.MainWindow != null)
@@ -873,162 +906,226 @@ namespace OverlayApp.ViewModels
                 rectToScan = new System.Windows.Int32Rect(0, 0, w, h);
             }
 
-            await ExecuteScanWithRectAsync(rectToScan);
+            AddCapturedScreenshot(rectToScan);
         }
 
-        private async Task ExecuteScanWithRectAsync(System.Windows.Int32Rect rect)
+        private void AddCapturedScreenshot(System.Windows.Int32Rect rect)
         {
-            IsScanning = true;
-            ScanResponseText = "[LLM 1] Extracting text from screen area...";
-            
-            try
+            byte[] imageBytes;
+            var previewSource = CaptureScreenArea(rect, out imageBytes);
+            if (imageBytes != null && imageBytes.Length > 0 && previewSource != null)
             {
-                byte[] imageBytes;
-                var previewSource = CaptureScreenArea(rect, out imageBytes);
                 CapturedPreview = previewSource;
-
-                if (imageBytes != null && imageBytes.Length > 0)
+                var item = new Models.CapturedScreenshotItem
                 {
-                    string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                    Index = CapturedScreenshots.Count + 1,
+                    PreviewImage = previewSource,
+                    ImageBytes = imageBytes
+                };
+                CapturedScreenshots.Add(item);
+                NotifyScreenshotStateChanged();
 
-                    // Send cropped screenshot to Groq Vision
-                    var ocrResult = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
-                    
-                    bool hasText = !string.IsNullOrWhiteSpace(ocrResult.Text) && ocrResult.Text.Trim() != "(no text detected)";
-                    string textExtractedStatus = hasText ? $"Yes ({ocrResult.Text.Length} characters)" : "No";
-
-                    // Build scan details metadata header
-                    string metadataHeader = $"**🔍 Scan Meta Information**\n" +
-                                            $"* **OCR Method:** {ocrResult.Method}\n" +
-                                            $"* **Text Extracted:** {textExtractedStatus}\n";
-
-                    if (!string.IsNullOrWhiteSpace(ocrResult.Error))
-                    {
-                        metadataHeader += $"* **Error:** {ocrResult.Error}\n";
-                    }
-                    metadataHeader += "\n";
-
-                    if (!hasText)
-                    {
-                        ScanResponseText = metadataHeader + "⚠️ No text detected in the captured area. Please try scanning again.";
-                        return;
-                    }
-
-                    // Send extracted text to Groq for explanation/solving
-                    string singleModel = "openai/gpt-oss-120b";
-                    
-                    _txtChatHistory.Clear();
-                    if (IsMcqScanMode)
-                    {
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "system",
-                            Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice question (MCQ) for aptitude, reasoning, or technical content, and output ONLY the correct option letter (e.g., A, B, C, or D) or the exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
-                        });
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "user",
-                            Content = $"Here is the raw text from a multiple-choice question:\n\n{ocrResult.Text}"
-                        });
-
-                        string modelA = "openai/gpt-oss-120b";
-                        string modelB = "llama-3.3-70b-versatile";
-
-                        ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer with dual models ({modelA} and {modelB})...";
-
-                        // Run dual models concurrently to verify answers
-                        var taskA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
-                        var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
-
-                        await Task.WhenAll(taskA, taskB);
-                        string answerA = await taskA;
-                        string answerB = await taskB;
-
-                        string cleanA = CleanMcqResponse(answerA);
-                        string cleanB = CleanMcqResponse(answerB);
-                        bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
-
-                        var sbVerify = new System.Text.StringBuilder();
-                        sbVerify.AppendLine(metadataHeader);
-                        sbVerify.AppendLine("### 🤖 MCQ Double-Model Verification");
-                        sbVerify.AppendLine();
-                        sbVerify.AppendLine($"* **Model A ({modelA}):** {answerA.Trim()}");
-                        sbVerify.AppendLine($"* **Model B ({modelB}):** {answerB.Trim()}");
-                        sbVerify.AppendLine();
-                        sbVerify.AppendLine("---");
-                        sbVerify.AppendLine();
-                        if (isMatch)
-                        {
-                            sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
-                        }
-                        else
-                        {
-                            sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. You should probably **rescan** the question.");
-                        }
-
-                        string finalResult = sbVerify.ToString();
-                        ScanResponseText = finalResult;
-
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "assistant",
-                            Content = finalResult
-                        });
-                    }
-                    else if (IsCodingScanMode)
-                    {
-                        ScanResponseText = metadataHeader + $"[LLM] Analyzing coding problem with **{singleModel}**...";
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "system",
-                            Content = "You are a strict code generator. Solve the programming challenge. You must output ONLY the source code in Python language by default. Write the code in a humanized style as if written by a developer in a real coding interview (use natural variable names, standard spacing, and write clean logic without adding excessive comments on every line). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
-                        });
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "user",
-                            Content = $"Here is the raw text from a coding problem:\n\n{ocrResult.Text}"
-                        });
-
-                        string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
-                        string finalResult = metadataHeader + responseBody;
-                        ScanResponseText = finalResult;
-
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "assistant",
-                            Content = finalResult
-                        });
-                    }
-                    else
-                    {
-                        ScanResponseText = metadataHeader + $"[LLM] Explaining text with **{singleModel}**...";
-                        // Normal Scan Mode: returns general explanation / summary
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "system",
-                            Content = "You are a helpful overlay productivity assistant. Your task is to analyze the extracted text from the user's screen and explain it clearly and comprehensively. If the text contains a question, problem, or concepts, explain the answers or concepts step-by-step. Keep your output concise, clear, and formatted in markdown. Write in a natural, conversational, humanized style. Avoid typical robotic AI transitions, templates, or preambles. Explain it casually like an experienced developer explaining to a peer. Do not mention you are an AI."
-                        });
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "user",
-                            Content = $"Here is the raw text from my screen:\n\n{ocrResult.Text}"
-                        });
-
-                        string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
-                        string finalResult = metadataHeader + responseBody;
-                        ScanResponseText = finalResult;
-
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "assistant",
-                            Content = finalResult
-                        });
-                    }
-                    OnPropertyChanged(nameof(IsFollowUpVisible));
+                if (CapturedScreenshots.Count < 3)
+                {
+                    ScanResponseText = $"📸 **Captured Screenshot #{item.Index}.**\n\n" +
+                                       $"Current total: **{CapturedScreenshots.Count} / 3 minimum**.\n" +
+                                       $"Please click **+ CAPTURE** to add at least {3 - CapturedScreenshots.Count} more screenshot{(3 - CapturedScreenshots.Count == 1 ? "" : "s")} before clicking **SEND**.";
                 }
                 else
                 {
-                    ScanResponseText = "Error: Captured screen image data was empty.";
+                    ScanResponseText = $"✅ **Captured Screenshot #{item.Index}.**\n\n" +
+                                       $"Total captured: **{CapturedScreenshots.Count}** screenshots.\n" +
+                                       $"Minimum requirement met! Click **SEND ({CapturedScreenshots.Count})** to process all screenshots with AI.";
+                }
+            }
+        }
+
+        private void RemoveScreenshot(object? param)
+        {
+            if (param is Models.CapturedScreenshotItem item && CapturedScreenshots.Contains(item))
+            {
+                CapturedScreenshots.Remove(item);
+                for (int i = 0; i < CapturedScreenshots.Count; i++)
+                {
+                    CapturedScreenshots[i].Index = i + 1;
+                }
+                NotifyScreenshotStateChanged();
+                if (CapturedScreenshots.Count == 0)
+                {
+                    CapturedPreview = null;
+                    ScanResponseText = "";
+                }
+                else
+                {
+                    CapturedPreview = CapturedScreenshots[CapturedScreenshots.Count - 1].PreviewImage;
+                }
+            }
+        }
+
+        private async Task ExecuteSendBatchScreenshotsAsync()
+        {
+            if (CapturedScreenshots.Count < 3)
+            {
+                ScanResponseText = $"⚠️ **Minimum 3 screenshots required to scan.**\n\n" +
+                                   $"You have currently captured **{CapturedScreenshots.Count}** out of **3** required screenshots.\n\n" +
+                                   $"Please click **+ CAPTURE** to add at least {3 - CapturedScreenshots.Count} more screenshot{(3 - CapturedScreenshots.Count == 1 ? "" : "s")} before clicking **SEND**.";
+                return;
+            }
+
+            IsScanning = true;
+            ScanResponseText = $"[OCR] Processing {CapturedScreenshots.Count} captured screenshots...";
+
+            try
+            {
+                string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                var combinedTextBuilder = new System.Text.StringBuilder();
+                int totalChars = 0;
+                int successfulScans = 0;
+
+                for (int i = 0; i < CapturedScreenshots.Count; i++)
+                {
+                    var item = CapturedScreenshots[i];
+                    ScanResponseText = $"[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...";
+
+                    var ocrResult = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, item.ImageBytes);
+
+                    string text = ocrResult.Text?.Trim() ?? "";
+                    if (!string.IsNullOrWhiteSpace(text) && text != "(no text detected)")
+                    {
+                        combinedTextBuilder.AppendLine($"--- SCREENSHOT {item.Index} ---");
+                        combinedTextBuilder.AppendLine(text);
+                        combinedTextBuilder.AppendLine();
+                        totalChars += text.Length;
+                        successfulScans++;
+                    }
+                    else
+                    {
+                        combinedTextBuilder.AppendLine($"--- SCREENSHOT {item.Index} ---");
+                        combinedTextBuilder.AppendLine("(no text detected)");
+                        combinedTextBuilder.AppendLine();
+                    }
+                }
+
+                if (totalChars == 0)
+                {
+                    ScanResponseText = "⚠️ No readable text was detected across all captured screenshots. Please try capturing clearer screen areas.";
+                    return;
+                }
+
+                string metadataHeader = $"**🔍 Batch Scan Meta Information**\n" +
+                                        $"* **Total Screenshots Scanned:** {CapturedScreenshots.Count}\n" +
+                                        $"* **Successful Extractions:** {successfulScans}/{CapturedScreenshots.Count}\n" +
+                                        $"* **Total Text Extracted:** {totalChars} characters\n\n";
+
+                string combinedExtractedText = combinedTextBuilder.ToString().Trim();
+
+                string singleModel = "openai/gpt-oss-120b";
+                _txtChatHistory.Clear();
+
+                if (IsMcqScanMode)
+                {
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "system",
+                        Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice questions (MCQs) captured across all screenshots, and output ONLY the correct option letter (e.g., A, B, C, or D) or exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
+                    });
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = $"Here is the raw text extracted from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                    });
+
+                    string modelA = "openai/gpt-oss-120b";
+                    string modelB = "llama-3.3-70b-versatile";
+
+                    ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshots with dual models ({modelA} and {modelB})...";
+
+                    var taskA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
+                    var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
+
+                    await Task.WhenAll(taskA, taskB);
+                    string answerA = await taskA;
+                    string answerB = await taskB;
+
+                    string cleanA = CleanMcqResponse(answerA);
+                    string cleanB = CleanMcqResponse(answerB);
+                    bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
+
+                    var sbVerify = new System.Text.StringBuilder();
+                    sbVerify.AppendLine(metadataHeader);
+                    sbVerify.AppendLine("### 🤖 MCQ Double-Model Verification");
+                    sbVerify.AppendLine();
+                    sbVerify.AppendLine($"* **Model A ({modelA}):** {answerA.Trim()}");
+                    sbVerify.AppendLine($"* **Model B ({modelB}):** {answerB.Trim()}");
+                    sbVerify.AppendLine();
+                    sbVerify.AppendLine("---");
+                    sbVerify.AppendLine();
+                    if (isMatch)
+                    {
+                        sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
+                    }
+                    else
+                    {
+                        sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. Please double-check your screenshots.");
+                    }
+
+                    string finalResult = sbVerify.ToString();
+                    ScanResponseText = finalResult;
+
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "assistant",
+                        Content = finalResult
+                    });
+                }
+                else if (IsCodingScanMode)
+                {
+                    ScanResponseText = metadataHeader + $"[LLM] Analyzing coding problem across {CapturedScreenshots.Count} screenshots with **{singleModel}**...";
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "system",
+                        Content = "You are a strict code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the source code in Python language by default. Write the code in a humanized style as if written by a developer in a real coding interview (use natural variable names, standard spacing, and write clean logic without adding excessive comments on every line). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code."
+                    });
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = $"Here is the coding problem raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                    });
+
+                    string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                    string finalResult = metadataHeader + responseBody.Trim();
+                    ScanResponseText = finalResult;
+
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "assistant",
+                        Content = finalResult
+                    });
+                }
+                else
+                {
+                    ScanResponseText = metadataHeader + $"[LLM] Explaining text from {CapturedScreenshots.Count} screenshots with **{singleModel}**...";
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "system",
+                        Content = "You are a helpful overlay productivity assistant. Your task is to analyze the extracted text from the user's screenshots and explain it clearly and comprehensively. If the text contains questions, problems, or concepts across screenshots, explain the answers or concepts step-by-step. Keep your output concise, clear, and formatted in markdown. Write in a natural, conversational, humanized style. Avoid typical robotic AI transitions, templates, or preambles. Explain it casually like an experienced developer explaining to a peer. Do not mention you are an AI."
+                    });
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = $"Here is the raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                    });
+
+                    string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                    string finalResult = metadataHeader + responseBody.Trim();
+                    ScanResponseText = finalResult;
+
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "assistant",
+                        Content = finalResult
+                    });
                 }
             }
             catch (Exception ex)
             {
-                ScanResponseText = $"Pipeline error: {ex.Message}";
+                ScanResponseText = $"⚠️ Error processing batch screenshots: {ex.Message}";
             }
             finally
             {
                 IsScanning = false;
+                OnPropertyChanged(nameof(IsFollowUpVisible));
             }
         }
 
@@ -1873,7 +1970,6 @@ namespace OverlayApp.ViewModels
             IsAuthLoading = true;
 
             // Clear local key state first so we don't inherit old keys from this PC
-            _settings.GroqKey = "";
             GroqKey = "";
             GroqInputKey = "";
             IsGroqKeyValidated = false;
@@ -1941,7 +2037,6 @@ namespace OverlayApp.ViewModels
             IsAuthLoading = true;
 
             // Clear local key state first so we don't inherit old keys from this PC
-            _settings.GroqKey = "";
             GroqKey = "";
             GroqInputKey = "";
             IsGroqKeyValidated = false;
@@ -2002,7 +2097,6 @@ namespace OverlayApp.ViewModels
             IsSettingsOpen = false;
             
             // Clear Groq key states to protect user privacy
-            _settings.GroqKey = "";
             GroqKey = "";
             GroqInputKey = "";
             IsGroqKeyValidated = false;
