@@ -632,137 +632,158 @@
                                  </DockPanel>
                              </Grid>
 
-                             <!-- Scan Controls Row -->
-                             <Grid Grid.Row="1" Margin="0,0,0,6">
-                                 <Grid.ColumnDefinitions>
-                                     <ColumnDefinition Width="*"/>
-                                     <ColumnDefinition Width="*"/>
-                                     <ColumnDefinition Width="Auto"/>
-                                     <ColumnDefinition Width="Auto"/>
-                                 </Grid.ColumnDefinitions>
+                              <!-- Scan Controls Section -->
+                              <StackPanel Grid.Row="1" Margin="0,0,0,6">
+                                  
+                                  <!-- Row 1: Primary Controls (+ CAPTURE, SEND, Copy, Refresh) -->
+                                  <Grid Margin="0,0,0,4">
+                                      <Grid.ColumnDefinitions>
+                                          <ColumnDefinition Width="*"/>
+                                          <ColumnDefinition Width="*"/>
+                                          <ColumnDefinition Width="Auto"/>
+                                          <ColumnDefinition Width="Auto"/>
+                                      </Grid.ColumnDefinitions>
 
-                                 <!-- + CAPTURE SCREENSHOT Button -->
-                                 <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Capture a screen region (Min 3 required)">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border CornerRadius="4" Background="{Binding Tag, ElementName=MainBorder}" Padding="6,4">
-                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                     <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" 
-                                                           Fill="#000000" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
-                                                     <TextBlock Text="+ CAPTURE" Foreground="#000000" FontSize="10" FontWeight="Bold"/>
-                                                 </StackPanel>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter Property="Opacity" Value="0.9"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
+                                      <!-- + CAPTURE SCREENSHOT Button -->
+                                      <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Capture a screen region (1 to 3 max)">
+                                          <Button.Template>
+                                              <ControlTemplate TargetType="Button">
+                                                  <Border CornerRadius="4" Background="{Binding Tag, ElementName=MainBorder}" Padding="6,4">
+                                                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                          <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" 
+                                                                Fill="#000000" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                          <TextBlock Text="+ CAPTURE" Foreground="#000000" FontSize="10" FontWeight="Bold"/>
+                                                      </StackPanel>
+                                                  </Border>
+                                                  <ControlTemplate.Triggers>
+                                                      <Trigger Property="IsMouseOver" Value="True">
+                                                          <Setter Property="Opacity" Value="0.9"/>
+                                                      </Trigger>
+                                                  </ControlTemplate.Triggers>
+                                              </ControlTemplate>
+                                          </Button.Template>
+                                      </Button>
 
-                                 <!-- SEND BUTTON -->
-                                 <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Process all captured screenshots (Min 3 required)">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border x:Name="SendBorder" CornerRadius="4" Background="#10B981" Padding="6,4">
-                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                     <Path Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
-                                                           Fill="#FFFFFF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
-                                                     <TextBlock Text="{Binding SendButtonText}" Foreground="#FFFFFF" FontSize="10" FontWeight="Bold"/>
-                                                 </StackPanel>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter TargetName="SendBorder" Property="Background" Value="#059669"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
+                                      <!-- SEND BUTTON -->
+                                      <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Process all captured screenshots">
+                                          <Button.Template>
+                                              <ControlTemplate TargetType="Button">
+                                                  <Border x:Name="SendBorder" CornerRadius="4" Background="#10B981" Padding="6,4">
+                                                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                          <Path Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
+                                                                Fill="#FFFFFF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                          <TextBlock Text="{Binding SendButtonText}" Foreground="#FFFFFF" FontSize="10" FontWeight="Bold"/>
+                                                      </StackPanel>
+                                                  </Border>
+                                                  <ControlTemplate.Triggers>
+                                                      <Trigger Property="IsMouseOver" Value="True">
+                                                          <Setter TargetName="SendBorder" Property="Background" Value="#059669"/>
+                                                      </Trigger>
+                                                  </ControlTemplate.Triggers>
+                                              </ControlTemplate>
+                                          </Button.Template>
+                                      </Button>
 
-                                 <!-- Font Size Decrement (A-) -->
-                                 <Button Grid.Column="2" Command="{Binding DecreaseFontSizeCommand}" Cursor="Hand" Height="28" Width="26" ToolTip="Decrease Font Size (A-)" Margin="0,0,3,0">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border x:Name="BtnBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                 <TextBlock Text="A-" Foreground="#D1D5DB" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
+                                      <!-- Copy Button (Original Position Next to Send) -->
+                                      <Button Grid.Column="2" Command="{Binding CopyTxtCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy results text" Margin="0,0,4,0">
+                                          <Button.Template>
+                                              <ControlTemplate TargetType="Button">
+                                                  <Border x:Name="CopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
+                                                      <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" 
+                                                            Fill="#88FFFFFF" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                  </Border>
+                                                  <ControlTemplate.Triggers>
+                                                      <Trigger Property="IsMouseOver" Value="True">
+                                                          <Setter TargetName="CopyBorder" Property="Background" Value="#28FFFFFF"/>
+                                                      </Trigger>
+                                                  </ControlTemplate.Triggers>
+                                              </ControlTemplate>
+                                          </Button.Template>
+                                      </Button>
 
-                                 <!-- Font Size Increment (A+) -->
-                                 <Button Grid.Column="3" Command="{Binding IncreaseFontSizeCommand}" Cursor="Hand" Height="28" Width="26" ToolTip="Increase Font Size (A+)" Margin="0,0,3,0">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border x:Name="BtnBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                 <TextBlock Text="A+" Foreground="#D1D5DB" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
+                                      <!-- Clear/Refresh Button (Original Position Next to Copy) -->
+                                      <Button Grid.Column="3" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear screenshots and results">
+                                          <Button.Template>
+                                              <ControlTemplate TargetType="Button">
+                                                  <Border x:Name="ClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
+                                                      <Path Data="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" 
+                                                            Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                  </Border>
+                                                  <ControlTemplate.Triggers>
+                                                      <Trigger Property="IsMouseOver" Value="True">
+                                                          <Setter TargetName="ClearBorder" Property="Background" Value="#28FFFFFF"/>
+                                                      </Trigger>
+                                                  </ControlTemplate.Triggers>
+                                              </ControlTemplate>
+                                          </Button.Template>
+                                      </Button>
+                                  </Grid>
 
-                                 <!-- Window Height Expansion Toggle Button -->
-                                 <Button Grid.Column="4" Command="{Binding ToggleExpandHeightCommand}" Cursor="Hand" Height="28" ToolTip="Toggle Window Height (Expand/Compact)" Margin="0,0,3,0">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border x:Name="BtnBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="5,2">
-                                                 <TextBlock Text="{Binding ExpandHeightButtonText}" Foreground="#D1D5DB" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center"/>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
+                                  <!-- Sub-Row: Secondary Utility Controls (Under Capture and Send section) -->
+                                  <DockPanel LastChildFill="False">
+                                      <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                          <!-- Font Size Decrement (A-) -->
+                                          <Button Command="{Binding DecreaseFontSizeCommand}" Cursor="Hand" Height="22" Padding="8,1" ToolTip="Decrease Font Size (A-)" Margin="0,0,4,0">
+                                              <Button.Template>
+                                                  <ControlTemplate TargetType="Button">
+                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                          <TextBlock Text="A-" Foreground="#B0FFFFFF" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                      </Border>
+                                                      <ControlTemplate.Triggers>
+                                                          <Trigger Property="IsMouseOver" Value="True">
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                          </Trigger>
+                                                      </ControlTemplate.Triggers>
+                                                  </ControlTemplate>
+                                              </Button.Template>
+                                          </Button>
 
-                                 <!-- Copy Button -->
-                                 <Button Grid.Column="5" Command="{Binding CopyTxtCommand}" Cursor="Hand" Height="28" Width="26" ToolTip="Copy results text" Margin="0,0,3,0">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border x:Name="CopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
-                                                 <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" 
-                                                       Fill="#88FFFFFF" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter TargetName="CopyBorder" Property="Background" Value="#28FFFFFF"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
+                                          <!-- Font Size Increment (A+) -->
+                                          <Button Command="{Binding IncreaseFontSizeCommand}" Cursor="Hand" Height="22" Padding="8,1" ToolTip="Increase Font Size (A+)" Margin="0,0,4,0">
+                                              <Button.Template>
+                                                  <ControlTemplate TargetType="Button">
+                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                          <TextBlock Text="A+" Foreground="#B0FFFFFF" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                      </Border>
+                                                      <ControlTemplate.Triggers>
+                                                          <Trigger Property="IsMouseOver" Value="True">
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                          </Trigger>
+                                                      </ControlTemplate.Triggers>
+                                                  </ControlTemplate>
+                                              </Button.Template>
+                                          </Button>
 
-                                 <!-- Clear/Refresh Button -->
-                                 <Button Grid.Column="6" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="26" ToolTip="Clear screenshots and results">
-                                     <Button.Template>
-                                         <ControlTemplate TargetType="Button">
-                                             <Border x:Name="ClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
-                                                 <Path Data="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" 
-                                                       Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                             </Border>
-                                             <ControlTemplate.Triggers>
-                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                     <Setter TargetName="ClearBorder" Property="Background" Value="#28FFFFFF"/>
-                                                 </Trigger>
-                                             </ControlTemplate.Triggers>
-                                         </ControlTemplate>
-                                     </Button.Template>
-                                 </Button>
-                             </Grid>
+                                          <!-- Window Height Expansion Toggle Button -->
+                                          <Button Command="{Binding ToggleExpandHeightCommand}" Cursor="Hand" Height="22" Padding="8,1" ToolTip="Toggle Window Height (Expand/Compact)" Margin="0,0,4,0">
+                                              <Button.Template>
+                                                  <ControlTemplate TargetType="Button">
+                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                          <TextBlock Text="{Binding ExpandHeightButtonText}" Foreground="#B0FFFFFF" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                      </Border>
+                                                      <ControlTemplate.Triggers>
+                                                          <Trigger Property="IsMouseOver" Value="True">
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                          </Trigger>
+                                                      </ControlTemplate.Triggers>
+                                                  </ControlTemplate>
+                                              </Button.Template>
+                                          </Button>
+                                      </StackPanel>
+
+                                      <!-- MCQ Scan Notice (Shown under capture/send when in MCQ mode) -->
+                                      <Border DockPanel.Dock="Right" Background="#20FF9900" BorderBrush="#55FF9900" BorderThickness="1" CornerRadius="3" Padding="6,2"
+                                              Visibility="{Binding IsMcqScanMode, Converter={StaticResource BoolToVis}}">
+                                          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                              <TextBlock Text="⚠️ Note: Do not capture 2+ questions in one screenshot" Foreground="#FFD54F" FontSize="8.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                          </StackPanel>
+                                      </Border>
+                                  </DockPanel>
+
+                              </StackPanel>
 
                              <!-- Screenshot Batch Status & Thumbnails Bar -->
                              <Grid Grid.Row="2" Margin="0,0,0,6">

@@ -220,6 +220,11 @@ namespace OverlayApp.ViewModels
                 ScanResponseText = ""; 
                 CapturedPreview = null; 
                 _txtChatHistory.Clear();
+                ScanModeState currentState = GetModeState(_activeScanModeName);
+                currentState.ResponseText = "";
+                currentState.ChatHistory.Clear();
+                currentState.Screenshots.Clear();
+                currentState.CapturedPreview = null;
                 OnPropertyChanged(nameof(IsFollowUpVisible));
             });
             ClearVoiceScanCommand = new RelayCommand(_ => { 
@@ -638,6 +643,61 @@ namespace OverlayApp.ViewModels
             set => IsLiveMode = !value;
         }
 
+        private class ScanModeState
+        {
+            public string ResponseText { get; set; } = "";
+            public List<ChatMessage> ChatHistory { get; set; } = new List<ChatMessage>();
+            public List<Models.CapturedScreenshotItem> Screenshots { get; set; } = new List<Models.CapturedScreenshotItem>();
+            public System.Windows.Media.ImageSource? CapturedPreview { get; set; }
+        }
+
+        private readonly ScanModeState _normalModeState = new ScanModeState();
+        private readonly ScanModeState _mcqModeState = new ScanModeState();
+        private readonly ScanModeState _codingModeState = new ScanModeState();
+        private string _activeScanModeName = "Normal";
+
+        private void SwitchTextScanModeState(string targetMode)
+        {
+            if (_activeScanModeName == targetMode) return;
+
+            // 1. Save current active mode state
+            ScanModeState currentState = GetModeState(_activeScanModeName);
+            currentState.ResponseText = ScanResponseText;
+            currentState.ChatHistory = new List<ChatMessage>(_txtChatHistory);
+            currentState.Screenshots = new List<Models.CapturedScreenshotItem>(CapturedScreenshots);
+            currentState.CapturedPreview = CapturedPreview;
+
+            // 2. Switch active mode key
+            _activeScanModeName = targetMode;
+
+            // 3. Load target mode state
+            ScanModeState targetState = GetModeState(targetMode);
+            ScanResponseText = targetState.ResponseText;
+            
+            _txtChatHistory.Clear();
+            foreach (var item in targetState.ChatHistory) _txtChatHistory.Add(item);
+
+            CapturedScreenshots.Clear();
+            foreach (var item in targetState.Screenshots) CapturedScreenshots.Add(item);
+
+            CapturedPreview = targetState.CapturedPreview;
+
+            // 4. Trigger UI updates
+            NotifyScreenshotStateChanged();
+            OnPropertyChanged(nameof(IsFollowUpVisible));
+            OnPropertyChanged(nameof(CapturedPreview));
+        }
+
+        private ScanModeState GetModeState(string mode)
+        {
+            return mode switch
+            {
+                "MCQ" => _mcqModeState,
+                "Coding" => _codingModeState,
+                _ => _normalModeState
+            };
+        }
+
         public bool IsMcqScanMode
         {
             get => _settings.TextScanType == "MCQ";
@@ -645,6 +705,7 @@ namespace OverlayApp.ViewModels
             {
                 if (value && _settings.TextScanType != "MCQ")
                 {
+                    SwitchTextScanModeState("MCQ");
                     _settings.TextScanType = "MCQ";
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
@@ -661,6 +722,7 @@ namespace OverlayApp.ViewModels
             {
                 if (value && _settings.TextScanType != "Coding")
                 {
+                    SwitchTextScanModeState("Coding");
                     _settings.TextScanType = "Coding";
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
@@ -677,6 +739,7 @@ namespace OverlayApp.ViewModels
             {
                 if (value && _settings.TextScanType != "Normal")
                 {
+                    SwitchTextScanModeState("Normal");
                     _settings.TextScanType = "Normal";
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
@@ -993,6 +1056,23 @@ namespace OverlayApp.ViewModels
             if (IsLoginOverlayVisible || IsPaymentOverlayVisible || IsFeatureLocked)
             {
                 return;
+            }
+
+            // Auto-refresh: If a previous response has already been generated or chat exists,
+            // automatically clear old screenshots and response text for the new capture session.
+            if (!string.IsNullOrWhiteSpace(ScanResponseText) || _txtChatHistory.Count > 0)
+            {
+                CapturedScreenshots.Clear();
+                NotifyScreenshotStateChanged();
+                ScanResponseText = "";
+                CapturedPreview = null;
+                _txtChatHistory.Clear();
+                ScanModeState currentState = GetModeState(_activeScanModeName);
+                currentState.ResponseText = "";
+                currentState.ChatHistory.Clear();
+                currentState.Screenshots.Clear();
+                currentState.CapturedPreview = null;
+                OnPropertyChanged(nameof(IsFollowUpVisible));
             }
 
             if (CapturedScreenshots.Count >= 3)
