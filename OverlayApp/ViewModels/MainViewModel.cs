@@ -124,9 +124,12 @@ namespace OverlayApp.ViewModels
         public ICommand SkipOnboardingCommand { get; }
         public ICommand FinishOnboardingCommand { get; }
 
-        // Copy Commands
+        // Copy & Font Size Commands
         public ICommand CopyTxtCommand { get; }
         public ICommand CopyVoiceCommand { get; }
+        public ICommand DecreaseFontSizeCommand { get; }
+        public ICommand IncreaseFontSizeCommand { get; }
+        public ICommand ToggleExpandHeightCommand { get; }
 
         // Preset Follow-ups
         public System.Collections.ObjectModel.ObservableCollection<string> PresetFollowUps { get; } = new System.Collections.ObjectModel.ObservableCollection<string>();
@@ -236,6 +239,16 @@ namespace OverlayApp.ViewModels
             CopyVoiceCommand = new RelayCommand(_ => { 
                 if (!string.IsNullOrEmpty(VoiceScanResponseText)) 
                     System.Windows.Clipboard.SetText(VoiceScanResponseText); 
+            });
+
+            DecreaseFontSizeCommand = new RelayCommand(_ => {
+                if (AppFontSize > 8.0) AppFontSize = Math.Max(8.0, AppFontSize - 1.0);
+            });
+            IncreaseFontSizeCommand = new RelayCommand(_ => {
+                if (AppFontSize < 22.0) AppFontSize = Math.Min(22.0, AppFontSize + 1.0);
+            });
+            ToggleExpandHeightCommand = new RelayCommand(_ => {
+                IsExpandedHeight = !IsExpandedHeight;
             });
 
             NextOnboardingCommand = new RelayCommand(_ =>
@@ -808,6 +821,37 @@ namespace OverlayApp.ViewModels
             get => _settings.FontSize;
             set => SetProperty(ref _settings.FontSize, value);
         }
+
+        private double _windowHeight = 480;
+        private double _windowWidth = 420;
+        private bool _isExpandedHeight = false;
+
+        public double WindowHeight
+        {
+            get => _windowHeight;
+            set => SetProperty(ref _windowHeight, value);
+        }
+
+        public double WindowWidth
+        {
+            get => _windowWidth;
+            set => SetProperty(ref _windowWidth, value);
+        }
+
+        public bool IsExpandedHeight
+        {
+            get => _isExpandedHeight;
+            set
+            {
+                if (SetProperty(ref _isExpandedHeight, value))
+                {
+                    WindowHeight = _isExpandedHeight ? 700 : 480;
+                    OnPropertyChanged(nameof(ExpandHeightButtonText));
+                }
+            }
+        }
+
+        public string ExpandHeightButtonText => IsExpandedHeight ? "↕ COMPACT" : "↕ EXPAND";
 
         public bool IsFirstRun
         {
