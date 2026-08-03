@@ -570,153 +570,188 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
-        /// Stage 1 (Gemini): Performs OCR on image using Google Gemini Vision API (gemini-2.0-flash).
+        /// Stage 1 (Gemini): Performs OCR on image using Google Gemini Vision API, with automatic fallbacks to Groq Vision & Windows WinRT OCR.
         /// </summary>
-        public async Task<(string Text, string Method, string Error)> ExtractTextFromGeminiImageAsync(string geminiKey, byte[] imageBytes)
+        public async Task<(string Text, string Method, string Error)> ExtractTextFromGeminiImageAsync(string geminiKey, byte[] imageBytes, string systemGroqKey = "")
         {
             if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured image data was empty.");
-            if (string.IsNullOrWhiteSpace(geminiKey)) return ("", "None", "Error: Gemini API Key is not configured.");
 
-            try
+            string lastError = "";
+
+            // 1. Primary: Google Gemini Vision API (if geminiKey is set and not a Groq key)
+            if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
                 string base64Image = Convert.ToBase64String(imageBytes);
-                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={geminiKey.Trim()}";
+                string[] geminiModels = new[] { "gemini-2.0-flash", "gemini-1.5-flash" };
 
-                var payload = new
+                foreach (var model in geminiModels)
                 {
-                    contents = new[]
+                    try
                     {
-                        new
+                        string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={geminiKey.Trim()}";
+
+                        var payload = new
                         {
-                            parts = new object[]
+                            contents = new[]
                             {
-                                new { text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'." },
                                 new
                                 {
-                                    inline_data = new
+                                    parts = new object[]
                                     {
-                                        mime_type = "image/png",
-                                        data = base64Image
+                                        new { text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'." },
+                                        new
+                                        {
+                                            inline_data = new
+                                            {
+                                                mime_type = "image/png",
+                                                data = base64Image
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
-                };
+                        };
 
-                string jsonPayload = JsonSerializer.Serialize(payload);
+                        string jsonPayload = JsonSerializer.Serialize(payload);
 
-                using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                {
-                    request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                    var response = await _httpClient.SendAsync(request);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        string responseJson = await response.Content.ReadAsStringAsync();
-                        string ocrText = ParseGeminiMessageContent(responseJson);
-                        if (!string.IsNullOrWhiteSpace(ocrText) && ocrText.Trim() != "(no text detected)")
+                        using (var request = new HttpRequestMessage(HttpMethod.Post, url))
                         {
-                            return (ocrText.Trim(), "Gemini Vision OCR (gemini-2.0-flash)", "");
+                            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                            var response = await _httpClient.SendAsync(request);
+                            if (response.IsSuccessStatusCode)
+                            {
+                                string responseJson = await response.Content.ReadAsStringAsync();
+                                string ocrText = ParseGeminiMessageContent(responseJson);
+                                if (!string.IsNullOrWhiteSpace(ocrText) && ocrText.Trim() != "(no text detected)" && !ocrText.StartsWith("Error:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return (ocrText.Trim(), $"Gemini Vision OCR ({model})", "");
+                                }
+                            }
+                            else
+                            {
+                                string error = await response.Content.ReadAsStringAsync();
+                                lastError = $"Gemini Vision ({model}) HTTP {response.StatusCode}: {error}";
+                            }
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        string error = await response.Content.ReadAsStringAsync();
-                        return ("", "None", $"Gemini Vision error HTTP {response.StatusCode}: {error}");
+                        lastError = $"Gemini Vision Exception: {ex.Message}";
                     }
+                }
+            }
+
+            // 2. Fallback: Groq Vision API
+            if (!string.IsNullOrWhiteSpace(systemGroqKey))
+            {
+                var groqResult = await ExtractTextFromImageAsync(systemGroqKey, imageBytes);
+                if (!string.IsNullOrWhiteSpace(groqResult.Text) && groqResult.Text != "(no text detected)")
+                {
+                    return groqResult;
+                }
+            }
+
+            // 3. Fallback: Windows WinRT OCR
+            try
+            {
+                string localText = await PerformWindowsOcrAsync(imageBytes);
+                if (!string.IsNullOrWhiteSpace(localText))
+                {
+                    return (localText, "Windows WinRT OCR", "");
                 }
             }
             catch (Exception ex)
             {
-                return ("", "None", $"Gemini Vision Exception: {ex.Message}");
+                lastError += $"\nWindows OCR Exception: {ex.Message}";
             }
 
-            // Fallback to Windows WinRT OCR if Gemini fails
-            string localText = await PerformWindowsOcrAsync(imageBytes);
-            if (!string.IsNullOrWhiteSpace(localText))
-            {
-                return (localText, "Windows WinRT OCR", "");
-            }
-
-            return ("", "None", "OCR transcription failed.");
+            return ("", "None", $"OCR transcription failed. {lastError}".Trim());
         }
 
         /// <summary>
-        /// Stage 2 (Gemini): Sends chat history to Google Gemini API (gemini-2.0-flash).
+        /// Stage 2 (Gemini): Sends chat history to Google Gemini API with fallback to Groq.
         /// </summary>
-        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash")
+        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash", string systemGroqKey = "", string fallbackGroqModel = "llama-3.3-70b-versatile")
         {
-            if (string.IsNullOrWhiteSpace(geminiKey))
+            if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
-                return "Error: Gemini API Key is not configured.";
-            }
-
-            try
-            {
-                string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={geminiKey.Trim()}";
-
-                var contentsList = new System.Collections.Generic.List<object>();
-                string systemPrompt = "";
-
-                if (history != null)
+                try
                 {
-                    foreach (var msg in history)
+                    string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={geminiKey.Trim()}";
+
+                    var contentsList = new System.Collections.Generic.List<object>();
+                    string systemPrompt = "";
+
+                    if (history != null)
                     {
-                        if (msg.Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+                        foreach (var msg in history)
                         {
-                            systemPrompt += msg.Content + "\n";
-                        }
-                        else
-                        {
-                            string geminiRole = msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user";
-                            contentsList.Add(new
+                            if (msg.Role.Equals("system", StringComparison.OrdinalIgnoreCase))
                             {
-                                role = geminiRole,
-                                parts = new[] { new { text = msg.Content } }
-                            });
+                                systemPrompt += msg.Content + "\n";
+                            }
+                            else
+                            {
+                                string geminiRole = msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user";
+                                contentsList.Add(new
+                                {
+                                    role = geminiRole,
+                                    parts = new[] { new { text = msg.Content } }
+                                });
+                            }
+                        }
+                    }
+
+                    object payload;
+                    if (!string.IsNullOrWhiteSpace(systemPrompt))
+                    {
+                        payload = new
+                        {
+                            system_instruction = new
+                            {
+                                parts = new[] { new { text = systemPrompt.Trim() } }
+                            },
+                            contents = contentsList
+                        };
+                    }
+                    else
+                    {
+                        payload = new { contents = contentsList };
+                    }
+
+                    string jsonPayload = JsonSerializer.Serialize(payload);
+
+                    using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                    {
+                        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                        var response = await _httpClient.SendAsync(request);
+                        string responseJson = await response.Content.ReadAsStringAsync();
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            string result = ParseGeminiMessageContent(responseJson);
+                            if (!string.IsNullOrWhiteSpace(result) && !result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return result;
+                            }
                         }
                     }
                 }
-
-                object payload;
-                if (!string.IsNullOrWhiteSpace(systemPrompt))
+                catch (Exception)
                 {
-                    payload = new
-                    {
-                        system_instruction = new
-                        {
-                            parts = new[] { new { text = systemPrompt.Trim() } }
-                        },
-                        contents = contentsList
-                    };
-                }
-                else
-                {
-                    payload = new { contents = contentsList };
-                }
-
-                string jsonPayload = JsonSerializer.Serialize(payload);
-
-                using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                {
-                    request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                    var response = await _httpClient.SendAsync(request);
-                    string responseJson = await response.Content.ReadAsStringAsync();
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        return ParseGeminiMessageContent(responseJson);
-                    }
-
-                    return $"Gemini API Error (HTTP {(int)response.StatusCode}):\n{responseJson}";
+                    // Fallback to Groq below
                 }
             }
-            catch (Exception ex)
+
+            // Fallback to Groq Chat API
+            if (!string.IsNullOrWhiteSpace(systemGroqKey))
             {
-                return $"Error contacting Gemini API: {ex.Message}";
+                return await ProcessChatWithGroqAsync(systemGroqKey, history ?? new System.Collections.Generic.List<ChatMessage>(), fallbackGroqModel);
             }
+
+            return "Error: Gemini API Key is missing or invalid, and fallback Groq Key is not configured.";
         }
 
         /// <summary>

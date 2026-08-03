@@ -1930,29 +1930,29 @@ namespace OverlayApp.ViewModels
 
         private async Task<(string Text, string Method, string Error)> PerformOcrAsync(byte[] imageBytes)
         {
+            string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+
             if (IsGeminiApiActive)
             {
-                string key = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
-                return await _llmService.ExtractTextFromGeminiImageAsync(key, imageBytes);
+                return await _llmService.ExtractTextFromGeminiImageAsync(GeminiKey, imageBytes, effectiveGroqKey);
             }
             else
             {
-                string key = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
-                return await _llmService.ExtractTextFromImageAsync(key, imageBytes);
+                return await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
             }
         }
 
         private async Task<string> PerformChatAsync(System.Collections.Generic.List<ChatMessage> history, string groqModel = "llama-3.3-70b-versatile")
         {
+            string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+
             if (IsGeminiApiActive)
             {
-                string key = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
-                return await _llmService.ProcessChatWithGeminiAsync(key, history, "gemini-2.0-flash");
+                return await _llmService.ProcessChatWithGeminiAsync(GeminiKey, history, "gemini-2.0-flash", effectiveGroqKey, groqModel);
             }
             else
             {
-                string key = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
-                return await _llmService.ProcessChatWithGroqAsync(key, history, groqModel);
+                return await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, history, groqModel);
             }
         }
 
