@@ -176,7 +176,9 @@ namespace OverlayApp.ViewModels
             GeminiInputKey = _settings.GeminiKey;
             ValidateGroqKeyCommand = new RelayCommand(async _ => await ValidateGroqKeyAsync());
             ValidateGeminiKeyCommand = new RelayCommand(async _ => await ValidateGeminiKeyAsync());
+            ValidateApiKeysCommand = new RelayCommand(async _ => await ValidateApiKeysAsync());
             OpenGroqConsoleCommand = new RelayCommand(_ => OpenGroqConsole());
+            OpenGeminiConsoleCommand = new RelayCommand(_ => OpenGeminiConsole());
             StartFreeTrialCommand = new RelayCommand(_ => StartFreeTrial());
             AskFollowUpCommand = new RelayCommand(param => AskFollowUp(param as string));
 
@@ -1046,8 +1048,8 @@ namespace OverlayApp.ViewModels
                 {
                     if (!value)
                     {
-                        // Save current Groq Key to database persistently in background when settings drawer closes
-                        Task.Run(async () => await SaveGroqKeyToServerAsync(GroqKey));
+                        // Save current API Keys to database persistently in background when settings drawer closes
+                        Task.Run(async () => await SaveApiKeysToServerAsync(GroqKey, GeminiKey));
                     }
                 }
             }
@@ -1326,14 +1328,16 @@ namespace OverlayApp.ViewModels
                     return;
                 }
 
+                string providerInfo = IsGeminiApiActive ? "Google Gemini API (gemini-2.0-flash)" : "Groq API";
                 string metadataHeader = $"**🔍 Batch Scan Meta Information**\n" +
                                         $"* **Total Screenshots Scanned:** {CapturedScreenshots.Count}\n" +
                                         $"* **Successful Extractions:** {successfulScans}/{CapturedScreenshots.Count}\n" +
-                                        $"* **Total Text Extracted:** {totalChars} characters\n\n";
+                                        $"* **Total Text Extracted:** {totalChars} characters\n" +
+                                        $"* **Active API Provider:** {providerInfo}\n\n";
 
                 string combinedExtractedText = combinedTextBuilder.ToString().Trim();
 
-                string singleModel = "openai/gpt-oss-120b";
+                string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
                 _txtChatHistory.Clear();
 
                 if (IsMcqScanMode)
@@ -1347,13 +1351,14 @@ namespace OverlayApp.ViewModels
                         Content = $"Here is the raw text extracted from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                     });
 
-                    string modelA = "openai/gpt-oss-120b";
-                    string modelB = "llama-3.3-70b-versatile";
+                    string modelA = "gemini-2.0-flash";
+                    string modelB = "openai/gpt-oss-120b";
 
-                    ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshots with dual models ({modelA} and {modelB})...";
+                    ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")} with dual models ({modelA} and {modelB})...";
 
-                    var taskA = PerformChatAsync(_txtChatHistory, modelA);
-                    var taskB = PerformChatAsync(_txtChatHistory, modelB);
+                    string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
+                    var taskA = _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, modelA, effectiveGroqKey, modelB);
+                    var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
 
                     await Task.WhenAll(taskA, taskB);
                     string answerA = await taskA;
@@ -1365,10 +1370,10 @@ namespace OverlayApp.ViewModels
 
                     var sbVerify = new System.Text.StringBuilder();
                     sbVerify.AppendLine(metadataHeader);
-                    sbVerify.AppendLine("### 🤖 MCQ Double-Model Verification");
+                    sbVerify.AppendLine("### 🤖 MCQ Dual-Model Verification");
                     sbVerify.AppendLine();
-                    sbVerify.AppendLine($"* **Model A ({modelA}):** {answerA.Trim()}");
-                    sbVerify.AppendLine($"* **Model B ({modelB}):** {answerB.Trim()}");
+                    sbVerify.AppendLine($"* **Model A ({modelA} - Gemini):** {answerA.Trim()}");
+                    sbVerify.AppendLine($"* **Model B ({modelB} - Groq):** {answerB.Trim()}");
                     sbVerify.AppendLine();
                     sbVerify.AppendLine("---");
                     sbVerify.AppendLine();
@@ -1392,10 +1397,10 @@ namespace OverlayApp.ViewModels
                 else if (IsCodingScanMode)
                 {
                     string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
-                    string primaryModel = "llama-3.3-70b-versatile";
+                    string primaryModel = "gemini-2.0-flash";
                     string verifierModel = "openai/gpt-oss-120b";
 
-                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full {targetLang} code solution with **{primaryModel}**...";
+                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full {targetLang} code solution with **{primaryModel} (Gemini)**...";
                     
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "system",
@@ -1406,7 +1411,8 @@ namespace OverlayApp.ViewModels
                         Content = $"Here is the coding problem raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                     });
 
-                    string initialCode = await PerformChatAsync(_txtChatHistory, primaryModel);
+                    string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
+                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
                     initialCode = CleanCodeMarkdown(initialCode);
 
                     // Step 1: Truncation Check & Continuation
@@ -1420,13 +1426,13 @@ namespace OverlayApp.ViewModels
                             new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
                         };
 
-                        string continuationCode = await PerformChatAsync(continuationHistory, primaryModel);
+                        string continuationCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, continuationHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
                         continuationCode = CleanCodeMarkdown(continuationCode);
                         initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
                     }
 
-                    // Step 2: Second Model Verification (Dual-Model Code Audit)
-                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel}**...";
+                    // Step 2: Second Model Verification (GPT-OSS Code Audit)
+                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
                     {
@@ -1440,11 +1446,11 @@ namespace OverlayApp.ViewModels
                         }
                     };
 
-                    string verificationOutput = await PerformChatAsync(verifyHistory, verifierModel);
+                    string verificationOutput = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierModel);
                     verificationOutput = verificationOutput.Trim();
 
                     string finalCode = initialCode;
-                    string auditNote = $"✅ {targetLang} code verified complete and bug-free by dual models.";
+                    string auditNote = $"✅ {targetLang} code generated by Gemini ({primaryModel}) and verified bug-free by GPT-OSS ({verifierModel}).";
 
                     if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1453,7 +1459,7 @@ namespace OverlayApp.ViewModels
                         if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
                         {
                             finalCode = correctedCode;
-                            auditNote = $"✨ {targetLang} code was audited, completed, and verified by dual models.";
+                            auditNote = $"✨ {targetLang} code generated by Gemini ({primaryModel}) and audited/corrected by GPT-OSS ({verifierModel}).";
                         }
                     }
 
@@ -1891,6 +1897,17 @@ namespace OverlayApp.ViewModels
         }
 
         public ICommand ValidateGeminiKeyCommand { get; }
+        public ICommand ValidateApiKeysCommand { get; }
+        public ICommand OpenGeminiConsoleCommand { get; }
+
+        private void OpenGeminiConsole()
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://aistudio.google.com/app/apikey") { UseShellExecute = true });
+            }
+            catch { }
+        }
 
         private async Task ValidateGeminiKeyAsync()
         {
@@ -1912,6 +1929,7 @@ namespace OverlayApp.ViewModels
                     _settings.IsGeminiKeyValidated = true;
                     ActiveApiProvider = "Gemini";
                     _settingsService.SaveSettings(_settings);
+                    _ = SaveApiKeysToServerAsync(GroqKey, GeminiKey);
                 }
                 else
                 {
@@ -1925,6 +1943,74 @@ namespace OverlayApp.ViewModels
             finally
             {
                 IsValidatingGeminiKey = false;
+            }
+        }
+
+        private async Task ValidateApiKeysAsync()
+        {
+            if (string.IsNullOrWhiteSpace(GroqInputKey) && string.IsNullOrWhiteSpace(GeminiInputKey))
+            {
+                GroqKeyValidationError = "Please paste your Groq or Gemini API Key to continue.";
+                return;
+            }
+
+            IsValidatingGroqKey = true;
+            GroqKeyValidationError = "";
+
+            try
+            {
+                bool groqValid = false;
+                bool geminiValid = false;
+                string errors = "";
+
+                if (!string.IsNullOrWhiteSpace(GroqInputKey))
+                {
+                    var (isGValid, gErr) = await _llmService.ValidateGroqKeyAsync(GroqInputKey);
+                    if (isGValid)
+                    {
+                        GroqKey = GroqInputKey.Trim();
+                        _settings.IsGroqKeyValidated = true;
+                        groqValid = true;
+                    }
+                    else
+                    {
+                        errors += $"Groq Key: {gErr}\n";
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(GeminiInputKey))
+                {
+                    var (isGemValid, gemErr) = await _llmService.ValidateGeminiKeyAsync(GeminiInputKey);
+                    if (isGemValid)
+                    {
+                        GeminiKey = GeminiInputKey.Trim();
+                        _settings.IsGeminiKeyValidated = true;
+                        geminiValid = true;
+                    }
+                    else
+                    {
+                        errors += $"Gemini Key: {gemErr}\n";
+                    }
+                }
+
+                if (groqValid || geminiValid)
+                {
+                    IsGroqKeyValidated = true;
+                    _settingsService.SaveSettings(_settings);
+                    _ = SaveApiKeysToServerAsync(GroqKey, GeminiKey);
+                }
+                else
+                {
+                    GroqKeyValidationError = string.IsNullOrWhiteSpace(errors) ? "API key validation failed." : errors.Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                GroqKeyValidationError = $"Validation error: {ex.Message}";
+            }
+            finally
+            {
+                IsValidatingGroqKey = false;
             }
         }
 
@@ -2007,8 +2093,8 @@ namespace OverlayApp.ViewModels
                     IsGroqKeyValidated = true;
                     _settingsService.SaveSettings(_settings);
                     
-                    // Save key to user account database persistently
-                    await SaveGroqKeyToServerAsync(GroqInputKey.Trim());
+                    // Save keys to user account database persistently
+                    await SaveApiKeysToServerAsync(GroqKey, GeminiKey);
                 }
                 else
                 {
@@ -2899,12 +2985,12 @@ namespace OverlayApp.ViewModels
             public string error { get; set; } = "";
         }
 
-        private async Task SaveGroqKeyToServerAsync(string key)
+        private async Task SaveApiKeysToServerAsync(string groqKey, string geminiKey)
         {
             if (string.IsNullOrEmpty(SessionToken)) return;
             try
             {
-                var payload = new { groq_key = key };
+                var payload = new { groq_key = groqKey, gemini_key = geminiKey };
                 string jsonPayload = JsonSerializer.Serialize(payload);
                 var request = new HttpRequestMessage(HttpMethod.Post, GetApiEndpoint("/api/user/save-key"));
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", SessionToken);
@@ -2914,7 +3000,7 @@ namespace OverlayApp.ViewModels
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to save Groq Key on server database: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Failed to save API Keys on server database: {ex.Message}");
             }
         }
 
