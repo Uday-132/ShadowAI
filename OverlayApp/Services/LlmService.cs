@@ -533,6 +533,225 @@ namespace OverlayApp.Services
                 return (false, $"Connection Error: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Validates a Google Gemini API key by testing it against the Gemini models endpoint.
+        /// </summary>
+        public async Task<(bool IsValid, string ErrorMessage)> ValidateGeminiKeyAsync(string geminiKey)
+        {
+            if (string.IsNullOrWhiteSpace(geminiKey))
+            {
+                return (false, "Please paste your Gemini API Key.");
+            }
+
+            geminiKey = geminiKey.Trim();
+
+            try
+            {
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models?key={geminiKey}";
+                using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+                {
+                    var response = await _httpClient.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return (true, "");
+                    }
+                    else
+                    {
+                        string err = await response.Content.ReadAsStringAsync();
+                        return (false, $"Invalid Gemini API Key (HTTP {response.StatusCode}). Please check key.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Connection Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Stage 1 (Gemini): Performs OCR on image using Google Gemini Vision API (gemini-2.0-flash).
+        /// </summary>
+        public async Task<(string Text, string Method, string Error)> ExtractTextFromGeminiImageAsync(string geminiKey, byte[] imageBytes)
+        {
+            if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured image data was empty.");
+            if (string.IsNullOrWhiteSpace(geminiKey)) return ("", "None", "Error: Gemini API Key is not configured.");
+
+            try
+            {
+                string base64Image = Convert.ToBase64String(imageBytes);
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={geminiKey.Trim()}";
+
+                var payload = new
+                {
+                    contents = new[]
+                    {
+                        new
+                        {
+                            parts = new object[]
+                            {
+                                new { text = "Perform OCR on this image. Extract and transcribe all visible text, numbers, formulas, or code blocks accurately. Do not add any preamble, conversational text, markdown wrapping, or explanations. If there is no visible text, reply with '(no text detected)'." },
+                                new
+                                {
+                                    inline_data = new
+                                    {
+                                        mime_type = "image/png",
+                                        data = base64Image
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+
+                using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                {
+                    request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                    var response = await _httpClient.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string responseJson = await response.Content.ReadAsStringAsync();
+                        string ocrText = ParseGeminiMessageContent(responseJson);
+                        if (!string.IsNullOrWhiteSpace(ocrText) && ocrText.Trim() != "(no text detected)")
+                        {
+                            return (ocrText.Trim(), "Gemini Vision OCR (gemini-2.0-flash)", "");
+                        }
+                    }
+                    else
+                    {
+                        string error = await response.Content.ReadAsStringAsync();
+                        return ("", "None", $"Gemini Vision error HTTP {response.StatusCode}: {error}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return ("", "None", $"Gemini Vision Exception: {ex.Message}");
+            }
+
+            // Fallback to Windows WinRT OCR if Gemini fails
+            string localText = await PerformWindowsOcrAsync(imageBytes);
+            if (!string.IsNullOrWhiteSpace(localText))
+            {
+                return (localText, "Windows WinRT OCR", "");
+            }
+
+            return ("", "None", "OCR transcription failed.");
+        }
+
+        /// <summary>
+        /// Stage 2 (Gemini): Sends chat history to Google Gemini API (gemini-2.0-flash).
+        /// </summary>
+        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash")
+        {
+            if (string.IsNullOrWhiteSpace(geminiKey))
+            {
+                return "Error: Gemini API Key is not configured.";
+            }
+
+            try
+            {
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={geminiKey.Trim()}";
+
+                var contentsList = new System.Collections.Generic.List<object>();
+                string systemPrompt = "";
+
+                if (history != null)
+                {
+                    foreach (var msg in history)
+                    {
+                        if (msg.Role.Equals("system", StringComparison.OrdinalIgnoreCase))
+                        {
+                            systemPrompt += msg.Content + "\n";
+                        }
+                        else
+                        {
+                            string geminiRole = msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user";
+                            contentsList.Add(new
+                            {
+                                role = geminiRole,
+                                parts = new[] { new { text = msg.Content } }
+                            });
+                        }
+                    }
+                }
+
+                object payload;
+                if (!string.IsNullOrWhiteSpace(systemPrompt))
+                {
+                    payload = new
+                    {
+                        system_instruction = new
+                        {
+                            parts = new[] { new { text = systemPrompt.Trim() } }
+                        },
+                        contents = contentsList
+                    };
+                }
+                else
+                {
+                    payload = new { contents = contentsList };
+                }
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+
+                using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                {
+                    request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                    var response = await _httpClient.SendAsync(request);
+                    string responseJson = await response.Content.ReadAsStringAsync();
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return ParseGeminiMessageContent(responseJson);
+                    }
+
+                    return $"Gemini API Error (HTTP {(int)response.StatusCode}):\n{responseJson}";
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error contacting Gemini API: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Helper to extract response text from Google Gemini API JSON payload.
+        /// </summary>
+        private string ParseGeminiMessageContent(string json)
+        {
+            try
+            {
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
+                    {
+                        var firstCandidate = candidates[0];
+                        if (firstCandidate.TryGetProperty("content", out var content))
+                        {
+                            if (content.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
+                            {
+                                var firstPart = parts[0];
+                                if (firstPart.TryGetProperty("text", out var textProp))
+                                {
+                                    return textProp.GetString() ?? "";
+                                }
+                            }
+                        }
+                    }
+                }
+                return "Error: Could not parse message text from Gemini API response.";
+            }
+            catch (Exception ex)
+            {
+                return $"Failed to parse Gemini response JSON: {ex.Message}\nRaw JSON:\n{json}";
+            }
+        }
     }
 
     /// <summary>

@@ -93,7 +93,7 @@ namespace OverlayApp.ViewModels
 
         public int CapturedScreenshotsCount => CapturedScreenshots.Count;
         public bool HasCapturedScreenshots => CapturedScreenshots.Count > 0;
-        public bool IsMinimumScreenshotsReached => CapturedScreenshots.Count >= 3;
+        public bool IsMinimumScreenshotsReached => CapturedScreenshots.Count >= MaxScreenshotsLimit;
         public string SendButtonText => $"SEND ({CapturedScreenshots.Count})";
 
         public string ScreenshotsBadgeText
@@ -101,10 +101,10 @@ namespace OverlayApp.ViewModels
             get
             {
                 if (CapturedScreenshots.Count == 0)
-                    return "📸 Captured: 0 / 3 max (Click + CAPTURE to add)";
-                if (CapturedScreenshots.Count < 3)
-                    return $"📸 Captured: {CapturedScreenshots.Count} / 3 max (Ready to SEND or add more)";
-                return $"✅ Captured: 3 / 3 max (Max limit reached - Ready to SEND)";
+                    return $"📸 Captured: 0 / {MaxScreenshotsLimit} max (Click + CAPTURE to add)";
+                if (CapturedScreenshots.Count < MaxScreenshotsLimit)
+                    return $"📸 Captured: {CapturedScreenshots.Count} / {MaxScreenshotsLimit} max (Ready to SEND or add more)";
+                return $"✅ Captured: {MaxScreenshotsLimit} / {MaxScreenshotsLimit} max (Max limit reached - Ready to SEND)";
             }
         }
 
@@ -173,7 +173,9 @@ namespace OverlayApp.ViewModels
             _styleService = styleService;
 
             GroqInputKey = _settings.GroqKey;
+            GeminiInputKey = _settings.GeminiKey;
             ValidateGroqKeyCommand = new RelayCommand(async _ => await ValidateGroqKeyAsync());
+            ValidateGeminiKeyCommand = new RelayCommand(async _ => await ValidateGeminiKeyAsync());
             OpenGroqConsoleCommand = new RelayCommand(_ => OpenGroqConsole());
             StartFreeTrialCommand = new RelayCommand(_ => StartFreeTrial());
             AskFollowUpCommand = new RelayCommand(param => AskFollowUp(param as string));
@@ -211,6 +213,7 @@ namespace OverlayApp.ViewModels
             TimerResetCommand = new RelayCommand(_ => ResetTimer());
             CloseAppCommand = new RelayCommand(_ => System.Windows.Application.Current.Shutdown());
             StartScanCommand = new RelayCommand(_ => TriggerScreenScan());
+            CycleMaxScreenshotsLimitCommand = new RelayCommand(_ => { MaxScreenshotsLimit = (MaxScreenshotsLimit % 3) + 1; });
             SendScreenshotsCommand = new RelayCommand(async _ => await ExecuteSendBatchScreenshotsAsync());
             RemoveScreenshotCommand = new RelayCommand(param => RemoveScreenshot(param));
             ToggleVoiceCommand = new RelayCommand(_ => ToggleVoiceRecording());
@@ -552,9 +555,90 @@ namespace OverlayApp.ViewModels
                 if (SetProperty(ref _settings.GroqKey, value))
                 {
                     OnPropertyChanged(nameof(MaskedGroqKey));
+                    OnPropertyChanged(nameof(ActiveApiKeyStatusText));
                 }
             }
         }
+
+        public int MaxScreenshotsLimit
+        {
+            get => _settings.MaxScreenshotsLimit <= 0 ? 3 : _settings.MaxScreenshotsLimit;
+            set
+            {
+                if (_settings.MaxScreenshotsLimit != value)
+                {
+                    _settings.MaxScreenshotsLimit = value;
+                    OnPropertyChanged(nameof(MaxScreenshotsLimit));
+                    OnPropertyChanged(nameof(MaxScreenshotsButtonText));
+                    OnPropertyChanged(nameof(IsMinimumScreenshotsReached));
+                    NotifyScreenshotStateChanged();
+                }
+            }
+        }
+
+        public string MaxScreenshotsButtonText => $"MAX: {MaxScreenshotsLimit}";
+        public ICommand CycleMaxScreenshotsLimitCommand { get; }
+
+        public string ActiveApiProvider
+        {
+            get => string.IsNullOrEmpty(_settings.ActiveApiProvider) ? "Groq" : _settings.ActiveApiProvider;
+            set
+            {
+                if (_settings.ActiveApiProvider != value)
+                {
+                    _settings.ActiveApiProvider = value;
+                    OnPropertyChanged(nameof(ActiveApiProvider));
+                    OnPropertyChanged(nameof(IsGroqApiActive));
+                    OnPropertyChanged(nameof(IsGeminiApiActive));
+                    OnPropertyChanged(nameof(ActiveApiKeyStatusText));
+                }
+            }
+        }
+
+        public bool IsGroqApiActive
+        {
+            get => ActiveApiProvider == "Groq";
+            set
+            {
+                if (value) ActiveApiProvider = "Groq";
+            }
+        }
+
+        public bool IsGeminiApiActive
+        {
+            get => ActiveApiProvider == "Gemini";
+            set
+            {
+                if (value) ActiveApiProvider = "Gemini";
+            }
+        }
+
+        public string GeminiKey
+        {
+            get => _settings.GeminiKey;
+            set
+            {
+                if (SetProperty(ref _settings.GeminiKey, value))
+                {
+                    OnPropertyChanged(nameof(MaskedGeminiKey));
+                    OnPropertyChanged(nameof(ActiveApiKeyStatusText));
+                }
+            }
+        }
+
+        public string MaskedGeminiKey
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(GeminiKey)) return "Not Configured";
+                if (GeminiKey.Length <= 10) return "****";
+                return GeminiKey.Substring(0, 7) + "..." + GeminiKey.Substring(GeminiKey.Length - 4);
+            }
+        }
+
+        public string ActiveApiKeyStatusText => IsGeminiApiActive 
+            ? $"Active API: Gemini ({MaskedGeminiKey})" 
+            : $"Active API: Groq ({MaskedGroqKey})";
 
         public string ScanResponseText
         {
@@ -1217,7 +1301,7 @@ namespace OverlayApp.ViewModels
                     var item = CapturedScreenshots[i];
                     ScanResponseText = $"[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...";
 
-                    var ocrResult = await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, item.ImageBytes);
+                    var ocrResult = await PerformOcrAsync(item.ImageBytes);
 
                     string text = ocrResult.Text?.Trim() ?? "";
                     if (!string.IsNullOrWhiteSpace(text) && text != "(no text detected)")
@@ -1268,8 +1352,8 @@ namespace OverlayApp.ViewModels
 
                     ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshots with dual models ({modelA} and {modelB})...";
 
-                    var taskA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
-                    var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
+                    var taskA = PerformChatAsync(_txtChatHistory, modelA);
+                    var taskB = PerformChatAsync(_txtChatHistory, modelB);
 
                     await Task.WhenAll(taskA, taskB);
                     string answerA = await taskA;
@@ -1322,7 +1406,7 @@ namespace OverlayApp.ViewModels
                         Content = $"Here is the coding problem raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                     });
 
-                    string initialCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, primaryModel);
+                    string initialCode = await PerformChatAsync(_txtChatHistory, primaryModel);
                     initialCode = CleanCodeMarkdown(initialCode);
 
                     // Step 1: Truncation Check & Continuation
@@ -1336,7 +1420,7 @@ namespace OverlayApp.ViewModels
                             new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
                         };
 
-                        string continuationCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, continuationHistory, primaryModel);
+                        string continuationCode = await PerformChatAsync(continuationHistory, primaryModel);
                         continuationCode = CleanCodeMarkdown(continuationCode);
                         initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
                     }
@@ -1356,7 +1440,7 @@ namespace OverlayApp.ViewModels
                         }
                     };
 
-                    string verificationOutput = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierModel);
+                    string verificationOutput = await PerformChatAsync(verifyHistory, verifierModel);
                     verificationOutput = verificationOutput.Trim();
 
                     string finalCode = initialCode;
@@ -1393,7 +1477,7 @@ namespace OverlayApp.ViewModels
                         Content = $"Here is the raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                     });
 
-                    string responseBody = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, singleModel);
+                    string responseBody = await PerformChatAsync(_txtChatHistory, singleModel);
                     string finalResult = metadataHeader + responseBody.Trim();
                     ScanResponseText = finalResult;
 
@@ -1784,6 +1868,94 @@ namespace OverlayApp.ViewModels
             set => SetProperty(ref _isValidatingGroqKey, value);
         }
 
+        private string _geminiInputKey = "";
+        private string _geminiKeyValidationError = "";
+        private bool _isValidatingGeminiKey;
+
+        public string GeminiInputKey
+        {
+            get => _geminiInputKey;
+            set => SetProperty(ref _geminiInputKey, value);
+        }
+
+        public string GeminiKeyValidationError
+        {
+            get => _geminiKeyValidationError;
+            set => SetProperty(ref _geminiKeyValidationError, value);
+        }
+
+        public bool IsValidatingGeminiKey
+        {
+            get => _isValidatingGeminiKey;
+            set => SetProperty(ref _isValidatingGeminiKey, value);
+        }
+
+        public ICommand ValidateGeminiKeyCommand { get; }
+
+        private async Task ValidateGeminiKeyAsync()
+        {
+            if (string.IsNullOrWhiteSpace(GeminiInputKey))
+            {
+                GeminiKeyValidationError = "Please paste your Gemini API Key.";
+                return;
+            }
+
+            IsValidatingGeminiKey = true;
+            GeminiKeyValidationError = "";
+
+            try
+            {
+                var (isValid, errorMessage) = await _llmService.ValidateGeminiKeyAsync(GeminiInputKey);
+                if (isValid)
+                {
+                    GeminiKey = GeminiInputKey.Trim();
+                    _settings.IsGeminiKeyValidated = true;
+                    ActiveApiProvider = "Gemini";
+                    _settingsService.SaveSettings(_settings);
+                }
+                else
+                {
+                    GeminiKeyValidationError = errorMessage;
+                }
+            }
+            catch (Exception ex)
+            {
+                GeminiKeyValidationError = $"Validation error: {ex.Message}";
+            }
+            finally
+            {
+                IsValidatingGeminiKey = false;
+            }
+        }
+
+        private async Task<(string Text, string Method, string Error)> PerformOcrAsync(byte[] imageBytes)
+        {
+            if (IsGeminiApiActive)
+            {
+                string key = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
+                return await _llmService.ExtractTextFromGeminiImageAsync(key, imageBytes);
+            }
+            else
+            {
+                string key = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                return await _llmService.ExtractTextFromImageAsync(key, imageBytes);
+            }
+        }
+
+        private async Task<string> PerformChatAsync(System.Collections.Generic.List<ChatMessage> history, string groqModel = "llama-3.3-70b-versatile")
+        {
+            if (IsGeminiApiActive)
+            {
+                string key = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
+                return await _llmService.ProcessChatWithGeminiAsync(key, history, "gemini-2.0-flash");
+            }
+            else
+            {
+                string key = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                return await _llmService.ProcessChatWithGroqAsync(key, history, groqModel);
+            }
+        }
+
         public bool IsGroqKeyValidated
         {
             get => _settings.IsGroqKeyValidated;
@@ -1980,7 +2152,7 @@ namespace OverlayApp.ViewModels
                     var optimizedHistory = PruneChatHistory(_txtChatHistory);
 
                     string followUpModel = IsCodingScanMode ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
-                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, optimizedHistory, followUpModel);
+                    string answer = await PerformChatAsync(optimizedHistory, followUpModel);
                     
                     ScanResponseText = ScanResponseText.Replace("Thinking...", answer);
 
