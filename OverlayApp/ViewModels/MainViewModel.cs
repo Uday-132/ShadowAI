@@ -1144,9 +1144,16 @@ namespace OverlayApp.ViewModels
                 return;
             }
 
-            // Auto-refresh: If a previous response has already been generated or chat exists,
-            // automatically clear old screenshots and response text for the new capture session.
-            if (!string.IsNullOrWhiteSpace(ScanResponseText) || _txtChatHistory.Count > 0)
+            // Auto-refresh: ONLY clear old screenshots/chat if a previous AI response has ALREADY been generated & sent.
+            // If the user is currently capturing a batch of screenshots before sending, DO NOT clear.
+            bool isPreviousResponseGenerated = _txtChatHistory.Count > 0 || 
+                                               (!string.IsNullOrWhiteSpace(ScanResponseText) && 
+                                                (ScanResponseText.Contains("Batch Scan Meta Information") || 
+                                                 ScanResponseText.StartsWith("### 🤖") || 
+                                                 (ScanResponseText.StartsWith("✅") && !ScanResponseText.Contains("Captured Screenshot")) ||
+                                                 ScanResponseText.StartsWith("✨")));
+
+            if (isPreviousResponseGenerated)
             {
                 CapturedScreenshots.Clear();
                 NotifyScreenshotStateChanged();
@@ -1161,11 +1168,11 @@ namespace OverlayApp.ViewModels
                 OnPropertyChanged(nameof(IsFollowUpVisible));
             }
 
-            if (CapturedScreenshots.Count >= 3)
+            if (CapturedScreenshots.Count >= MaxScreenshotsLimit)
             {
-                ScanResponseText = "⚠️ **Maximum limit of 3 screenshots reached.**\n\n" +
-                                   "You have already captured **3** screenshots (the maximum allowed).\n\n" +
-                                   "Click **SEND (3)** to process your screenshots, or click **✕** on a thumbnail to remove a screenshot.";
+                ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
+                                   $"You have already captured **{CapturedScreenshots.Count} / {MaxScreenshotsLimit}** screenshots (the maximum allowed).\n\n" +
+                                   $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or click **✕** on a thumbnail to remove a screenshot.";
                 return;
             }
 
@@ -1187,10 +1194,10 @@ namespace OverlayApp.ViewModels
                 return;
             }
 
-            if (CapturedScreenshots.Count >= 3)
+            if (CapturedScreenshots.Count >= MaxScreenshotsLimit)
             {
-                ScanResponseText = "⚠️ **Maximum limit of 3 screenshots reached.**\n\n" +
-                                   "Click **SEND (3)** to process your screenshots, or remove a screenshot to capture a new one.";
+                ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
+                                   $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or remove a screenshot to capture a new one.";
                 return;
             }
 
@@ -1222,10 +1229,10 @@ namespace OverlayApp.ViewModels
 
         private void AddCapturedScreenshot(System.Windows.Int32Rect rect)
         {
-            if (CapturedScreenshots.Count >= 3)
+            if (CapturedScreenshots.Count >= MaxScreenshotsLimit)
             {
-                ScanResponseText = "⚠️ **Maximum limit of 3 screenshots reached.**\n\n" +
-                                   "Click **SEND (3)** to process your screenshots, or remove a screenshot to capture a new one.";
+                ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
+                                   $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or remove a screenshot to capture a new one.";
                 return;
             }
 
@@ -1243,17 +1250,17 @@ namespace OverlayApp.ViewModels
                 CapturedScreenshots.Add(item);
                 NotifyScreenshotStateChanged();
 
-                if (CapturedScreenshots.Count < 3)
+                if (CapturedScreenshots.Count < MaxScreenshotsLimit)
                 {
                     ScanResponseText = $"📸 **Captured Screenshot #{item.Index}.**\n\n" +
-                                       $"Total captured: **{CapturedScreenshots.Count} / 3 max**.\n" +
-                                       $"Click **SEND ({CapturedScreenshots.Count})** to process now, or click **+ CAPTURE** to add up to {3 - CapturedScreenshots.Count} more.";
+                                       $"Total captured: **{CapturedScreenshots.Count} / {MaxScreenshotsLimit} max**.\n" +
+                                       $"Click **SEND ({CapturedScreenshots.Count})** to process now, or click **+ CAPTURE** to add up to {MaxScreenshotsLimit - CapturedScreenshots.Count} more.";
                 }
                 else
                 {
                     ScanResponseText = $"✅ **Captured Screenshot #{item.Index}.**\n\n" +
-                                       $"Maximum limit reached (**3 / 3** screenshots).\n" +
-                                       $"Click **SEND (3)** to process all screenshots with AI!";
+                                       $"Maximum limit reached (**{MaxScreenshotsLimit} / {MaxScreenshotsLimit}** screenshots).\n" +
+                                       $"Click **SEND ({MaxScreenshotsLimit})** to process all screenshots with AI!";
                 }
             }
         }
@@ -1284,7 +1291,7 @@ namespace OverlayApp.ViewModels
         {
             if (CapturedScreenshots.Count == 0)
             {
-                ScanResponseText = "⚠️ **No screenshots captured.**\n\nPlease click **+ CAPTURE** to capture at least 1 screenshot (up to 3 max) before clicking **SEND**.";
+                ScanResponseText = $"⚠️ **No screenshots captured.**\n\nPlease click **+ CAPTURE** to capture at least 1 screenshot (up to {MaxScreenshotsLimit} max) before clicking **SEND**.";
                 return;
             }
 
