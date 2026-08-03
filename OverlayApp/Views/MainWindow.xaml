@@ -19,7 +19,8 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen"
         ShowActivated="False"
-        ResizeMode="CanResizeWithGrip">
+        ResizeMode="CanResizeWithGrip"
+        Cursor="Arrow">
 
     <Window.Triggers>
         <EventTrigger RoutedEvent="Window.Loaded">
@@ -96,7 +97,7 @@
                                     </RepeatButton>
                                 </Track.IncreaseRepeatButton>
                                 <Track.Thumb>
-                                    <Thumb Width="12" Height="12" Focusable="False" Cursor="Hand">
+                                    <Thumb Width="12" Height="12" Focusable="False" Cursor="Arrow">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
                                                 <Border CornerRadius="6" Background="#FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="2.5" SnapsToDevicePixels="True"/>
@@ -118,7 +119,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
-                        <BulletDecorator Background="Transparent" Cursor="Hand">
+                        <BulletDecorator Background="Transparent" Cursor="Arrow">
                             <BulletDecorator.Bullet>
                                 <Grid VerticalAlignment="Center">
                                     <Border x:Name="Track" Width="32" Height="16" CornerRadius="8" Background="#33FFFFFF" BorderThickness="0" SnapsToDevicePixels="True"/>
@@ -266,7 +267,7 @@
             <Setter Property="Foreground" Value="#77FFFFFF"/>
             <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -302,7 +303,7 @@
             <Setter Property="Foreground" Value="#A0FFFFFF"/>
             <Setter Property="FontSize" Value="8.5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -375,7 +376,7 @@
                 <!-- Actions (Pin, Settings, Exit) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,2,0">
                     <!-- Pin (Interactivity Lock) -->
-                    <Button x:Name="PinButton" Command="{Binding ToggleClickThroughCommand}" ToolTip="Toggle Click-Through" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Hand">
+                    <Button x:Name="PinButton" Command="{Binding ToggleClickThroughCommand}" ToolTip="Toggle Click-Through" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Arrow">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
@@ -413,7 +414,7 @@
                     </Button>
                     
                     <!-- Settings -->
-                    <Button Command="{Binding ToggleSettingsCommand}" ToolTip="Settings" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Hand">
+                    <Button Command="{Binding ToggleSettingsCommand}" ToolTip="Settings" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Arrow">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="Transparent" Padding="4">
@@ -430,7 +431,7 @@
                     </Button>
                     
                     <!-- Close -->
-                    <Button Command="{Binding CloseAppCommand}" ToolTip="Close Application" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                    <Button Command="{Binding CloseAppCommand}" ToolTip="Close Application" Background="Transparent" BorderThickness="0" Cursor="Arrow">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="Transparent" Padding="4">
@@ -544,7 +545,7 @@
                             <!-- Timer Buttons -->
                             <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,4">
                                 <!-- Start/Pause Button -->
-                                <Button Command="{Binding TimerStartPauseCommand}" Margin="0,0,12,0" Cursor="Hand" Width="80" Height="28">
+                                <Button Command="{Binding TimerStartPauseCommand}" Margin="0,0,12,0" Cursor="Arrow" Width="80" Height="28">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Template">
@@ -579,7 +580,7 @@
                                 </Button>
                                 
                                 <!-- Reset Button -->
-                                <Button Command="{Binding TimerResetCommand}" Cursor="Hand" Width="80" Height="28">
+                                <Button Command="{Binding TimerResetCommand}" Cursor="Arrow" Width="80" Height="28">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
                                             <Border CornerRadius="14" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="8,4">
@@ -645,7 +646,7 @@
                                       </Grid.ColumnDefinitions>
 
                                       <!-- + CAPTURE SCREENSHOT Button -->
-                                      <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Capture a screen region (1 to 3 max)">
+                                      <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Arrow" Height="28" Margin="0,0,4,0" ToolTip="Capture a screen region (1 to 3 max)">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
                                                   <Border CornerRadius="4" Background="{Binding Tag, ElementName=MainBorder}" Padding="6,4">
@@ -665,7 +666,7 @@
                                       </Button>
 
                                       <!-- SEND BUTTON -->
-                                      <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0" ToolTip="Process all captured screenshots">
+                                      <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Arrow" Height="28" Margin="0,0,4,0" ToolTip="Process all captured screenshots">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
                                                   <Border x:Name="SendBorder" CornerRadius="4" Background="#10B981" Padding="6,4">
@@ -685,7 +686,7 @@
                                       </Button>
 
                                       <!-- Copy Button (Original Position Next to Send) -->
-                                      <Button Grid.Column="2" Command="{Binding CopyTxtCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy results text" Margin="0,0,4,0">
+                                      <Button Grid.Column="2" Command="{Binding CopyTxtCommand}" Cursor="Arrow" Height="28" Width="28" ToolTip="Copy results text" Margin="0,0,4,0">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
                                                   <Border x:Name="CopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -702,7 +703,7 @@
                                       </Button>
 
                                       <!-- Clear/Refresh Button (Original Position Next to Copy) -->
-                                      <Button Grid.Column="3" Command="{Binding ClearTxtScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear screenshots and results">
+                                      <Button Grid.Column="3" Command="{Binding ClearTxtScanCommand}" Cursor="Arrow" Height="28" Width="28" ToolTip="Clear screenshots and results">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
                                                   <Border x:Name="ClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -723,7 +724,7 @@
                                   <DockPanel LastChildFill="False">
                                       <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                           <!-- Font Size Decrement (A-) -->
-                                          <Button Command="{Binding DecreaseFontSizeCommand}" Cursor="Hand" Height="22" Padding="8,1" ToolTip="Decrease Font Size (A-)" Margin="0,0,4,0">
+                                          <Button Command="{Binding DecreaseFontSizeCommand}" Cursor="Arrow" Height="22" Padding="8,1" ToolTip="Decrease Font Size (A-)" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
                                                       <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
@@ -740,7 +741,7 @@
                                           </Button>
 
                                           <!-- Font Size Increment (A+) -->
-                                          <Button Command="{Binding IncreaseFontSizeCommand}" Cursor="Hand" Height="22" Padding="8,1" ToolTip="Increase Font Size (A+)" Margin="0,0,4,0">
+                                          <Button Command="{Binding IncreaseFontSizeCommand}" Cursor="Arrow" Height="22" Padding="8,1" ToolTip="Increase Font Size (A+)" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
                                                       <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
@@ -757,7 +758,7 @@
                                           </Button>
 
                                           <!-- Window Height Expansion Toggle Button -->
-                                          <Button Command="{Binding ToggleExpandHeightCommand}" Cursor="Hand" Height="22" Padding="8,1" ToolTip="Toggle Window Height (Expand/Compact)" Margin="0,0,4,0">
+                                          <Button Command="{Binding ToggleExpandHeightCommand}" Cursor="Arrow" Height="22" Padding="8,1" ToolTip="Toggle Window Height (Expand/Compact)" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
                                                       <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
@@ -820,7 +821,7 @@
                                                          <Button Command="{Binding DataContext.RemoveScreenshotCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
                                                                  CommandParameter="{Binding}" 
                                                                  HorizontalAlignment="Right" VerticalAlignment="Top" 
-                                                                 Margin="2" Width="14" Height="14" Cursor="Hand" ToolTip="Remove screenshot">
+                                                                 Margin="2" Width="14" Height="14" Cursor="Arrow" ToolTip="Remove screenshot">
                                                              <Button.Template>
                                                                  <ControlTemplate TargetType="Button">
                                                                      <Border CornerRadius="7" Background="#CCEF4444">
@@ -901,7 +902,7 @@
                                           </Border>
 
                                           <!-- Follow-up Microphone Button -->
-                                          <Button Grid.Column="2" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                          <Button Grid.Column="2" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
                                                       <Border Background="Transparent" Padding="4">
@@ -913,7 +914,7 @@
                                           </Button>
 
                                           <!-- Send Button -->
-                                          <Button Grid.Column="3" Command="{Binding SubmitFollowUpCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                          <Button Grid.Column="3" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
                                                       <Border Background="Transparent" Padding="4">
@@ -945,7 +946,7 @@
                                                       Padding="7,3" 
                                                       FontSize="10" 
                                                       FontWeight="Medium"
-                                                      Cursor="Hand"
+                                                      Cursor="Arrow"
                                                       Command="{Binding DataContext.AskFollowUpCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                       CommandParameter="{Binding}">
                                                   <Button.Style>
@@ -1024,7 +1025,7 @@
                                  </Grid.ColumnDefinitions>
 
                                  <!-- Voice Record Button -->
-                                 <Button Grid.Column="0" Command="{Binding ToggleVoiceCommand}" Cursor="Hand" Height="28" Margin="0,0,4,0">
+                                 <Button Grid.Column="0" Command="{Binding ToggleVoiceCommand}" Cursor="Arrow" Height="28" Margin="0,0,4,0">
                                      <Button.Style>
                                          <Style TargetType="Button">
                                              <Setter Property="Template">
@@ -1067,7 +1068,7 @@
                                  </Button>
 
                                  <!-- Copy Button -->
-                                 <Button Grid.Column="1" Command="{Binding CopyVoiceCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Copy response text" Margin="0,0,4,0">
+                                 <Button Grid.Column="1" Command="{Binding CopyVoiceCommand}" Cursor="Arrow" Height="28" Width="28" ToolTip="Copy response text" Margin="0,0,4,0">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="VoiceCopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -1084,7 +1085,7 @@
                                  </Button>
 
                                  <!-- Clear/Refresh Button -->
-                                 <Button Grid.Column="2" Command="{Binding ClearVoiceScanCommand}" Cursor="Hand" Height="28" Width="28" ToolTip="Clear results">
+                                 <Button Grid.Column="2" Command="{Binding ClearVoiceScanCommand}" Cursor="Arrow" Height="28" Width="28" ToolTip="Clear results">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="VoiceClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -1134,7 +1135,7 @@
                                     </Border>
 
                                     <!-- Follow-up Microphone Button (takes external mic only) -->
-                                    <Button Grid.Column="2" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                    <Button Grid.Column="2" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="Transparent" Padding="4">
@@ -1147,7 +1148,7 @@
                                     </Button>
 
                                     <!-- Send Button -->
-                                    <Button Grid.Column="3" Command="{Binding SubmitFollowUpCommand}" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                    <Button Grid.Column="3" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border Background="Transparent" Padding="4">
@@ -1266,7 +1267,7 @@
                                 <TextBlock Text="SETTINGS &amp; CONTROLS" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
                             </StackPanel>
 
-                            <Button Grid.Column="1" Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center">
+                            <Button Grid.Column="1" Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow" VerticalAlignment="Center">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent" Padding="4">
@@ -1332,7 +1333,7 @@
                             
                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
                                 <!-- Onyx Theme Selector -->
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Onyx" IsChecked="True" Cursor="Hand" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Onyx" IsChecked="True" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border Width="16" Height="16" CornerRadius="8" Background="#FF00D2FF" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
@@ -1351,7 +1352,7 @@
                                 </RadioButton>
                                 
                                 <!-- Neon Theme Selector -->
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Neon" Cursor="Hand" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Neon" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border Width="16" Height="16" CornerRadius="8" Background="#FFFF00A0" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
@@ -1370,7 +1371,7 @@
                                 </RadioButton>
 
                                 <!-- Emerald Theme Selector -->
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Emerald" Cursor="Hand" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Emerald" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border Width="16" Height="16" CornerRadius="8" Background="#FF00FFCC" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
@@ -1389,7 +1390,7 @@
                                 </RadioButton>
 
                                 <!-- Sunset Theme Selector -->
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Sunset" Cursor="Hand" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Sunset" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
                                             <Border Width="16" Height="16" CornerRadius="8" Background="#FFFF7700" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
@@ -1441,7 +1442,7 @@
                                    Foreground="#88FFFFFF" FontSize="9" HorizontalAlignment="Center" Margin="0,6,0,0" Opacity="0.8"/>
 
                         <!-- Logout Button in Settings Drawer -->
-                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,8,0,0" Height="26" Cursor="Hand" Background="#33FF3333" BorderBrush="#55FF3333" BorderThickness="1" Foreground="#FFFF6666" FontSize="10" FontWeight="Bold">
+                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,8,0,0" Height="26" Cursor="Arrow" Background="#33FF3333" BorderBrush="#55FF3333" BorderThickness="1" Foreground="#FFFF6666" FontSize="10" FontWeight="Bold">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
@@ -1476,7 +1477,7 @@
                         <!-- Header -->
                         <Grid Grid.Row="0" Margin="0,0,0,12">
                             <!-- Back Button to log out / change account -->
-                            <Button Command="{Binding LogoutCommand}" Content="← Back" Foreground="#A0FFFFFF" FontSize="10" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Cursor="Hand" Margin="0,-4,0,0"/>
+                            <Button Command="{Binding LogoutCommand}" Content="← Back" Foreground="#A0FFFFFF" FontSize="10" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Cursor="Arrow" Margin="0,-4,0,0"/>
 
                             <StackPanel HorizontalAlignment="Center">
                                 <Border Width="40" Height="40" CornerRadius="20" Background="#2000D2FF" HorizontalAlignment="Center" Margin="0,0,0,8">
@@ -1491,7 +1492,7 @@
                         <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,4">
                             <!-- Step 1: Open Website -->
                             <TextBlock Text="1. Get your free API Key from Groq Console:" Foreground="#CCCCCC" FontSize="10.5" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <Button Command="{Binding OpenGroqConsoleCommand}" Cursor="Hand" Background="#2500D2FF" BorderBrush="#5000D2FF" BorderThickness="1" Height="28" Margin="0,0,0,10">
+                            <Button Command="{Binding OpenGroqConsoleCommand}" Cursor="Arrow" Background="#2500D2FF" BorderBrush="#5000D2FF" BorderThickness="1" Height="28" Margin="0,0,0,10">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border CornerRadius="6" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
@@ -1533,7 +1534,7 @@
                             </TextBlock>
 
                             <!-- Verify Button -->
-                            <Button Command="{Binding ValidateGroqKeyCommand}" Content="VERIFY &amp; CONTINUE" Height="36" FontWeight="Bold" Cursor="Hand" Foreground="#FFFFFF" FontSize="11">
+                            <Button Command="{Binding ValidateGroqKeyCommand}" Content="VERIFY &amp; CONTINUE" Height="36" FontWeight="Bold" Cursor="Arrow" Foreground="#FFFFFF" FontSize="11">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#FF00D2FF"/>
@@ -1613,7 +1614,7 @@
 
                         <!-- Action Button -->
                         <StackPanel Grid.Row="2">
-                            <Button Command="{Binding StartFreeTrialCommand}" Content="🚀 START FREE TRIAL" Height="38" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11.5">
+                            <Button Command="{Binding StartFreeTrialCommand}" Content="🚀 START FREE TRIAL" Height="38" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11.5">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#FF00FFCC"/>
@@ -1719,7 +1720,7 @@
                                     </Grid>
 
                                     <!-- Finish Button -->
-                                    <Button Command="{Binding FinishOnboardingCommand}" Cursor="Hand" Width="140" Height="28">
+                                    <Button Command="{Binding FinishOnboardingCommand}" Cursor="Arrow" Width="140" Height="28">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border CornerRadius="14" Background="{Binding Tag, ElementName=MainBorder}" Padding="8,4">
@@ -1741,7 +1742,7 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Back Button -->
-                            <Button Grid.Column="0" Command="{Binding BackOnboardingCommand}" Content="BACK" Foreground="#88FFFFFF" FontSize="10.5" FontWeight="Bold" Cursor="Hand" VerticalAlignment="Center">
+                            <Button Grid.Column="0" Command="{Binding BackOnboardingCommand}" Content="BACK" Foreground="#88FFFFFF" FontSize="10.5" FontWeight="Bold" Cursor="Arrow" VerticalAlignment="Center">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="Transparent"/>
@@ -1825,7 +1826,7 @@
                             <!-- Next/Skip Buttons -->
                             <Grid Grid.Column="2" VerticalAlignment="Center">
                                 <!-- Next Button -->
-                                <Button Command="{Binding NextOnboardingCommand}" Content="NEXT" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="10.5" FontWeight="Bold" Cursor="Hand">
+                                <Button Command="{Binding NextOnboardingCommand}" Content="NEXT" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="10.5" FontWeight="Bold" Cursor="Arrow">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="Transparent"/>
@@ -1923,7 +1924,7 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Button Command="{Binding LoginCommand}" Content="LOGIN" Margin="0,0,6,0" Height="32" FontWeight="Bold" Cursor="Hand" Foreground="#FFFFFF" FontSize="11">
+                            <Button Command="{Binding LoginCommand}" Content="LOGIN" Margin="0,0,6,0" Height="32" FontWeight="Bold" Cursor="Arrow" Foreground="#FFFFFF" FontSize="11">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#30FFFFFF"/>
@@ -1946,7 +1947,7 @@
                                 </Button.Style>
                             </Button>
 
-                            <Button Grid.Column="1" Command="{Binding SignupCommand}" Content="SIGN UP" Margin="6,0,0,0" Height="32" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11">
+                            <Button Grid.Column="1" Command="{Binding SignupCommand}" Content="SIGN UP" Margin="6,0,0,0" Height="32" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
@@ -2048,7 +2049,7 @@
 
                                 <StackPanel Grid.Row="5">
                                     <TextBlock Text="{Binding PaymentErrorMessage}" Foreground="#FFFF3333" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                                    <Button Command="{Binding SubmitPaymentCommand}" Content="VERIFY PAYMENT" Height="32" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11">
+                                    <Button Command="{Binding SubmitPaymentCommand}" Content="VERIFY PAYMENT" Height="32" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
                                         <Button.Style>
                                             <Style TargetType="Button">
                                                 <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
@@ -2100,7 +2101,7 @@
                                     <TextBlock Text="Click below to start your 3-hour assessment." Foreground="#77FFFFFF" FontSize="9.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                                 </StackPanel>
 
-                                <Button Grid.Row="2" Command="{Binding StartPaidSessionCommand}" Content="START ASSESSMENT (3 HOURS)" Height="36" FontWeight="Bold" Cursor="Hand" Foreground="#000000" FontSize="11">
+                                <Button Grid.Row="2" Command="{Binding StartPaidSessionCommand}" Content="START ASSESSMENT (3 HOURS)" Height="36" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
@@ -2130,7 +2131,7 @@
 
             <!-- Custom Resize Grip (only active when not locked) -->
             <Grid Grid.Row="2" Grid.RowSpan="2" Width="10" Height="10" 
-                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" 
+                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="Arrow" 
                   MouseDown="ResizeGrip_MouseDown" Background="Transparent" Panel.ZIndex="10000">
                 <Grid.Style>
                     <Style TargetType="Grid">

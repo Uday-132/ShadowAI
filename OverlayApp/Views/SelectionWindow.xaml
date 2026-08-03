@@ -5,7 +5,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="#44000000"
-        Cursor="Cross"
+        Cursor="Arrow"
         Topmost="True"
         ShowInTaskbar="False"
         WindowStartupLocation="Manual"
