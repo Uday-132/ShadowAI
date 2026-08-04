@@ -22,7 +22,7 @@ namespace OverlayApp.Models
         [JsonInclude] public bool IsGroqKeyValidated = false;
         [JsonInclude] public string GeminiKey = "";
         [JsonInclude] public bool IsGeminiKeyValidated = false;
-        [JsonInclude] public int MaxScreenshotsLimit = 3;
+        [JsonInclude] public int MaxScreenshotsLimit = 5;
         [JsonInclude] public bool IsTrialStarted = false;
         [JsonInclude] public string ScanResponseText = "";
         [JsonInclude] public string VoiceScanResponseText = "";

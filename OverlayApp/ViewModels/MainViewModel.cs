@@ -215,7 +215,7 @@ namespace OverlayApp.ViewModels
             TimerResetCommand = new RelayCommand(_ => ResetTimer());
             CloseAppCommand = new RelayCommand(_ => System.Windows.Application.Current.Shutdown());
             StartScanCommand = new RelayCommand(_ => TriggerScreenScan());
-            CycleMaxScreenshotsLimitCommand = new RelayCommand(_ => { MaxScreenshotsLimit = (MaxScreenshotsLimit % 3) + 1; });
+            CycleMaxScreenshotsLimitCommand = new RelayCommand(_ => { MaxScreenshotsLimit = (MaxScreenshotsLimit % 5) + 1; });
             SendScreenshotsCommand = new RelayCommand(async _ => await ExecuteSendBatchScreenshotsAsync());
             RemoveScreenshotCommand = new RelayCommand(param => RemoveScreenshot(param));
             ToggleVoiceCommand = new RelayCommand(_ => ToggleVoiceRecording());
@@ -564,7 +564,7 @@ namespace OverlayApp.ViewModels
 
         public int MaxScreenshotsLimit
         {
-            get => _settings.MaxScreenshotsLimit <= 0 ? 3 : _settings.MaxScreenshotsLimit;
+            get => _settings.MaxScreenshotsLimit <= 0 ? 5 : _settings.MaxScreenshotsLimit;
             set
             {
                 if (_settings.MaxScreenshotsLimit != value)
