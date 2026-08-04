@@ -1373,19 +1373,62 @@ namespace OverlayApp.ViewModels
                 string combinedExtractedText = combinedTextBuilder.ToString().Trim();
 
                 string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
-                _txtChatHistory.Clear();
+                bool isFollowUpTurn = _txtChatHistory.Count > 0;
+
+                if (!isFollowUpTurn)
+                {
+                    if (IsMcqScanMode)
+                    {
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice questions (MCQs) captured across all screenshots, and output ONLY the correct option letter (e.g., A, B, C, or D) or exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the raw text extracted from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                        });
+                    }
+                    else if (IsCodingScanMode)
+                    {
+                        string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
+                        bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
+
+                        string systemPrompt = isProjectMode ?
+                            "You are a strict expert full-stack senior developer and project architect. Solve the project challenge, bug fix, or feature request across all captured screenshots. Analyze the code files, HTML structure, CSS styles, JavaScript/Python backend routes, and database schemas. Output clear, modular, file-by-file code fixes (e.g. index.html, style.css, script.js, app.py/server.js) with clean, 100% working code. Write the code in a humanized style as if written by a senior developer in a real coding interview. Do not include markdown code block backticks (```)." :
+                            $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in {targetLang} language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code.";
+
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = systemPrompt
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the {(isProjectMode ? "full-stack project" : "coding problem")} raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                        });
+                    }
+                    else
+                    {
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a helpful overlay productivity assistant. Your task is to analyze the extracted text from the user's screenshots and explain it clearly and comprehensively. If the text contains questions, problems, or concepts across screenshots, explain the answers or concepts step-by-step. Keep your output concise, clear, and formatted in markdown. Write in a natural, conversational, humanized style. Avoid typical robotic AI transitions, templates, or preambles. Explain it casually like an experienced developer explaining to a peer. Do not mention you are an AI."
+                        });
+                        _txtChatHistory.Add(new ChatMessage {
+                            Role = "user",
+                            Content = $"Here is the raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                        });
+                    }
+                }
+                else
+                {
+                    // Follow-up turn: append new screenshot text to preserved conversation!
+                    _txtChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = $"👉 Follow-up Question with {CapturedScreenshots.Count} new screenshot(s):\n\n{combinedExtractedText}"
+                    });
+                }
 
                 if (IsMcqScanMode)
                 {
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "system",
-                        Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice questions (MCQs) captured across all screenshots, and output ONLY the correct option letter (e.g., A, B, C, or D) or exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
-                    });
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "user",
-                        Content = $"Here is the raw text extracted from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
-                    });
-
                     string modelA = "gemini-2.0-flash";
                     string modelB = "openai/gpt-oss-120b";
 
@@ -1404,6 +1447,7 @@ namespace OverlayApp.ViewModels
                     bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
 
                     var sbVerify = new System.Text.StringBuilder();
+                    if (isFollowUpTurn) sbVerify.AppendLine(ScanResponseText).AppendLine("\n---\n");
                     sbVerify.AppendLine(metadataHeader);
                     sbVerify.AppendLine("### 🤖 MCQ Dual-Model Verification");
                     sbVerify.AppendLine();
@@ -1434,29 +1478,9 @@ namespace OverlayApp.ViewModels
                     string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
                     string primaryModel = "gemini-2.0-flash";
                     string verifierModel = "openai/gpt-oss-120b";
-
                     bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
 
-                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full {(isProjectMode ? "Multi-File Project" : targetLang)} code solution with **{primaryModel} (Gemini)**...";
-                    
-                    string systemPrompt;
-                    if (isProjectMode)
-                    {
-                        systemPrompt = "You are a strict expert full-stack senior developer and project architect. Solve the project challenge, bug fix, or feature request across all captured screenshots. Analyze the code files, HTML structure, CSS styles, JavaScript/Python backend routes, and database schemas. Output clear, modular, file-by-file code fixes (e.g. index.html, style.css, script.js, app.py/server.js) with clean, 100% working code. Write the code in a humanized style as if written by a senior developer in a real coding interview. Do not include markdown code block backticks (```).";
-                    }
-                    else
-                    {
-                        systemPrompt = $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in {targetLang} language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code.";
-                    }
-
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "system",
-                        Content = systemPrompt
-                    });
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "user",
-                        Content = $"Here is the {(isProjectMode ? "full-stack project" : "coding problem")} raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
-                    });
+                    ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM 1/2] Generating full {(isProjectMode ? "Multi-File Project" : targetLang)} code solution with **{primaryModel} (Gemini)**...";
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
                     string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
@@ -1465,8 +1489,8 @@ namespace OverlayApp.ViewModels
                     // Step 1: Truncation Check & Continuation
                     if (IsCodeTruncated(initialCode))
                     {
-                        ScanResponseText = metadataHeader + $"[LLM] Detecting code truncation... Requesting continuation...";
-                        
+                        ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM] Detecting code truncation... Requesting continuation...";
+
                         var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
                         {
                             new ChatMessage { Role = "assistant", Content = initialCode },
@@ -1479,7 +1503,7 @@ namespace OverlayApp.ViewModels
                     }
 
                     // Step 2: Second Model Verification (GPT-OSS Code Audit)
-                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
+                    ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
                     {
@@ -1510,7 +1534,8 @@ namespace OverlayApp.ViewModels
                         }
                     }
 
-                    string finalResult = metadataHeader + $"* **Audit Status:** {auditNote}\n\n" + finalCode.Trim();
+                    string newTurnResult = metadataHeader + $"* **Audit Status:** {auditNote}\n\n" + finalCode.Trim();
+                    string finalResult = isFollowUpTurn ? (ScanResponseText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
                     ScanResponseText = finalResult;
 
                     _txtChatHistory.Add(new ChatMessage {
@@ -1520,23 +1545,16 @@ namespace OverlayApp.ViewModels
                 }
                 else
                 {
-                    ScanResponseText = metadataHeader + $"[LLM] Explaining text from {CapturedScreenshots.Count} screenshots with **{singleModel}**...";
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "system",
-                        Content = "You are a helpful overlay productivity assistant. Your task is to analyze the extracted text from the user's screenshots and explain it clearly and comprehensively. If the text contains questions, problems, or concepts across screenshots, explain the answers or concepts step-by-step. Keep your output concise, clear, and formatted in markdown. Write in a natural, conversational, humanized style. Avoid typical robotic AI transitions, templates, or preambles. Explain it casually like an experienced developer explaining to a peer. Do not mention you are an AI."
-                    });
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "user",
-                        Content = $"Here is the raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
-                    });
+                    ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM] Explaining follow-up screenshot text with **{singleModel}**...";
 
                     string responseBody = await PerformChatAsync(_txtChatHistory, singleModel);
-                    string finalResult = metadataHeader + responseBody.Trim();
+                    string newTurnResult = metadataHeader + responseBody.Trim();
+                    string finalResult = isFollowUpTurn ? (ScanResponseText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
                     ScanResponseText = finalResult;
 
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "assistant",
-                        Content = finalResult
+                        Content = responseBody.Trim()
                     });
                 }
             }

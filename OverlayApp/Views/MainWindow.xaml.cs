@@ -173,6 +173,12 @@ namespace OverlayApp.Views
                     }
                     break;
 
+                case Win32.WM_SETCURSOR:
+                    // Force cursor to stay as standard default arrow during window resize & border hover sessions
+                    Win32.SetCursor(Win32.LoadCursor(IntPtr.Zero, Win32.IDC_ARROW));
+                    handled = true;
+                    return new IntPtr(1);
+
                 case Win32.WM_NCACTIVATE:
                     // Non-client area activation (title bar glow, border highlight).
                     // Return TRUE to allow the visual update but prevent actual activation.

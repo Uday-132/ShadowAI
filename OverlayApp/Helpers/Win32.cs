@@ -36,6 +36,8 @@ namespace OverlayApp.Helpers
         public const int WM_NCACTIVATE = 0x0086;
         public const int WM_NCLBUTTONDOWN = 0x00A1;
         public const int WM_WINDOWPOSCHANGING = 0x0046;
+        public const int WM_SETCURSOR = 0x0020;
+        public const int IDC_ARROW = 32512;
         
         // WM_ACTIVATE wParam values
         public const int WA_INACTIVE = 0;
@@ -128,6 +130,12 @@ namespace OverlayApp.Helpers
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr LoadCursor(IntPtr hInstance, int lpCursorName);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetCursor(IntPtr hCursor);
 
         [DllImport("user32.dll")]
         public static extern bool ReleaseCapture();
