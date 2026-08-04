@@ -1183,14 +1183,11 @@ namespace OverlayApp.ViewModels
 
             if (isPreviousResponseGenerated)
             {
+                // Clear pending screenshot batch thumbnails for next turn, but KEEP chat thread and history intact!
                 CapturedScreenshots.Clear();
                 NotifyScreenshotStateChanged();
-                ScanResponseText = "";
                 CapturedPreview = null;
-                _txtChatHistory.Clear();
                 ScanModeState currentState = GetModeState(_activeScanModeName);
-                currentState.ResponseText = "";
-                currentState.ChatHistory.Clear();
                 currentState.Screenshots.Clear();
                 currentState.CapturedPreview = null;
                 OnPropertyChanged(nameof(IsFollowUpVisible));
@@ -1324,7 +1321,17 @@ namespace OverlayApp.ViewModels
             }
 
             IsScanning = true;
-            ScanResponseText = $"[OCR] Processing {CapturedScreenshots.Count} captured screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")}...";
+            bool isFollowUpTurn = _txtChatHistory.Count > 0;
+            string previousThreadText = isFollowUpTurn ? ScanResponseText : "";
+
+            if (isFollowUpTurn)
+            {
+                ScanResponseText = previousThreadText + $"\n\n---\n\n⏳ *[OCR processing {CapturedScreenshots.Count} follow-up screenshot(s)...]*";
+            }
+            else
+            {
+                ScanResponseText = $"[OCR] Processing {CapturedScreenshots.Count} captured screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")}...";
+            }
 
             try
             {
@@ -1336,7 +1343,14 @@ namespace OverlayApp.ViewModels
                 for (int i = 0; i < CapturedScreenshots.Count; i++)
                 {
                     var item = CapturedScreenshots[i];
-                    ScanResponseText = $"[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...";
+                    if (isFollowUpTurn)
+                    {
+                        ScanResponseText = previousThreadText + $"\n\n---\n\n⏳ *[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...*";
+                    }
+                    else
+                    {
+                        ScanResponseText = $"[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...";
+                    }
 
                     var ocrResult = await PerformOcrAsync(item.ImageBytes);
 
@@ -1359,7 +1373,8 @@ namespace OverlayApp.ViewModels
 
                 if (totalChars == 0)
                 {
-                    ScanResponseText = "⚠️ No readable text was detected across all captured screenshots. Please try capturing clearer screen areas.";
+                    string noTextErr = "⚠️ No readable text was detected across all captured screenshots. Please try capturing clearer screen areas.";
+                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + noTextErr) : noTextErr;
                     return;
                 }
 
@@ -1371,9 +1386,8 @@ namespace OverlayApp.ViewModels
                                         $"* **Active API Provider:** {providerInfo}\n\n";
 
                 string combinedExtractedText = combinedTextBuilder.ToString().Trim();
-
                 string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
-                bool isFollowUpTurn = _txtChatHistory.Count > 0;
+                int currentTurnIndex = (_txtChatHistory.Count / 2) + 1;
 
                 if (!isFollowUpTurn)
                 {
@@ -1423,7 +1437,7 @@ namespace OverlayApp.ViewModels
                     // Follow-up turn: append new screenshot text to preserved conversation!
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "user",
-                        Content = $"👉 Follow-up Question with {CapturedScreenshots.Count} new screenshot(s):\n\n{combinedExtractedText}"
+                        Content = $"👉 Turn #{currentTurnIndex} Follow-up Question with {CapturedScreenshots.Count} new screenshot(s):\n\n{combinedExtractedText}"
                     });
                 }
 
@@ -1432,7 +1446,8 @@ namespace OverlayApp.ViewModels
                     string modelA = "gemini-2.0-flash";
                     string modelB = "openai/gpt-oss-120b";
 
-                    ScanResponseText = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")} with dual models ({modelA} and {modelB})...";
+                    string statusMsg = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshot(s) with dual models ({modelA} and {modelB})...";
+                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsg) : statusMsg;
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
                     var taskA = _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, modelA, effectiveGroqKey, modelB);
@@ -1447,7 +1462,7 @@ namespace OverlayApp.ViewModels
                     bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
 
                     var sbVerify = new System.Text.StringBuilder();
-                    if (isFollowUpTurn) sbVerify.AppendLine(ScanResponseText).AppendLine("\n---\n");
+                    if (isFollowUpTurn) sbVerify.AppendLine($"### 💬 Turn #{currentTurnIndex} Follow-Up MCQ Result\n");
                     sbVerify.AppendLine(metadataHeader);
                     sbVerify.AppendLine("### 🤖 MCQ Dual-Model Verification");
                     sbVerify.AppendLine();
@@ -1465,12 +1480,13 @@ namespace OverlayApp.ViewModels
                         sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. Please double-check your screenshots.");
                     }
 
-                    string finalResult = sbVerify.ToString();
+                    string newTurnResult = sbVerify.ToString();
+                    string finalResult = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
                     ScanResponseText = finalResult;
 
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "assistant",
-                        Content = finalResult
+                        Content = newTurnResult
                     });
                 }
                 else if (IsCodingScanMode)
@@ -1480,7 +1496,8 @@ namespace OverlayApp.ViewModels
                     string verifierModel = "openai/gpt-oss-120b";
                     bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
 
-                    ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM 1/2] Generating full {(isProjectMode ? "Multi-File Project" : targetLang)} code solution with **{primaryModel} (Gemini)**...";
+                    string statusMsg1 = metadataHeader + $"[LLM 1/2] Generating full {(isProjectMode ? "Multi-File Project" : targetLang)} code solution with **{primaryModel} (Gemini)**...";
+                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsg1) : statusMsg1;
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
                     string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
@@ -1489,7 +1506,8 @@ namespace OverlayApp.ViewModels
                     // Step 1: Truncation Check & Continuation
                     if (IsCodeTruncated(initialCode))
                     {
-                        ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM] Detecting code truncation... Requesting continuation...";
+                        string statusMsgTrunc = metadataHeader + $"[LLM] Detecting code truncation... Requesting continuation...";
+                        ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsgTrunc) : statusMsgTrunc;
 
                         var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
                         {
@@ -1503,7 +1521,8 @@ namespace OverlayApp.ViewModels
                     }
 
                     // Step 2: Second Model Verification (GPT-OSS Code Audit)
-                    ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
+                    string statusMsg2 = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
+                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsg2) : statusMsg2;
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
                     {
@@ -1534,8 +1553,9 @@ namespace OverlayApp.ViewModels
                         }
                     }
 
-                    string newTurnResult = metadataHeader + $"* **Audit Status:** {auditNote}\n\n" + finalCode.Trim();
-                    string finalResult = isFollowUpTurn ? (ScanResponseText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
+                    string newTurnHeader = isFollowUpTurn ? $"### 💬 Turn #{currentTurnIndex} Follow-Up Solution ({targetLang})\n" : "";
+                    string newTurnResult = newTurnHeader + metadataHeader + $"* **Audit Status:** {auditNote}\n\n" + finalCode.Trim();
+                    string finalResult = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
                     ScanResponseText = finalResult;
 
                     _txtChatHistory.Add(new ChatMessage {
@@ -1545,11 +1565,13 @@ namespace OverlayApp.ViewModels
                 }
                 else
                 {
-                    ScanResponseText = (isFollowUpTurn ? ScanResponseText + "\n\n---\n\n" : "") + metadataHeader + $"[LLM] Explaining follow-up screenshot text with **{singleModel}**...";
+                    string statusMsgNormal = metadataHeader + $"[LLM] Explaining follow-up screenshot text with **{singleModel}**...";
+                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsgNormal) : statusMsgNormal;
 
                     string responseBody = await PerformChatAsync(_txtChatHistory, singleModel);
-                    string newTurnResult = metadataHeader + responseBody.Trim();
-                    string finalResult = isFollowUpTurn ? (ScanResponseText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
+                    string newTurnHeader = isFollowUpTurn ? $"### 💬 Turn #{currentTurnIndex} Follow-Up Explanation\n" : "";
+                    string newTurnResult = newTurnHeader + metadataHeader + responseBody.Trim();
+                    string finalResult = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
                     ScanResponseText = finalResult;
 
                     _txtChatHistory.Add(new ChatMessage {

@@ -74,7 +74,11 @@ namespace OverlayApp.Views
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         var text = ViewModel.ScanResponseText;
-                        if (text != null && !text.Contains("👉 Follow-up Question"))
+                        if (text != null && (text.Contains("Turn #") || text.Contains("---")))
+                        {
+                            TxtScanScrollViewer?.ScrollToEnd();
+                        }
+                        else
                         {
                             TxtScanScrollViewer?.ScrollToTop();
                         }
