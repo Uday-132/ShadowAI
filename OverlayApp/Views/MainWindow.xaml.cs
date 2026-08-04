@@ -66,32 +66,62 @@ namespace OverlayApp.Views
             // Sync initial mouse hook state
             UpdateMouseHook();
 
-            // Auto-scroll scan results to the top when new response text arrives
+            // Auto-scroll scan results when new chat bubbles arrive or content updates
             ViewModel.PropertyChanged += (s, args) =>
             {
                 if (args.PropertyName == nameof(MainViewModel.ScanResponseText))
                 {
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    // Only scroll for fallback plain-text mode (when ChatBubbles is empty)
+                    if (ViewModel.ChatBubbles.Count == 0)
                     {
-                        var text = ViewModel.ScanResponseText;
-                        if (text != null && (text.Contains("Turn #") || text.Contains("---")))
-                        {
-                            TxtScanScrollViewer?.ScrollToEnd();
-                        }
-                        else
+                        Dispatcher.BeginInvoke(new Action(() =>
                         {
                             TxtScanScrollViewer?.ScrollToTop();
-                        }
-                    }));
+                        }));
+                    }
                 }
-                else if (args.PropertyName == nameof(MainViewModel.VoiceScanResponseText))
+            };
+
+            // Auto-scroll to bottom when chat bubbles are added or updated
+            ViewModel.ChatBubbles.CollectionChanged += (s, args) =>
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    TxtScanScrollViewer?.ScrollToEnd();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+
+                // Subscribe to PropertyChanged on newly added bubbles for live content updates
+                if (args.NewItems != null)
+                {
+                    foreach (var item in args.NewItems)
+                    {
+                        if (item is OverlayApp.Models.ChatBubbleItem bubble)
+                        {
+                            bubble.PropertyChanged += (bs, bp) =>
+                            {
+                                if (bp.PropertyName == "Content" || bp.PropertyName == "IsLoading")
+                                {
+                                    Dispatcher.BeginInvoke(new Action(() =>
+                                    {
+                                        TxtScanScrollViewer?.ScrollToEnd();
+                                    }), System.Windows.Threading.DispatcherPriority.Background);
+                                }
+                            };
+                        }
+                    }
+                }
+            };
+
+            // VoiceScan and ClickThrough property change handlers
+            ViewModel.PropertyChanged += (s, args) =>
+            {
+                if (args.PropertyName == nameof(MainViewModel.VoiceScanResponseText))
                 {
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         var text = ViewModel.VoiceScanResponseText;
                         if (text != null && !text.Contains("👉 Follow-up Question"))
                         {
-                            // Only scroll to the top for the initial voice scan query, keep current scroll position for follow-ups
                             VoiceScanScrollViewer?.ScrollToTop();
                         }
                     }));

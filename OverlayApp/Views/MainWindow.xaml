@@ -858,27 +858,131 @@
                                  </ScrollViewer>
                              </Grid>
 
-                             <!-- Response Area -->
-                             <Border Grid.Row="3" Background="#11FFFFFF" CornerRadius="4" Padding="6">
+                             <!-- Chat-Style Response Area -->
+                             <Border Grid.Row="3" Background="#08FFFFFF" CornerRadius="4" Padding="2">
                                  <ScrollViewer x:Name="TxtScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
-                                     <StackPanel>
-                                         <!-- Captured Image Preview (if available) -->
-                                         <Border BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="4" Width="100" Height="60" HorizontalAlignment="Left" Margin="0,0,0,8" ClipToBounds="True">
-                                             <Border.Style>
-                                                 <Style TargetType="Border">
+                                     <Grid>
+                                         <!-- Fallback: plain ScanResponseText when no chat bubbles exist yet -->
+                                         <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" Padding="4">
+                                             <TextBlock.Style>
+                                                 <Style TargetType="TextBlock">
+                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                      <Style.Triggers>
-                                                         <DataTrigger Binding="{Binding CapturedPreview}" Value="{x:Null}">
+                                                         <DataTrigger Binding="{Binding ChatBubbles.Count}" Value="0">
+                                                             <Setter Property="Visibility" Value="Visible"/>
+                                                         </DataTrigger>
+                                                     </Style.Triggers>
+                                                 </Style>
+                                             </TextBlock.Style>
+                                         </TextBlock>
+
+                                         <!-- Chat Bubbles ItemsControl -->
+                                         <ItemsControl ItemsSource="{Binding ChatBubbles}">
+                                             <ItemsControl.Style>
+                                                 <Style TargetType="ItemsControl">
+                                                     <Setter Property="Visibility" Value="Visible"/>
+                                                     <Style.Triggers>
+                                                         <DataTrigger Binding="{Binding ChatBubbles.Count}" Value="0">
                                                              <Setter Property="Visibility" Value="Collapsed"/>
                                                          </DataTrigger>
                                                      </Style.Triggers>
                                                  </Style>
-                                             </Border.Style>
-                                             <Image Source="{Binding CapturedPreview}" Stretch="UniformToFill"/>
-                                         </Border>
-                                         
-                                         <!-- Scan Results Text -->
-                                         <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent"/>
-                                     </StackPanel>
+                                             </ItemsControl.Style>
+                                             <ItemsControl.ItemsPanel>
+                                                 <ItemsPanelTemplate>
+                                                     <StackPanel/>
+                                                 </ItemsPanelTemplate>
+                                             </ItemsControl.ItemsPanel>
+                                             <ItemsControl.ItemTemplate>
+                                                 <DataTemplate>
+                                                     <Grid Margin="0,3">
+                                                         <!-- USER BUBBLE (right-aligned, cyan accent) -->
+                                                         <Border HorizontalAlignment="Right" MaxWidth="280" CornerRadius="8,8,2,8" Padding="8,6" Margin="30,0,0,0"
+                                                                 Background="#1800D2FF" BorderBrush="#3300D2FF" BorderThickness="1">
+                                                             <Border.Style>
+                                                                 <Style TargetType="Border">
+                                                                     <Setter Property="Visibility" Value="Collapsed"/>
+                                                                     <Style.Triggers>
+                                                                         <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                                                             <Setter Property="Visibility" Value="Visible"/>
+                                                                         </DataTrigger>
+                                                                     </Style.Triggers>
+                                                                 </Style>
+                                                             </Border.Style>
+                                                             <StackPanel>
+                                                                 <!-- Turn label -->
+                                                                 <TextBlock Foreground="#7700D2FF" FontSize="8.5" FontWeight="Bold" Margin="0,0,0,4">
+                                                                     <Run Text="📸 "/>
+                                                                     <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
+                                                                 </TextBlock>
+                                                                 <!-- Screenshot thumbnails row -->
+                                                                 <ItemsControl ItemsSource="{Binding ScreenshotPreviews}" Margin="0,0,0,4">
+                                                                     <ItemsControl.ItemsPanel>
+                                                                         <ItemsPanelTemplate>
+                                                                             <WrapPanel Orientation="Horizontal"/>
+                                                                         </ItemsPanelTemplate>
+                                                                     </ItemsControl.ItemsPanel>
+                                                                     <ItemsControl.ItemTemplate>
+                                                                         <DataTemplate>
+                                                                             <Border CornerRadius="4" BorderBrush="#3300D2FF" BorderThickness="1" Background="#15000000" Width="52" Height="34" Margin="0,0,4,4" ClipToBounds="True">
+                                                                                 <Image Source="{Binding}" Stretch="UniformToFill"/>
+                                                                             </Border>
+                                                                         </DataTemplate>
+                                                                     </ItemsControl.ItemTemplate>
+                                                                 </ItemsControl>
+                                                                 <!-- Content text -->
+                                                                 <TextBlock Text="{Binding Content}" Foreground="#AA00D2FF" FontSize="9" TextWrapping="Wrap"/>
+                                                             </StackPanel>
+                                                         </Border>
+
+                                                         <!-- ASSISTANT BUBBLE (left-aligned, darker bg) -->
+                                                         <Border HorizontalAlignment="Left" MaxWidth="320" CornerRadius="8,8,8,2" Padding="8,6" Margin="0,0,30,0"
+                                                                 Background="#15FFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1">
+                                                             <Border.Style>
+                                                                 <Style TargetType="Border">
+                                                                     <Setter Property="Visibility" Value="Collapsed"/>
+                                                                     <Style.Triggers>
+                                                                         <DataTrigger Binding="{Binding IsAssistant}" Value="True">
+                                                                             <Setter Property="Visibility" Value="Visible"/>
+                                                                         </DataTrigger>
+                                                                     </Style.Triggers>
+                                                                 </Style>
+                                                             </Border.Style>
+                                                             <StackPanel>
+                                                                 <!-- Model info badge -->
+                                                                 <Border Background="#10FFFFFF" CornerRadius="3" Padding="4,2" Margin="0,0,0,4" HorizontalAlignment="Left">
+                                                                     <TextBlock Foreground="#6690CAF9" FontSize="8" FontWeight="SemiBold">
+                                                                         <Run Text="🤖 "/>
+                                                                         <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
+                                                                         <Run Text=" · "/>
+                                                                         <Run Text="{Binding ModelInfo, Mode=OneWay}"/>
+                                                                     </TextBlock>
+                                                                 </Border>
+                                                                 <!-- Loading indicator -->
+                                                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                                                     <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
+                                                                     <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                 </StackPanel>
+                                                                 <!-- Response content (hidden during loading) -->
+                                                                 <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#E0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
+                                                                     <TextBlock.Style>
+                                                                         <Style TargetType="TextBlock">
+                                                                             <Setter Property="Visibility" Value="Visible"/>
+                                                                             <Style.Triggers>
+                                                                                 <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                                                                     <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                 </DataTrigger>
+                                                                             </Style.Triggers>
+                                                                         </Style>
+                                                                     </TextBlock.Style>
+                                                                 </TextBlock>
+                                                             </StackPanel>
+                                                         </Border>
+                                                     </Grid>
+                                                 </DataTemplate>
+                                             </ItemsControl.ItemTemplate>
+                                         </ItemsControl>
+                                     </Grid>
                                  </ScrollViewer>
                              </Border>
 

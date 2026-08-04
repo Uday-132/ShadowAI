@@ -44,6 +44,7 @@ namespace OverlayApp.ViewModels
 
         private readonly System.Collections.Generic.List<ChatMessage> _voiceChatHistory = new System.Collections.Generic.List<ChatMessage>();
         private readonly System.Collections.Generic.List<ChatMessage> _txtChatHistory = new System.Collections.Generic.List<ChatMessage>();
+        private int _txtTurnCounter;
         private string _followUpText = "";
         private bool _isFollowUpRecording;
         private bool _wasLiveScanActiveBeforeFollowUp;
@@ -90,6 +91,11 @@ namespace OverlayApp.ViewModels
         public ICommand ClearTxtScanCommand { get; }
 
         public System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem> CapturedScreenshots { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem>();
+
+        /// <summary>
+        /// Chat bubble items for the ChatGPT/Gemini-style conversation UI in Text Scan.
+        /// </summary>
+        public System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem> ChatBubbles { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem>();
 
         public int CapturedScreenshotsCount => CapturedScreenshots.Count;
         public bool HasCapturedScreenshots => CapturedScreenshots.Count > 0;
@@ -225,6 +231,8 @@ namespace OverlayApp.ViewModels
                 ScanResponseText = ""; 
                 CapturedPreview = null; 
                 _txtChatHistory.Clear();
+                _txtTurnCounter = 0;
+                ChatBubbles.Clear();
                 ScanModeState currentState = GetModeState(_activeScanModeName);
                 currentState.ResponseText = "";
                 currentState.ChatHistory.Clear();
@@ -1321,17 +1329,34 @@ namespace OverlayApp.ViewModels
             }
 
             IsScanning = true;
-            bool isFollowUpTurn = _txtChatHistory.Count > 0;
-            string previousThreadText = isFollowUpTurn ? ScanResponseText : "";
+            _txtTurnCounter++;
+            int turnNum = _txtTurnCounter;
 
-            if (isFollowUpTurn)
+            // --- 1. Add USER BUBBLE with screenshot thumbnails ---
+            var userBubble = new Models.ChatBubbleItem
             {
-                ScanResponseText = previousThreadText + $"\n\n---\n\n⏳ *[OCR processing {CapturedScreenshots.Count} follow-up screenshot(s)...]*";
-            }
-            else
+                Role = "user",
+                TurnNumber = turnNum,
+                Content = $"📸 {CapturedScreenshots.Count} screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")} captured",
+                ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+            };
+            foreach (var ss in CapturedScreenshots)
             {
-                ScanResponseText = $"[OCR] Processing {CapturedScreenshots.Count} captured screenshot{(CapturedScreenshots.Count == 1 ? "" : "s")}...";
+                if (ss.PreviewImage != null)
+                    userBubble.ScreenshotPreviews.Add(ss.PreviewImage);
             }
+            ChatBubbles.Add(userBubble);
+
+            // --- 2. Add ASSISTANT BUBBLE (loading placeholder) ---
+            var assistantBubble = new Models.ChatBubbleItem
+            {
+                Role = "assistant",
+                TurnNumber = turnNum,
+                Content = "",
+                IsLoading = true,
+                ModelInfo = ""
+            };
+            ChatBubbles.Add(assistantBubble);
 
             try
             {
@@ -1340,17 +1365,13 @@ namespace OverlayApp.ViewModels
                 int totalChars = 0;
                 int successfulScans = 0;
 
+                // --- OCR Phase ---
+                assistantBubble.Content = $"⏳ Extracting text from {CapturedScreenshots.Count} screenshot(s)...";
+
                 for (int i = 0; i < CapturedScreenshots.Count; i++)
                 {
                     var item = CapturedScreenshots[i];
-                    if (isFollowUpTurn)
-                    {
-                        ScanResponseText = previousThreadText + $"\n\n---\n\n⏳ *[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...*";
-                    }
-                    else
-                    {
-                        ScanResponseText = $"[OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...";
-                    }
+                    assistantBubble.Content = $"⏳ [OCR {i + 1}/{CapturedScreenshots.Count}] Extracting text from Screenshot {item.Index}...";
 
                     var ocrResult = await PerformOcrAsync(item.ImageBytes);
 
@@ -1373,22 +1394,19 @@ namespace OverlayApp.ViewModels
 
                 if (totalChars == 0)
                 {
-                    string noTextErr = "⚠️ No readable text was detected across all captured screenshots. Please try capturing clearer screen areas.";
-                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + noTextErr) : noTextErr;
+                    assistantBubble.Content = "⚠️ No readable text was detected across all captured screenshots. Please try capturing clearer screen areas.";
+                    assistantBubble.IsLoading = false;
                     return;
                 }
 
                 string providerInfo = IsGeminiApiActive ? "Google Gemini API (gemini-2.0-flash)" : "Groq API";
-                string metadataHeader = $"**🔍 Batch Scan Meta Information**\n" +
-                                        $"* **Total Screenshots Scanned:** {CapturedScreenshots.Count}\n" +
-                                        $"* **Successful Extractions:** {successfulScans}/{CapturedScreenshots.Count}\n" +
-                                        $"* **Total Text Extracted:** {totalChars} characters\n" +
-                                        $"* **Active API Provider:** {providerInfo}\n\n";
+                string metadataHeader = $"**🔍 Scan Info** — {CapturedScreenshots.Count} screenshots, {totalChars} chars extracted ({providerInfo})\n\n";
 
                 string combinedExtractedText = combinedTextBuilder.ToString().Trim();
                 string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
-                int currentTurnIndex = (_txtChatHistory.Count / 2) + 1;
+                bool isFollowUpTurn = _txtChatHistory.Count > 0;
 
+                // --- Build LLM Chat History ---
                 if (!isFollowUpTurn)
                 {
                     if (IsMcqScanMode)
@@ -1434,20 +1452,19 @@ namespace OverlayApp.ViewModels
                 }
                 else
                 {
-                    // Follow-up turn: append new screenshot text to preserved conversation!
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "user",
-                        Content = $"👉 Turn #{currentTurnIndex} Follow-up Question with {CapturedScreenshots.Count} new screenshot(s):\n\n{combinedExtractedText}"
+                        Content = $"👉 Turn #{turnNum} Follow-up with {CapturedScreenshots.Count} new screenshot(s):\n\n{combinedExtractedText}"
                     });
                 }
 
+                // --- LLM Response Phase ---
                 if (IsMcqScanMode)
                 {
                     string modelA = "gemini-2.0-flash";
                     string modelB = "openai/gpt-oss-120b";
-
-                    string statusMsg = metadataHeader + $"[LLM] Verifying MCQ answer across {CapturedScreenshots.Count} screenshot(s) with dual models ({modelA} and {modelB})...";
-                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsg) : statusMsg;
+                    assistantBubble.ModelInfo = $"{modelA} + {modelB}";
+                    assistantBubble.Content = $"⏳ Verifying MCQ answer with dual models...";
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
                     var taskA = _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, modelA, effectiveGroqKey, modelB);
@@ -1462,7 +1479,6 @@ namespace OverlayApp.ViewModels
                     bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
 
                     var sbVerify = new System.Text.StringBuilder();
-                    if (isFollowUpTurn) sbVerify.AppendLine($"### 💬 Turn #{currentTurnIndex} Follow-Up MCQ Result\n");
                     sbVerify.AppendLine(metadataHeader);
                     sbVerify.AppendLine("### 🤖 MCQ Dual-Model Verification");
                     sbVerify.AppendLine();
@@ -1472,22 +1488,16 @@ namespace OverlayApp.ViewModels
                     sbVerify.AppendLine("---");
                     sbVerify.AppendLine();
                     if (isMatch)
-                    {
                         sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
-                    }
                     else
-                    {
                         sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. Please double-check your screenshots.");
-                    }
 
-                    string newTurnResult = sbVerify.ToString();
-                    string finalResult = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
-                    ScanResponseText = finalResult;
+                    string finalContent = sbVerify.ToString().Trim();
+                    assistantBubble.Content = finalContent;
+                    assistantBubble.IsLoading = false;
+                    ScanResponseText = finalContent;
 
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "assistant",
-                        Content = newTurnResult
-                    });
+                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalContent });
                 }
                 else if (IsCodingScanMode)
                 {
@@ -1495,19 +1505,18 @@ namespace OverlayApp.ViewModels
                     string primaryModel = "gemini-2.0-flash";
                     string verifierModel = "openai/gpt-oss-120b";
                     bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
+                    assistantBubble.ModelInfo = $"{primaryModel} → {verifierModel}";
 
-                    string statusMsg1 = metadataHeader + $"[LLM 1/2] Generating full {(isProjectMode ? "Multi-File Project" : targetLang)} code solution with **{primaryModel} (Gemini)**...";
-                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsg1) : statusMsg1;
+                    assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModel}**...";
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
                     string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
                     initialCode = CleanCodeMarkdown(initialCode);
 
-                    // Step 1: Truncation Check & Continuation
+                    // Truncation Check & Continuation
                     if (IsCodeTruncated(initialCode))
                     {
-                        string statusMsgTrunc = metadataHeader + $"[LLM] Detecting code truncation... Requesting continuation...";
-                        ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsgTrunc) : statusMsgTrunc;
+                        assistantBubble.Content = $"⏳ Code truncated — requesting continuation...";
 
                         var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
                         {
@@ -1520,9 +1529,8 @@ namespace OverlayApp.ViewModels
                         initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
                     }
 
-                    // Step 2: Second Model Verification (GPT-OSS Code Audit)
-                    string statusMsg2 = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
-                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsg2) : statusMsg2;
+                    // Code Audit
+                    assistantBubble.Content = $"⏳ [2/2] Verifying code with **{verifierModel}**...";
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
                     {
@@ -1540,7 +1548,7 @@ namespace OverlayApp.ViewModels
                     verificationOutput = verificationOutput.Trim();
 
                     string finalCode = initialCode;
-                    string auditNote = $"✅ {targetLang} code generated by Gemini ({primaryModel}) and verified bug-free by GPT-OSS ({verifierModel}).";
+                    string auditNote = $"✅ Code verified bug-free by {verifierModel}.";
 
                     if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1549,39 +1557,36 @@ namespace OverlayApp.ViewModels
                         if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
                         {
                             finalCode = correctedCode;
-                            auditNote = $"✨ {targetLang} code generated by Gemini ({primaryModel}) and audited/corrected by GPT-OSS ({verifierModel}).";
+                            auditNote = $"✨ Code audited/corrected by {verifierModel}.";
                         }
                     }
 
-                    string newTurnHeader = isFollowUpTurn ? $"### 💬 Turn #{currentTurnIndex} Follow-Up Solution ({targetLang})\n" : "";
-                    string newTurnResult = newTurnHeader + metadataHeader + $"* **Audit Status:** {auditNote}\n\n" + finalCode.Trim();
-                    string finalResult = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
-                    ScanResponseText = finalResult;
+                    string finalContent = metadataHeader + $"* **Audit:** {auditNote}\n\n" + finalCode.Trim();
+                    assistantBubble.Content = finalContent;
+                    assistantBubble.IsLoading = false;
+                    ScanResponseText = finalCode.Trim();
 
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "assistant",
-                        Content = finalCode.Trim()
-                    });
+                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalCode.Trim() });
                 }
                 else
                 {
-                    string statusMsgNormal = metadataHeader + $"[LLM] Explaining follow-up screenshot text with **{singleModel}**...";
-                    ScanResponseText = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + statusMsgNormal) : statusMsgNormal;
+                    assistantBubble.ModelInfo = singleModel;
+                    assistantBubble.Content = $"⏳ Generating response with **{singleModel}**...";
 
                     string responseBody = await PerformChatAsync(_txtChatHistory, singleModel);
-                    string newTurnHeader = isFollowUpTurn ? $"### 💬 Turn #{currentTurnIndex} Follow-Up Explanation\n" : "";
-                    string newTurnResult = newTurnHeader + metadataHeader + responseBody.Trim();
-                    string finalResult = isFollowUpTurn ? (previousThreadText + "\n\n---\n\n" + newTurnResult) : newTurnResult;
-                    ScanResponseText = finalResult;
 
-                    _txtChatHistory.Add(new ChatMessage {
-                        Role = "assistant",
-                        Content = responseBody.Trim()
-                    });
+                    string finalContent = metadataHeader + responseBody.Trim();
+                    assistantBubble.Content = finalContent;
+                    assistantBubble.IsLoading = false;
+                    ScanResponseText = responseBody.Trim();
+
+                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = responseBody.Trim() });
                 }
             }
             catch (Exception ex)
             {
+                assistantBubble.Content = $"⚠️ Error: {ex.Message}";
+                assistantBubble.IsLoading = false;
                 ScanResponseText = $"⚠️ Error processing batch screenshots: {ex.Message}";
             }
             finally
