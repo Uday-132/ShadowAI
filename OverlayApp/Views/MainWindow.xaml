@@ -1015,7 +1015,7 @@
                                                   <Border x:Name="AskBtnBorder" CornerRadius="4" Background="#2000D2FF" BorderBrush="#5000D2FF" BorderThickness="1" Padding="8,4">
                                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                           <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Fill="#00D2FF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,6,0"/>
-                                                          <TextBlock Text="📸 + ASK WITH SCREENSHOT (ADD UP TO 5 SCREENSHOTS TO CONVERSATION)" Foreground="#00D2FF" FontSize="9.5" FontWeight="Bold"/>
+                                                          <TextBlock Text="📸 + ASK WITH SCREENSHOT" Foreground="#00D2FF" FontSize="9.5" FontWeight="Bold"/>
                                                       </StackPanel>
                                                   </Border>
                                                   <ControlTemplate.Triggers>
@@ -1027,6 +1027,68 @@
                                               </ControlTemplate>
                                           </Button.Template>
                                       </Button>
+
+                                      <!-- Preset Quick Follow-up Question Pill Buttons (Dynamic per MCQ / Coding / Normal mode) -->
+                                      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,4,0,2">
+                                          <ItemsControl ItemsSource="{Binding PresetFollowUps}">
+                                              <ItemsControl.ItemsPanel>
+                                                  <ItemsPanelTemplate>
+                                                      <StackPanel Orientation="Horizontal"/>
+                                                  </ItemsPanelTemplate>
+                                              </ItemsControl.ItemsPanel>
+                                              <ItemsControl.ItemTemplate>
+                                                  <DataTemplate>
+                                                      <Button Command="{Binding DataContext.AskFollowUpCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                              CommandParameter="{Binding}" 
+                                                              Cursor="Arrow" Margin="0,0,4,0">
+                                                          <Button.Template>
+                                                              <ControlTemplate TargetType="Button">
+                                                                  <Border x:Name="PillBorder" CornerRadius="10" Background="#1800D2FF" BorderBrush="#3500D2FF" BorderThickness="1" Padding="8,3">
+                                                                      <TextBlock Text="{Binding}" Foreground="#00D2FF" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                  </Border>
+                                                                  <ControlTemplate.Triggers>
+                                                                      <Trigger Property="IsMouseOver" Value="True">
+                                                                          <Setter TargetName="PillBorder" Property="Background" Value="#3500D2FF"/>
+                                                                          <Setter TargetName="PillBorder" Property="BorderBrush" Value="#7000D2FF"/>
+                                                                      </Trigger>
+                                                                  </ControlTemplate.Triggers>
+                                                              </ControlTemplate>
+                                                          </Button.Template>
+                                                      </Button>
+                                                  </DataTemplate>
+                                              </ItemsControl.ItemTemplate>
+                                          </ItemsControl>
+                                      </ScrollViewer>
+
+                                      <!-- Follow-up Text Input + Send Button -->
+                                      <DockPanel Margin="0,4,0,0">
+                                          <!-- Send Button -->
+                                          <Button DockPanel.Dock="Right" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Width="36" Height="26" Margin="4,0,0,0">
+                                              <Button.Template>
+                                                  <ControlTemplate TargetType="Button">
+                                                      <Border x:Name="SendBtnBorder" CornerRadius="4" Background="#2000D2FF" BorderBrush="#4000D2FF" BorderThickness="1">
+                                                          <TextBlock Text="➤" Foreground="#00D2FF" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                      </Border>
+                                                      <ControlTemplate.Triggers>
+                                                          <Trigger Property="IsMouseOver" Value="True">
+                                                              <Setter TargetName="SendBtnBorder" Property="Background" Value="#4000D2FF"/>
+                                                          </Trigger>
+                                                      </ControlTemplate.Triggers>
+                                                  </ControlTemplate>
+                                              </Button.Template>
+                                          </Button>
+                                          <!-- Text Input -->
+                                          <Border CornerRadius="4" Background="#12FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
+                                              <TextBox Text="{Binding FollowUpText, UpdateSourceTrigger=PropertyChanged}" 
+                                                       Background="Transparent" Foreground="#D0FFFFFF" FontSize="10" 
+                                                       BorderThickness="0" Padding="6,4" VerticalContentAlignment="Center"
+                                                       CaretBrush="#00D2FF" AcceptsReturn="False">
+                                                  <TextBox.InputBindings>
+                                                      <KeyBinding Key="Return" Command="{Binding SubmitFollowUpCommand}"/>
+                                                  </TextBox.InputBindings>
+                                              </TextBox>
+                                          </Border>
+                                      </DockPanel>
                                   </StackPanel>           
                              </StackPanel>
 

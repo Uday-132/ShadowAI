@@ -2308,7 +2308,30 @@ namespace OverlayApp.ViewModels
             IsScanning = true;
             if (ActiveWidget == WidgetType.TxtScan)
             {
-                ScanResponseText += $"\n\n👉 Follow-up Question:\n\"{question}\"\n\nThinking...";
+                _txtTurnCounter++;
+                int turnNum = _txtTurnCounter;
+
+                // Add user bubble with the text question
+                var userBubble = new Models.ChatBubbleItem
+                {
+                    Role = "user",
+                    TurnNumber = turnNum,
+                    Content = $"💬 {question}",
+                    ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                };
+                ChatBubbles.Add(userBubble);
+
+                // Add assistant bubble (loading)
+                var assistantBubble = new Models.ChatBubbleItem
+                {
+                    Role = "assistant",
+                    TurnNumber = turnNum,
+                    Content = "⏳ Thinking...",
+                    IsLoading = true,
+                    ModelInfo = ""
+                };
+                ChatBubbles.Add(assistantBubble);
+
                 string finalQuestion = question;
                 try
                 {
@@ -2336,9 +2359,14 @@ namespace OverlayApp.ViewModels
                     var optimizedHistory = PruneChatHistory(_txtChatHistory);
 
                     string followUpModel = IsCodingScanMode ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
+                    assistantBubble.ModelInfo = followUpModel;
+                    assistantBubble.Content = $"⏳ Generating response with **{followUpModel}**...";
+
                     string answer = await PerformChatAsync(optimizedHistory, followUpModel);
-                    
-                    ScanResponseText = ScanResponseText.Replace("Thinking...", answer);
+
+                    assistantBubble.Content = answer;
+                    assistantBubble.IsLoading = false;
+                    ScanResponseText = answer;
 
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "assistant",
@@ -2349,7 +2377,8 @@ namespace OverlayApp.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    ScanResponseText = ScanResponseText.Replace("Thinking...", $"Follow-up query failed: {ex.Message}");
+                    assistantBubble.Content = $"⚠️ Follow-up query failed: {ex.Message}";
+                    assistantBubble.IsLoading = false;
                     if (_txtChatHistory.Count > 0 && (_txtChatHistory[_txtChatHistory.Count - 1].Content == question || _txtChatHistory[_txtChatHistory.Count - 1].Content == finalQuestion))
                     {
                         _txtChatHistory.RemoveAt(_txtChatHistory.Count - 1);
