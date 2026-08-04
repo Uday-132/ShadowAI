@@ -1432,21 +1432,21 @@ namespace OverlayApp.ViewModels
                 else if (IsCodingScanMode)
                 {
                     string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
-                    bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
                     string primaryModel = "gemini-2.0-flash";
                     string verifierModel = "openai/gpt-oss-120b";
 
-                    string modeTitle = isProjectMode ? "Full-Stack Project" : $"{targetLang} code";
-                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating {modeTitle} solution with **{primaryModel} (Gemini)**...";
+                    bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
+
+                    ScanResponseText = metadataHeader + $"[LLM 1/2] Generating full {(isProjectMode ? "Multi-File Project" : targetLang)} code solution with **{primaryModel} (Gemini)**...";
                     
                     string systemPrompt;
                     if (isProjectMode)
                     {
-                        systemPrompt = "You are a strict expert full-stack senior developer and project architect. Solve the project challenge, bug fix, multi-file structure, or feature request described across all captured screenshots. Analyze the code files, HTML markup, CSS styling, JavaScript/Node.js logic, Python backend routes, and database schemas. Provide a clear, modular, file-by-file code fix (e.g., index.html, style.css, script.js, app.py/server.js) with 100% working, complete production-ready code. Do not include markdown code block backticks (```). Output raw modular code per file.";
+                        systemPrompt = "You are a strict expert full-stack senior developer and project architect. Solve the project challenge, bug fix, or feature request across all captured screenshots. Analyze the code files, HTML structure, CSS styles, JavaScript/Python backend routes, and database schemas. Output clear, modular, file-by-file code fixes (e.g. index.html, style.css, script.js, app.py/server.js) with clean, 100% working code. Write the code in a humanized style as if written by a senior developer in a real coding interview. Do not include markdown code block backticks (```).";
                     }
                     else
                     {
-                        systemPrompt = $"You are a strict expert code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in {targetLang} language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code.";
+                        systemPrompt = $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in {targetLang} language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code.";
                     }
 
                     _txtChatHistory.Add(new ChatMessage {
@@ -1455,7 +1455,7 @@ namespace OverlayApp.ViewModels
                     });
                     _txtChatHistory.Add(new ChatMessage {
                         Role = "user",
-                        Content = $"Here is the {(isProjectMode ? "full-stack project task" : "coding problem")} raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                        Content = $"Here is the {(isProjectMode ? "full-stack project" : "coding problem")} raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                     });
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
@@ -1470,7 +1470,7 @@ namespace OverlayApp.ViewModels
                         var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
                         {
                             new ChatMessage { Role = "assistant", Content = initialCode },
-                            new ChatMessage { Role = "user", Content = $"The previous {(isProjectMode ? "project solution" : targetLang + " code")} output was cut off mid-way. Continue the solution EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
+                            new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
                         };
 
                         string continuationCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, continuationHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
@@ -1479,17 +1479,17 @@ namespace OverlayApp.ViewModels
                     }
 
                     // Step 2: Second Model Verification (GPT-OSS Code Audit)
-                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying {(isProjectMode ? "Project" : targetLang)} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
+                    ScanResponseText = metadataHeader + $"[LLM 2/2] Verifying {targetLang} code completeness and correctness with **{verifierModel} (Groq GPT-OSS)**...";
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
                     {
                         new ChatMessage {
                             Role = "system",
-                            Content = $"You are a strict senior code reviewer. Review the generated solution for the given statement. Is this code 100% complete, bug-free, and correctly solving the requirements? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working code starting on line 2. Do not include markdown code block backticks (```)."
+                            Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem in {targetLang}? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
                         },
                         new ChatMessage {
                             Role = "user",
-                            Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED SOLUTION]\n{initialCode}"
+                            Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED CODE SOLUTION ({targetLang})]\n{initialCode}"
                         }
                     };
 
@@ -1497,7 +1497,7 @@ namespace OverlayApp.ViewModels
                     verificationOutput = verificationOutput.Trim();
 
                     string finalCode = initialCode;
-                    string auditNote = $"✅ {(isProjectMode ? "Project" : targetLang)} code generated by Gemini ({primaryModel}) and verified bug-free by GPT-OSS ({verifierModel}).";
+                    string auditNote = $"✅ {targetLang} code generated by Gemini ({primaryModel}) and verified bug-free by GPT-OSS ({verifierModel}).";
 
                     if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1506,7 +1506,7 @@ namespace OverlayApp.ViewModels
                         if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
                         {
                             finalCode = correctedCode;
-                            auditNote = $"✨ {(isProjectMode ? "Project" : targetLang)} code generated by Gemini ({primaryModel}) and audited/corrected by GPT-OSS ({verifierModel}).";
+                            auditNote = $"✨ {targetLang} code generated by Gemini ({primaryModel}) and audited/corrected by GPT-OSS ({verifierModel}).";
                         }
                     }
 
@@ -2043,8 +2043,14 @@ namespace OverlayApp.ViewModels
                 if (groqValid || geminiValid)
                 {
                     IsGroqKeyValidated = true;
+                    IsTrialStarted = true; // Complete entrance onboarding so user enters app directly
                     _settingsService.SaveSettings(_settings);
                     _ = SaveApiKeysToServerAsync(GroqKey, GeminiKey);
+                    OnPropertyChanged(nameof(IsGroqKeyValidated));
+                    OnPropertyChanged(nameof(IsTrialStarted));
+                    OnPropertyChanged(nameof(IsGroqKeyOverlayVisible));
+                    OnPropertyChanged(nameof(IsDashboardOverlayVisible));
+                    SyncStealthForModalOverlays();
                 }
                 else
                 {
