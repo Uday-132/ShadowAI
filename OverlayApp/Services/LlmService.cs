@@ -377,6 +377,17 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
+        /// <summary>
+        /// Strips internal reasoning/thinking blocks (<think>...</think>) emitted by models like Qwen 3.6 / DeepSeek R1.
+        /// </summary>
+        private string StripReasoningTags(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+            string cleaned = System.Text.RegularExpressions.Regex.Replace(text, @"<think>.*?</think>", "", System.Text.RegularExpressions.RegexOptions.Singleline);
+            return cleaned.Trim();
+        }
+
+        /// <summary>
         /// Helper to extract chat completions content from standard OpenAI JSON responses.
         /// Used by both OpenRouter and Groq APIs.
         /// </summary>
@@ -392,7 +403,8 @@ namespace OverlayApp.Services
                         var firstChoice = choices[0];
                         if (firstChoice.TryGetProperty("message", out var message))
                         {
-                            return message.GetProperty("content").GetString() ?? "Empty message content.";
+                            string rawContent = message.GetProperty("content").GetString() ?? "Empty message content.";
+                            return StripReasoningTags(rawContent);
                         }
                     }
                 }
@@ -774,7 +786,8 @@ namespace OverlayApp.Services
                                 var firstPart = parts[0];
                                 if (firstPart.TryGetProperty("text", out var textProp))
                                 {
-                                    return textProp.GetString() ?? "";
+                                    string rawText = textProp.GetString() ?? "";
+                                    return StripReasoningTags(rawText);
                                 }
                             }
                         }
