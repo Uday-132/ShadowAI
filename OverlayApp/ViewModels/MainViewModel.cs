@@ -1510,7 +1510,7 @@ namespace OverlayApp.ViewModels
                     assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModel}**...";
 
                     string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
-                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
+                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
                     initialCode = CleanCodeMarkdown(initialCode);
 
                     // Truncation Check & Continuation
@@ -1524,7 +1524,7 @@ namespace OverlayApp.ViewModels
                             new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
                         };
 
-                        string continuationCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, continuationHistory, primaryModel, effectiveGroqKey, "llama-3.3-70b-versatile");
+                        string continuationCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, continuationHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
                         continuationCode = CleanCodeMarkdown(continuationCode);
                         initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
                     }
@@ -1740,7 +1740,7 @@ namespace OverlayApp.ViewModels
                     return;
                 }
 
-                VoiceScanResponseText = $"Transcribed Query:\n\"{transcribedText}\"\n\nAnalyzing query (Groq Llama 3.3)...";
+                VoiceScanResponseText = $"Transcribed Query:\n\"{transcribedText}\"\n\nAnalyzing query (Groq Qwen 3.6)...";
 
                 _voiceChatHistory.Clear();
                 _voiceChatHistory.Add(new ChatMessage {
@@ -2126,7 +2126,7 @@ namespace OverlayApp.ViewModels
             }
         }
 
-        private async Task<string> PerformChatAsync(System.Collections.Generic.List<ChatMessage> history, string groqModel = "llama-3.3-70b-versatile")
+        private async Task<string> PerformChatAsync(System.Collections.Generic.List<ChatMessage> history, string groqModel = "qwen/qwen3.6-27b")
         {
             string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
 
@@ -2358,7 +2358,7 @@ namespace OverlayApp.ViewModels
 
                     var optimizedHistory = PruneChatHistory(_txtChatHistory);
 
-                    string followUpModel = IsCodingScanMode ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
+                    string followUpModel = IsCodingScanMode ? "qwen/qwen3.6-27b" : "openai/gpt-oss-120b";
                     assistantBubble.ModelInfo = followUpModel;
                     assistantBubble.Content = $"⏳ Generating response with **{followUpModel}**...";
 

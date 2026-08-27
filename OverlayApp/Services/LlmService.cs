@@ -406,7 +406,7 @@ namespace OverlayApp.Services
         /// <summary>
         /// Sends the entire conversational message history to Groq for stateful chat completions.
         /// </summary>
-        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "llama-3.3-70b-versatile")
+        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "qwen/qwen3.6-27b")
         {
             if (string.IsNullOrWhiteSpace(groqKey))
             {
@@ -430,7 +430,7 @@ namespace OverlayApp.Services
             {
                 maxTokens = Math.Clamp(3800 - approxInputTokens, 1000, 2500);
             }
-            else if (modelName.Contains("llama-3.3", StringComparison.OrdinalIgnoreCase))
+            else if (modelName.Contains("qwen", StringComparison.OrdinalIgnoreCase))
             {
                 maxTokens = Math.Clamp(5500 - approxInputTokens, 1500, 3000);
             }
@@ -442,8 +442,8 @@ namespace OverlayApp.Services
             string[] fallbackModels = new[]
             {
                 modelName,
-                "llama-3.1-8b-instant",
-                "llama-3.2-3b-preview"
+                "qwen/qwen3.6-27b",
+                "openai/gpt-oss-120b"
             };
 
             string lastError = "";
@@ -478,7 +478,7 @@ namespace OverlayApp.Services
 
                         lastError = $"Groq API Error ({currentModel} HTTP {(int)response.StatusCode}):\n{responseStr}";
 
-                        // If rate limit / TPM exceeded, try next fallback model (llama-3.1-8b-instant has 50,000 TPM limit)
+                        // If rate limit / TPM exceeded, try next fallback model (qwen/qwen3.6-27b)
                         if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
                             responseStr.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase) ||
                             responseStr.Contains("RequestEntityTooLarge", StringComparison.OrdinalIgnoreCase))
@@ -672,7 +672,7 @@ namespace OverlayApp.Services
         /// <summary>
         /// Stage 2 (Gemini): Sends chat history to Google Gemini API with fallback to Groq.
         /// </summary>
-        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash", string systemGroqKey = "", string fallbackGroqModel = "llama-3.3-70b-versatile")
+        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash", string systemGroqKey = "", string fallbackGroqModel = "qwen/qwen3.6-27b")
         {
             if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
