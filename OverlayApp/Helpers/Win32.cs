@@ -10,7 +10,12 @@ namespace OverlayApp.Helpers
     public static class Win32
     {
         // Window styles index
+        public const int GWL_STYLE = -16;
         public const int GWL_EXSTYLE = -20;
+
+        // Standard Window Styles
+        public const int WS_MAXIMIZEBOX = 0x00010000;
+        public const int WS_MINIMIZEBOX = 0x00020000;
 
         // Extended Window Styles:
         // WS_EX_TRANSPARENT makes the window click-through. Hit-testing will ignore the window and pass clicks below.
@@ -34,6 +39,7 @@ namespace OverlayApp.Helpers
         public const int WM_MOUSEACTIVATE = 0x0021;
         public const int WM_ACTIVATE = 0x0006;
         public const int WM_NCACTIVATE = 0x0086;
+        public const int WM_NCHITTEST = 0x0084;
         public const int WM_NCLBUTTONDOWN = 0x00A1;
         public const int WM_WINDOWPOSCHANGING = 0x0046;
         public const int WM_SETCURSOR = 0x0020;
@@ -45,8 +51,11 @@ namespace OverlayApp.Helpers
         // MA_NOACTIVATE tells Windows: process the mouse message but do NOT activate the window
         public const int MA_NOACTIVATE = 0x0003;
 
-        // Non-client hit test values for drag-move without activation
+        // Non-client hit test values for drag-move and snap prevention
+        public const int HTCLIENT = 0x0001;
         public const int HTCAPTION = 0x0002;
+        public const int HTMINBUTTON = 8;
+        public const int HTMAXBUTTON = 9;
         
         // System command actions
         public const int SC_SIZE = 0xF000;

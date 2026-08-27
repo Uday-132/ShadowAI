@@ -55,6 +55,9 @@ namespace OverlayApp.Views
                 // Prevent the overlay from stealing focus so exam browsers don't detect a tab switch
                 WindowHelper.SetNoActivate(this);
 
+                // Disable Windows 11 Snap Layouts completely for the overlay window
+                WindowHelper.DisableSnapLayouts(this);
+
                 // Hook into the window message pump to intercept WM_MOUSEACTIVATE
                 HwndSource source = HwndSource.FromHwnd(_hwnd);
                 source?.AddHook(WndProc);

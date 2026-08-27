@@ -44,9 +44,10 @@ namespace OverlayApp.Views
                 // Ensures screen share recipients cannot see the selection mask or selection borders
                 Win32.SetWindowDisplayAffinity(hwnd, Win32.WDA_EXCLUDEFROMCAPTURE);
 
-                // Hide from the Alt-Tab switcher and prevent focus stealing
+                // Hide from the Alt-Tab switcher, prevent focus stealing, and disable Windows 11 snap layouts
                 WindowHelper.HideFromAltTab(this);
                 WindowHelper.SetNoActivate(this);
+                WindowHelper.DisableSnapLayouts(this);
             }
         }
 

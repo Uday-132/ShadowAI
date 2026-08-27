@@ -64,5 +64,19 @@ namespace OverlayApp.Helpers
                 Win32.SetWindowLong(hwnd, Win32.GWL_EXSTYLE, extendedStyle & ~Win32.WS_EX_NOACTIVATE);
             }
         }
+
+        /// <summary>
+        /// Disables Windows 11 Snap Layouts completely for the specified WPF window.
+        /// Strips WS_MAXIMIZEBOX and WS_MINIMIZEBOX from the window's GWL_STYLE so Windows DWM
+        /// never displays Snap Layout flyouts, snap grid menus, or edge snap gesture previews.
+        /// </summary>
+        public static void DisableSnapLayouts(Window window)
+        {
+            IntPtr hwnd = new WindowInteropHelper(window).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            int style = Win32.GetWindowLong(hwnd, Win32.GWL_STYLE);
+            Win32.SetWindowLong(hwnd, Win32.GWL_STYLE, style & ~Win32.WS_MAXIMIZEBOX & ~Win32.WS_MINIMIZEBOX);
+        }
     }
 }
