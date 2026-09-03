@@ -45,6 +45,7 @@ namespace OverlayApp.ViewModels
         private readonly System.Collections.Generic.List<ChatMessage> _voiceChatHistory = new System.Collections.Generic.List<ChatMessage>();
         private readonly System.Collections.Generic.List<ChatMessage> _txtChatHistory = new System.Collections.Generic.List<ChatMessage>();
         private int _txtTurnCounter;
+        private int _voiceTurnCounter;
         private string _followUpText = "";
         private bool _isFollowUpRecording;
         private bool _wasLiveScanActiveBeforeFollowUp;
@@ -96,6 +97,11 @@ namespace OverlayApp.ViewModels
         /// Chat bubble items for the ChatGPT/Gemini-style conversation UI in Text Scan.
         /// </summary>
         public System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem> ChatBubbles { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem>();
+
+        /// <summary>
+        /// Chat bubble items for the ChatGPT/Gemini-style conversation UI in Voice Scan.
+        /// </summary>
+        public System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem> VoiceChatBubbles { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem>();
 
         public int CapturedScreenshotsCount => CapturedScreenshots.Count;
         public bool HasCapturedScreenshots => CapturedScreenshots.Count > 0;
@@ -243,6 +249,8 @@ namespace OverlayApp.ViewModels
             ClearVoiceScanCommand = new RelayCommand(_ => { 
                 VoiceScanResponseText = "";
                 _voiceChatHistory.Clear();
+                _voiceTurnCounter = 0;
+                VoiceChatBubbles.Clear();
                 FollowUpText = "";
                 OnPropertyChanged(nameof(IsFollowUpVisible));
             });
@@ -255,6 +263,15 @@ namespace OverlayApp.ViewModels
                     System.Windows.Clipboard.SetText(ScanResponseText); 
             });
             CopyVoiceCommand = new RelayCommand(_ => { 
+                if (VoiceChatBubbles.Count > 0)
+                {
+                    var lastAssistant = System.Linq.Enumerable.LastOrDefault(VoiceChatBubbles, b => b.IsAssistant && !b.IsLoading);
+                    if (lastAssistant != null && !string.IsNullOrEmpty(lastAssistant.Content))
+                    {
+                        System.Windows.Clipboard.SetText(lastAssistant.Content);
+                        return;
+                    }
+                }
                 if (!string.IsNullOrEmpty(VoiceScanResponseText)) 
                     System.Windows.Clipboard.SetText(VoiceScanResponseText); 
             });
@@ -1740,20 +1757,51 @@ namespace OverlayApp.ViewModels
                     return;
                 }
 
-                VoiceScanResponseText = $"Transcribed Query:\n\"{transcribedText}\"\n\nAnalyzing query (Groq Qwen 3.6)...";
+                _voiceTurnCounter++;
+                int turnNum = _voiceTurnCounter;
 
-                _voiceChatHistory.Clear();
-                _voiceChatHistory.Add(new ChatMessage {
-                    Role = "system",
-                    Content = "You are a helpful overlay productivity assistant. Solve or explain the user's transcribed question. Keep your output concise, clear, and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions, repetitive templates, or preambles. Speak like an experienced developer or colleague offering quick assistance. Do not say you are an AI."
-                });
+                string userContent = IsSystemAudioSource 
+                    ? $"🔊 [System Audio] \"{transcribedText}\"" 
+                    : $"🎙️ \"{transcribedText}\"";
+
+                var userBubble = new Models.ChatBubbleItem
+                {
+                    Role = "user",
+                    TurnNumber = turnNum,
+                    Content = userContent,
+                    ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                };
+                VoiceChatBubbles.Add(userBubble);
+
+                var assistantBubble = new Models.ChatBubbleItem
+                {
+                    Role = "assistant",
+                    TurnNumber = turnNum,
+                    Content = "⏳ Analyzing query (Groq Qwen 3.6)...",
+                    IsLoading = true,
+                    ModelInfo = "Groq Qwen 3.6"
+                };
+                VoiceChatBubbles.Add(assistantBubble);
+
+                if (_voiceChatHistory.Count == 0)
+                {
+                    _voiceChatHistory.Add(new ChatMessage {
+                        Role = "system",
+                        Content = "You are a helpful overlay productivity assistant. Solve or explain the user's transcribed question. Keep your output concise, clear, and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions, repetitive templates, or preambles. Speak like an experienced developer or colleague offering quick assistance. Do not say you are an AI."
+                    });
+                }
                 _voiceChatHistory.Add(new ChatMessage {
                     Role = "user",
                     Content = transcribedText
                 });
 
-                string explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _voiceChatHistory);
-                VoiceScanResponseText = $"Transcribed Query:\n\"{transcribedText}\"\n\n---\n\n{explanation}";
+                var historyToSend = PruneVoiceChatHistory(_voiceChatHistory);
+
+                string explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend);
+                
+                assistantBubble.Content = explanation;
+                assistantBubble.IsLoading = false;
+                VoiceScanResponseText = explanation;
 
                 _voiceChatHistory.Add(new ChatMessage {
                     Role = "assistant",
@@ -1763,7 +1811,16 @@ namespace OverlayApp.ViewModels
             }
             catch (Exception ex)
             {
+                if (VoiceChatBubbles.Count > 0 && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsAssistant && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsLoading)
+                {
+                    VoiceChatBubbles[VoiceChatBubbles.Count - 1].Content = $"⚠️ Voice processing failed: {ex.Message}";
+                    VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsLoading = false;
+                }
                 VoiceScanResponseText = $"Voice processing failed: {ex.Message}";
+                if (_voiceChatHistory.Count > 0 && _voiceChatHistory[_voiceChatHistory.Count - 1].Role == "user")
+                {
+                    _voiceChatHistory.RemoveAt(_voiceChatHistory.Count - 1);
+                }
             }
             finally
             {
@@ -1811,6 +1868,29 @@ namespace OverlayApp.ViewModels
                 }
             }
             return cleaned.Trim();
+        }
+
+        private System.Collections.Generic.List<ChatMessage> PruneVoiceChatHistory(System.Collections.Generic.List<ChatMessage> fullHistory)
+        {
+            if (fullHistory == null || fullHistory.Count <= 12)
+            {
+                return fullHistory ?? new System.Collections.Generic.List<ChatMessage>();
+            }
+
+            var pruned = new System.Collections.Generic.List<ChatMessage>();
+            
+            // 1. Keep System Message
+            var sysMsg = fullHistory.FirstOrDefault(m => m.Role == "system");
+            if (sysMsg != null)
+            {
+                pruned.Add(sysMsg);
+            }
+
+            // 2. Keep the most recent 10 messages (5 conversational turns) for continuity
+            var recent = System.Linq.Enumerable.TakeLast(fullHistory.Where(m => m.Role != "system"), 10);
+            pruned.AddRange(recent);
+
+            return pruned;
         }
 
         private System.Collections.Generic.List<ChatMessage> PruneChatHistory(System.Collections.Generic.List<ChatMessage> fullHistory)
@@ -2391,26 +2471,63 @@ namespace OverlayApp.ViewModels
             }
             else
             {
-                VoiceScanResponseText += $"\n\n👉 Follow-up Question:\n\"{question}\"\n\nThinking...";
+                _voiceTurnCounter++;
+                int turnNum = _voiceTurnCounter;
+
+                var userBubble = new Models.ChatBubbleItem
+                {
+                    Role = "user",
+                    TurnNumber = turnNum,
+                    Content = $"💬 {question}",
+                    ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                };
+                VoiceChatBubbles.Add(userBubble);
+
+                var assistantBubble = new Models.ChatBubbleItem
+                {
+                    Role = "assistant",
+                    TurnNumber = turnNum,
+                    Content = "⏳ Thinking...",
+                    IsLoading = true,
+                    ModelInfo = "Groq Qwen 3.6"
+                };
+                VoiceChatBubbles.Add(assistantBubble);
+
                 try
                 {
+                    if (_voiceChatHistory.Count == 0)
+                    {
+                        _voiceChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = "You are a helpful overlay productivity assistant. Solve or explain the user's transcribed question. Keep your output concise, clear, and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions, repetitive templates, or preambles. Speak like an experienced developer or colleague offering quick assistance. Do not say you are an AI."
+                        });
+                    }
+
                     _voiceChatHistory.Add(new ChatMessage {
                         Role = "user",
                         Content = question
                     });
 
-                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _voiceChatHistory);
+                    var historyToSend = PruneVoiceChatHistory(_voiceChatHistory);
+
+                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend);
                     
-                    VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", answer);
+                    assistantBubble.Content = answer;
+                    assistantBubble.IsLoading = false;
+                    VoiceScanResponseText = answer;
 
                     _voiceChatHistory.Add(new ChatMessage {
                         Role = "assistant",
                         Content = answer
                     });
+
+                    StartFollowUpCooldown();
                 }
                 catch (Exception ex)
                 {
-                    VoiceScanResponseText = VoiceScanResponseText.Replace("Thinking...", $"Follow-up query failed: {ex.Message}");
+                    assistantBubble.Content = $"⚠️ Follow-up query failed: {ex.Message}";
+                    assistantBubble.IsLoading = false;
+                    VoiceScanResponseText = $"Follow-up query failed: {ex.Message}";
                     if (_voiceChatHistory.Count > 0 && _voiceChatHistory[_voiceChatHistory.Count - 1].Content == question)
                     {
                         _voiceChatHistory.RemoveAt(_voiceChatHistory.Count - 1);

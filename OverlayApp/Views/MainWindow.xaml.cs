@@ -115,19 +115,49 @@ namespace OverlayApp.Views
                 }
             };
 
+            // Auto-scroll to bottom when voice chat bubbles are added or updated
+            ViewModel.VoiceChatBubbles.CollectionChanged += (s, args) =>
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    VoiceScanScrollViewer?.ScrollToEnd();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+
+                // Subscribe to PropertyChanged on newly added voice bubbles for live content updates
+                if (args.NewItems != null)
+                {
+                    foreach (var item in args.NewItems)
+                    {
+                        if (item is OverlayApp.Models.ChatBubbleItem bubble)
+                        {
+                            bubble.PropertyChanged += (bs, bp) =>
+                            {
+                                if (bp.PropertyName == "Content" || bp.PropertyName == "IsLoading")
+                                {
+                                    Dispatcher.BeginInvoke(new Action(() =>
+                                    {
+                                        VoiceScanScrollViewer?.ScrollToEnd();
+                                    }), System.Windows.Threading.DispatcherPriority.Background);
+                                }
+                            };
+                        }
+                    }
+                }
+            };
+
             // VoiceScan and ClickThrough property change handlers
             ViewModel.PropertyChanged += (s, args) =>
             {
                 if (args.PropertyName == nameof(MainViewModel.VoiceScanResponseText))
                 {
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    // Only scroll to top when there are no chat bubbles yet (fallback plain text mode)
+                    if (ViewModel.VoiceChatBubbles.Count == 0)
                     {
-                        var text = ViewModel.VoiceScanResponseText;
-                        if (text != null && !text.Contains("👉 Follow-up Question"))
+                        Dispatcher.BeginInvoke(new Action(() =>
                         {
                             VoiceScanScrollViewer?.ScrollToTop();
-                        }
-                    }));
+                        }));
+                    }
                 }
                 else if (args.PropertyName == nameof(MainViewModel.IsClickThrough))
                 {
