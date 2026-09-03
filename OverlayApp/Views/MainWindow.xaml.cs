@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -25,6 +26,71 @@ namespace OverlayApp.Views
         /// </summary>
         private DispatcherTimer? _topmostTimer;
         private IntPtr _hwnd = IntPtr.Zero;
+
+        static MainWindow()
+        {
+            // Register decreased mouse wheel scrolling sensitivity for all ScrollViewers in the application.
+            // By default, WPF jumps ~48-72 DIPs per wheel notch, which feels overly sensitive and jumpy.
+            // This handler scales the delta by 0.20 (~24 DIPs per 120-delta notch), providing smooth, gentle scrolling.
+            EventManager.RegisterClassHandler(
+                typeof(ScrollViewer),
+                UIElement.PreviewMouseWheelEvent,
+                new MouseWheelEventHandler(OnScrollViewerPreviewMouseWheel)
+            );
+        }
+
+        /// <summary>
+        /// Decreases mouse wheel scrolling sensitivity across all ScrollViewers in the app.
+        /// Scales wheel delta by ~0.20 to reduce notch jumps from ~48-72px down to ~24px for smooth, fine-grained control.
+        /// </summary>
+        private static void OnScrollViewerPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (e.Handled) return;
+            if (sender is not ScrollViewer scrollViewer) return;
+
+            // Handle Shift+Wheel for horizontal scrolling
+            if (Keyboard.Modifiers == ModifierKeys.Shift && scrollViewer.ScrollableWidth > 0)
+            {
+                const double sensitivityFactor = 0.20;
+                double deltaOffset = e.Delta * sensitivityFactor;
+                double newOffset = scrollViewer.HorizontalOffset - deltaOffset;
+
+                if (newOffset < 0) newOffset = 0;
+                else if (newOffset > scrollViewer.ScrollableWidth) newOffset = scrollViewer.ScrollableWidth;
+
+                scrollViewer.ScrollToHorizontalOffset(newOffset);
+                e.Handled = true;
+                return;
+            }
+
+            // Handle vertical scrolling with decreased sensitivity
+            if (scrollViewer.ScrollableHeight > 0)
+            {
+                const double sensitivityFactor = 0.20;
+                double deltaOffset = e.Delta * sensitivityFactor;
+                double newOffset = scrollViewer.VerticalOffset - deltaOffset;
+
+                // Clamp within valid bounds
+                if (newOffset < 0) newOffset = 0;
+                else if (newOffset > scrollViewer.ScrollableHeight) newOffset = scrollViewer.ScrollableHeight;
+
+                scrollViewer.ScrollToVerticalOffset(newOffset);
+                e.Handled = true;
+            }
+            // Handle horizontal-only scroll viewers (e.g. preset pill bars, thumbnails)
+            else if (scrollViewer.ScrollableWidth > 0)
+            {
+                const double sensitivityFactor = 0.20;
+                double deltaOffset = e.Delta * sensitivityFactor;
+                double newOffset = scrollViewer.HorizontalOffset - deltaOffset;
+
+                if (newOffset < 0) newOffset = 0;
+                else if (newOffset > scrollViewer.ScrollableWidth) newOffset = scrollViewer.ScrollableWidth;
+
+                scrollViewer.ScrollToHorizontalOffset(newOffset);
+                e.Handled = true;
+            }
+        }
 
         public MainWindow()
         {
