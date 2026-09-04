@@ -2861,7 +2861,11 @@ namespace OverlayApp.ViewModels
             // Clear local key state first so we don't inherit old keys from this PC
             GroqKey = "";
             GroqInputKey = "";
+            GeminiKey = "";
+            GeminiInputKey = "";
             IsGroqKeyValidated = false;
+            _settings.IsGroqKeyValidated = false;
+            _settings.IsGeminiKeyValidated = false;
             _settingsService.SaveSettings(_settings);
 
             try
@@ -2882,6 +2886,32 @@ namespace OverlayApp.ViewModels
                         
                         LoginEmail = "";
                         LoginPassword = "";
+
+                        // Directly load API keys from database if returned by login
+                        if (!string.IsNullOrEmpty(result.user_groq_key))
+                        {
+                            string fetchedGroq = result.user_groq_key.Trim();
+                            GroqKey = fetchedGroq;
+                            GroqInputKey = fetchedGroq;
+                            _settings.IsGroqKeyValidated = true;
+                        }
+                        if (!string.IsNullOrEmpty(result.user_gemini_key))
+                        {
+                            string fetchedGemini = result.user_gemini_key.Trim();
+                            GeminiKey = fetchedGemini;
+                            GeminiInputKey = fetchedGemini;
+                            _settings.IsGeminiKeyValidated = true;
+                        }
+
+                        // If user has keys stored in database, directly activate them and do not ask again
+                        bool hasKeys = !string.IsNullOrWhiteSpace(GroqKey) || !string.IsNullOrWhiteSpace(GeminiKey);
+                        if (hasKeys)
+                        {
+                            IsGroqKeyValidated = true;
+                            _settings.IsGroqKeyValidated = true;
+                            IsTrialStarted = true;
+                            _settingsService.SaveSettings(_settings);
+                        }
                         
                         await CheckSessionStatusAsync(true);
                     }
@@ -2925,10 +2955,15 @@ namespace OverlayApp.ViewModels
             AuthErrorMessage = "";
             IsAuthLoading = true;
 
-            // Clear local key state first so we don't inherit old keys from this PC
+            // Clear local key state first so new signup starts fresh
             GroqKey = "";
             GroqInputKey = "";
+            GeminiKey = "";
+            GeminiInputKey = "";
             IsGroqKeyValidated = false;
+            _settings.IsGroqKeyValidated = false;
+            _settings.IsGeminiKeyValidated = false;
+            IsTrialStarted = false;
             _settingsService.SaveSettings(_settings);
 
             try
@@ -2950,6 +2985,17 @@ namespace OverlayApp.ViewModels
                         LoginEmail = "";
                         LoginPassword = "";
                         
+                        // New user: ask for API keys
+                        GroqKey = "";
+                        GroqInputKey = "";
+                        GeminiKey = "";
+                        GeminiInputKey = "";
+                        IsGroqKeyValidated = false;
+                        _settings.IsGroqKeyValidated = false;
+                        _settings.IsGeminiKeyValidated = false;
+                        IsTrialStarted = false;
+                        _settingsService.SaveSettings(_settings);
+
                         await CheckSessionStatusAsync(true);
                     }
                     else
@@ -2985,10 +3031,15 @@ namespace OverlayApp.ViewModels
             IsPaymentCreditAvailable = false;
             IsSettingsOpen = false;
             
-            // Clear Groq key states to protect user privacy
+            // Clear API key states to protect user privacy
             GroqKey = "";
             GroqInputKey = "";
+            GeminiKey = "";
+            GeminiInputKey = "";
             IsGroqKeyValidated = false;
+            _settings.IsGroqKeyValidated = false;
+            _settings.IsGeminiKeyValidated = false;
+            IsTrialStarted = false;
             _settingsService.SaveSettings(_settings);
 
             UpdateOverlayVisibilities();
@@ -3123,16 +3174,35 @@ namespace OverlayApp.ViewModels
                             string fetchedKey = result.user_groq_key.Trim();
                             GroqKey = fetchedKey;
                             GroqInputKey = fetchedKey;
+                            _settings.IsGroqKeyValidated = true;
+                        }
+
+                        // Load saved custom Gemini key if present on the server database
+                        if (!string.IsNullOrEmpty(result.user_gemini_key))
+                        {
+                            string fetchedGemini = result.user_gemini_key.Trim();
+                            GeminiKey = fetchedGemini;
+                            GeminiInputKey = fetchedGemini;
+                            _settings.IsGeminiKeyValidated = true;
+                        }
+
+                        bool hasKeys = !string.IsNullOrWhiteSpace(GroqKey) || !string.IsNullOrWhiteSpace(GeminiKey);
+                        bool hasSystemKey = !string.IsNullOrWhiteSpace(result.system_groq_key);
+
+                        if (hasKeys || hasSystemKey)
+                        {
                             IsGroqKeyValidated = true;
-                            _settingsService.SaveSettings(_settings);
+                            _settings.IsGroqKeyValidated = true;
+                            IsTrialStarted = true; // Directly enter the app without API key prompt
                         }
                         else
                         {
-                            // If there is no custom key on the database, check if we can fall back to the system key.
-                            // If both are missing, we must ask the user for a key so that the app functionality works.
-                            bool hasSystemKey = !string.IsNullOrEmpty(result.system_groq_key);
-                            IsGroqKeyValidated = hasSystemKey;
+                            // Missing both custom keys and system key: setup is required
+                            IsGroqKeyValidated = false;
+                            _settings.IsGroqKeyValidated = false;
                         }
+
+                        _settingsService.SaveSettings(_settings);
 
                         OnPropertyChanged(nameof(IsFeatureLocked));
                     }
@@ -3209,6 +3279,8 @@ namespace OverlayApp.ViewModels
             public string? paid_until { get; set; }
             public bool is_session_active { get; set; }
             public bool is_admin { get; set; }
+            public string user_groq_key { get; set; } = "";
+            public string user_gemini_key { get; set; } = "";
             public string error { get; set; } = "";
             public string message { get; set; } = "";
         }
@@ -3226,6 +3298,7 @@ namespace OverlayApp.ViewModels
             public bool payment_credit { get; set; }
             public string system_groq_key { get; set; } = "";
             public string user_groq_key { get; set; } = "";
+            public string user_gemini_key { get; set; } = "";
             public string error { get; set; } = "";
         }
 

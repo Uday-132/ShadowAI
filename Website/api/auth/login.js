@@ -27,8 +27,13 @@ module.exports = async (req, res) => {
   }
 
   try {
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS user_groq_key VARCHAR(255)');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS user_gemini_key VARCHAR(255)');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_credit BOOLEAN DEFAULT FALSE');
+
     const userResult = await db.query(
-      'SELECT id, email, password_hash, trial_ends_at, paid_until, session_started_at, is_session_active FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, trial_ends_at, paid_until, session_started_at, is_session_active, is_admin, payment_credit, user_groq_key, user_gemini_key FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
 
@@ -42,6 +47,16 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid email or password.' });
     }
 
+    let userGroqKey = user.user_groq_key || '';
+    if (!userGroqKey) {
+      try {
+        const kRes = await db.query('SELECT api_key FROM user_api_keys WHERE user_id = $1 ORDER BY id DESC LIMIT 1', [user.id]);
+        if (kRes.rows.length > 0 && kRes.rows[0].api_key) {
+          userGroqKey = kRes.rows[0].api_key;
+        }
+      } catch (e) {}
+    }
+
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
 
     return res.status(200).json({
@@ -50,7 +65,10 @@ module.exports = async (req, res) => {
       trial_ends_at: user.trial_ends_at,
       paid_until: user.paid_until,
       session_started_at: user.session_started_at,
-      is_session_active: user.is_session_active
+      is_session_active: user.is_session_active,
+      is_admin: Boolean(user.is_admin),
+      user_groq_key: userGroqKey,
+      user_gemini_key: user.user_gemini_key || ''
     });
   } catch (error) {
     console.error('Login error:', error);

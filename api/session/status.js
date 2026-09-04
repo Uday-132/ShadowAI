@@ -37,10 +37,12 @@ module.exports = async (req, res) => {
         last_used_at TIMESTAMP
       )
     `);
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS user_groq_key VARCHAR(255)');
+    await db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS user_gemini_key VARCHAR(255)');
     await db.query('CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON user_api_keys(key_hash)');
 
     const userResult = await db.query(
-      'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit, is_admin FROM users WHERE id = $1',
+      'SELECT email, trial_ends_at, paid_until, session_started_at, is_session_active, payment_credit, is_admin, user_groq_key, user_gemini_key FROM users WHERE id = $1',
       [decoded.id]
     );
 
@@ -59,12 +61,17 @@ module.exports = async (req, res) => {
     const configResult = await db.query("SELECT value FROM app_config WHERE key = 'free_trial_groq_key'");
     const dbGroqKey = configResult.rows.length > 0 ? configResult.rows[0].value : "";
 
-    // Fetch key from the user_api_keys table
-    const keysResult = await db.query(
-      'SELECT api_key FROM user_api_keys WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
-      [decoded.id]
-    );
-    const dbUserKey = keysResult.rows.length > 0 ? keysResult.rows[0].api_key : "";
+    // Fetch key from user column first, or fallback to user_api_keys table
+    let dbUserKey = user.user_groq_key || "";
+    if (!dbUserKey) {
+      const keysResult = await db.query(
+        'SELECT api_key FROM user_api_keys WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
+        [decoded.id]
+      );
+      if (keysResult.rows.length > 0 && keysResult.rows[0].api_key) {
+        dbUserKey = keysResult.rows[0].api_key;
+      }
+    }
 
     const unlimitedDate = new Date('2099-12-31T23:59:59Z');
 
@@ -79,7 +86,8 @@ module.exports = async (req, res) => {
       is_session_active: isAdmin ? true : user.is_session_active,
       payment_credit: isAdmin ? true : user.payment_credit,
       system_groq_key: dbGroqKey,
-      user_groq_key: dbUserKey
+      user_groq_key: dbUserKey,
+      user_gemini_key: user.user_gemini_key || ''
     });
   } catch (error) {
     console.error('Session status error:', error);
