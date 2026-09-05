@@ -245,7 +245,7 @@ namespace OverlayApp.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         string errorContent = await response.Content.ReadAsStringAsync();
-                        return $"Groq API Error (HTTP {response.StatusCode}):\n{errorContent}";
+                        return Helpers.LlmErrorHelper.FormatError("Groq", "openai/gpt-oss-120b", (int)response.StatusCode, errorContent).FriendlyMessage;
                     }
 
                     string responseJson = await response.Content.ReadAsStringAsync();
@@ -254,13 +254,13 @@ namespace OverlayApp.Services
             }
             catch (Exception ex)
             {
-                return $"Error contacting Groq API: {ex.Message}";
+                return Helpers.LlmErrorHelper.FormatError("Groq", "openai/gpt-oss-120b", 0, "", ex).FriendlyMessage;
             }
         }
         /// <summary>
-        /// Sends follow-up conversational context to Groq to refine the previous solution.
+        /// Stage 3: Sends follow-up user prompt with the existing conversation context to Groq.
         /// </summary>
-        public async Task<string> ProcessFollowUpWithGroqAsync(string groqKey, string previousQuery, string previousAnswer, string followUpQuery)
+        public async Task<string> ProcessFollowUpWithGroqAsync(string groqKey, string previousContext, string followUpQuery)
         {
             if (string.IsNullOrWhiteSpace(groqKey))
             {
@@ -280,12 +280,12 @@ namespace OverlayApp.Services
                         new
                         {
                             role = "system",
-                            content = "You are a helpful overlay productivity assistant. The user is asking a follow-up question or requesting modifications to a previous solution. Answer the user's follow-up request accurately, keeping the context of the previous query and previous solution in mind. Keep your output concise and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions or preambles."
+                            content = "You are a helpful overlay productivity assistant. The user is asking a follow-up question regarding previous screen text or explanations. Answer concisely, clearly, and in markdown. Avoid conversational filler."
                         },
                         new
                         {
-                            role = "user",
-                            content = $"[Previous Query]\n{previousQuery}\n\n[Previous Solution]\n{previousAnswer}"
+                            role = "assistant",
+                            content = previousContext
                         },
                         new
                         {
@@ -306,7 +306,7 @@ namespace OverlayApp.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         string errorContent = await response.Content.ReadAsStringAsync();
-                        return $"Groq API Error (HTTP {response.StatusCode}):\n{errorContent}";
+                        return Helpers.LlmErrorHelper.FormatError("Groq", "openai/gpt-oss-120b", (int)response.StatusCode, errorContent).FriendlyMessage;
                     }
 
                     string responseJson = await response.Content.ReadAsStringAsync();
@@ -315,7 +315,7 @@ namespace OverlayApp.Services
             }
             catch (Exception ex)
             {
-                return $"Error contacting Groq API: {ex.Message}";
+                return Helpers.LlmErrorHelper.FormatError("Groq", "openai/gpt-oss-120b", 0, "", ex).FriendlyMessage;
             }
         }
 
@@ -355,7 +355,7 @@ namespace OverlayApp.Services
                         if (!response.IsSuccessStatusCode)
                         {
                             string errorContent = await response.Content.ReadAsStringAsync();
-                            return $"Groq Whisper Error (HTTP {response.StatusCode}):\n{errorContent}";
+                            return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", (int)response.StatusCode, errorContent).FriendlyMessage;
                         }
 
                         string responseJson = await response.Content.ReadAsStringAsync();
@@ -372,7 +372,7 @@ namespace OverlayApp.Services
             }
             catch (Exception ex)
             {
-                return $"Error contacting Groq Whisper API: {ex.Message}";
+                return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", 0, "", ex).FriendlyMessage;
             }
         }
 
@@ -488,7 +488,8 @@ namespace OverlayApp.Services
                             return ParseOpenAiMessageContent(responseStr);
                         }
 
-                        lastError = $"Groq API Error ({currentModel} HTTP {(int)response.StatusCode}):\n{responseStr}";
+                        var errInfo = Helpers.LlmErrorHelper.FormatError("Groq", currentModel, (int)response.StatusCode, responseStr);
+                        lastError = errInfo.FriendlyMessage;
 
                         // If rate limit / TPM exceeded, try next fallback model (qwen/qwen3.6-27b)
                         if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
@@ -503,7 +504,8 @@ namespace OverlayApp.Services
                 }
                 catch (Exception ex)
                 {
-                    lastError = $"Error contacting Groq API ({currentModel}): {ex.Message}";
+                    var errInfo = Helpers.LlmErrorHelper.FormatError("Groq", currentModel, 0, "", ex);
+                    lastError = errInfo.FriendlyMessage;
                 }
             }
 
@@ -682,10 +684,12 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
-        /// Stage 2 (Gemini): Sends chat history to Google Gemini API with fallback to Groq.
+        /// Stage 2 (Gemini): Sends chat history to Google Gemini API with fallback to Groq if configured.
         /// </summary>
         public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash", string systemGroqKey = "", string fallbackGroqModel = "qwen/qwen3.6-27b")
         {
+            string lastGeminiError = "";
+
             if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
                 try
@@ -749,21 +753,31 @@ namespace OverlayApp.Services
                                 return result;
                             }
                         }
+                        else
+                        {
+                            var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", modelName, (int)response.StatusCode, responseJson);
+                            lastGeminiError = errInfo.FriendlyMessage;
+                        }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Fallback to Groq below
+                    var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", modelName, 0, "", ex);
+                    lastGeminiError = errInfo.FriendlyMessage;
                 }
             }
+            else
+            {
+                lastGeminiError = "🔑 Gemini API Key is missing or invalid. Please check your key in Settings.";
+            }
 
-            // Fallback to Groq Chat API
+            // Fallback to Groq Chat API only if systemGroqKey is specified and not empty
             if (!string.IsNullOrWhiteSpace(systemGroqKey))
             {
                 return await ProcessChatWithGroqAsync(systemGroqKey, history ?? new System.Collections.Generic.List<ChatMessage>(), fallbackGroqModel);
             }
 
-            return "Error: Gemini API Key is missing or invalid, and fallback Groq Key is not configured.";
+            return string.IsNullOrEmpty(lastGeminiError) ? "🔑 Gemini API Key is missing or invalid. Please check your key in Settings." : lastGeminiError;
         }
 
         /// <summary>

@@ -73,6 +73,27 @@ namespace OverlayApp.Models
             set { if (_modelInfo != value) { _modelInfo = value; OnPropertyChanged(); } }
         }
 
+        private bool _hasError;
+        public bool HasError
+        {
+            get => _hasError;
+            set { if (_hasError != value) { _hasError = value; OnPropertyChanged(); } }
+        }
+
+        private bool _showCheckApiKeyAction;
+        public bool ShowCheckApiKeyAction
+        {
+            get => _showCheckApiKeyAction;
+            set { if (_showCheckApiKeyAction != value) { _showCheckApiKeyAction = value; OnPropertyChanged(); } }
+        }
+
+        private string _errorSummary = "";
+        public string ErrorSummary
+        {
+            get => _errorSummary;
+            set { if (_errorSummary != value) { _errorSummary = value; OnPropertyChanged(); } }
+        }
+
         // Convenience properties for XAML binding
         public bool IsUser => Role == "user";
         public bool IsAssistant => Role == "assistant";

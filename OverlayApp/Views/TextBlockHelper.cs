@@ -46,8 +46,28 @@ namespace OverlayApp.Views
                         Run run = new Run(line + (i < lines.Length - 1 ? "\n" : ""));
                         string trimmed = line.Trim();
 
-                        // 1. Theme Status indicators or header labels: Soft Gray
-                        if (trimmed.StartsWith("Transcribed Query:") || 
+                        // 1. Errors, Rate limits, Key warnings: Soft Coral Red
+                        if (trimmed.StartsWith("⚠️") || 
+                            trimmed.StartsWith("❌") || 
+                            trimmed.StartsWith("⏳ Rate limit") || 
+                            trimmed.StartsWith("🔑") || 
+                            trimmed.StartsWith("Error:", StringComparison.OrdinalIgnoreCase) ||
+                            trimmed.Contains("API Error", StringComparison.OrdinalIgnoreCase))
+                        {
+                            run.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFF6B6B")); // Coral Red
+                            run.FontWeight = FontWeights.SemiBold;
+                        }
+                        // 2. Verified answers and match indicators: Mint Green
+                        else if (trimmed.StartsWith("✅") || 
+                                 trimmed.StartsWith("⭐") || 
+                                 trimmed.StartsWith("✨") ||
+                                 trimmed.Contains("Both models agree", StringComparison.OrdinalIgnoreCase))
+                        {
+                            run.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF00E676")); // Mint Green
+                            run.FontWeight = FontWeights.Bold;
+                        }
+                        // 3. Theme Status indicators or header labels: Soft Gray
+                        else if (trimmed.StartsWith("Transcribed Query:") || 
                             trimmed.StartsWith("Transcribed Query (Live):") ||
                             trimmed.StartsWith("👉 Follow-up Question:") || 
                             trimmed.StartsWith("Analyzing query") || 
@@ -60,14 +80,14 @@ namespace OverlayApp.Views
                             run.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFA0A0A0")); // Soft Gray
                             run.FontWeight = FontWeights.Bold;
                         }
-                        // 2. The transcribed spoken question: Highlight in bright Mint Green
+                        // 4. The transcribed spoken question: Highlight in bright Mint Green
                         else if (trimmed.StartsWith("\"") && trimmed.EndsWith("\""))
                         {
                             run.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF00E676")); // Mint Green
                             run.FontStyle = FontStyles.Italic;
                             run.FontWeight = FontWeights.Medium;
                         }
-                        // 3. AI Generated Solutions / content: Onyx Sky Blue / Cyan
+                        // 5. AI Generated Solutions / content: Onyx Sky Blue / Cyan
                         else
                         {
                             run.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF00D2FF")); // Onyx Blue

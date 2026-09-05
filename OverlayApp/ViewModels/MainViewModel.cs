@@ -157,6 +157,7 @@ namespace OverlayApp.ViewModels
 
         // Groq Key Validation & Free Trial Commands
         public ICommand ValidateGroqKeyCommand { get; }
+        public ICommand OpenApiKeySettingsCommand { get; }
         public ICommand OpenGroqConsoleCommand { get; }
         public ICommand StartFreeTrialCommand { get; }
 
@@ -189,6 +190,7 @@ namespace OverlayApp.ViewModels
             ValidateGroqKeyCommand = new RelayCommand(async _ => await ValidateGroqKeyAsync());
             ValidateGeminiKeyCommand = new RelayCommand(async _ => await ValidateGeminiKeyAsync());
             ValidateApiKeysCommand = new RelayCommand(async _ => await ValidateApiKeysAsync());
+            OpenApiKeySettingsCommand = new RelayCommand(_ => IsSettingsOpen = true);
             OpenGroqConsoleCommand = new RelayCommand(_ => OpenGroqConsole());
             OpenGeminiConsoleCommand = new RelayCommand(_ => OpenGeminiConsole());
             StartFreeTrialCommand = new RelayCommand(_ => StartFreeTrial());
@@ -1375,6 +1377,8 @@ namespace OverlayApp.ViewModels
             };
             ChatBubbles.Add(assistantBubble);
 
+            string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
+
             try
             {
                 string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
@@ -1420,7 +1424,6 @@ namespace OverlayApp.ViewModels
                 string metadataHeader = $"**🔍 Scan Info** — {CapturedScreenshots.Count} screenshots, {totalChars} chars extracted ({providerInfo})\n\n";
 
                 string combinedExtractedText = combinedTextBuilder.ToString().Trim();
-                string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
                 bool isFollowUpTurn = _txtChatHistory.Count > 0;
 
                 // --- Build LLM Chat History ---
@@ -1483,17 +1486,16 @@ namespace OverlayApp.ViewModels
                     assistantBubble.ModelInfo = $"{modelA} + {modelB}";
                     assistantBubble.Content = $"⏳ Verifying MCQ answer with dual models...";
 
-                    string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
-                    var taskA = _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, modelA, effectiveGroqKey, modelB);
+                    // In dual-model mode, Model A queries Gemini exclusively (no fallback to Groq)
+                    var taskA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA, "", "");
                     var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
 
                     await Task.WhenAll(taskA, taskB);
                     string answerA = await taskA;
                     string answerB = await taskB;
 
-                    string cleanA = CleanMcqResponse(answerA);
-                    string cleanB = CleanMcqResponse(answerB);
-                    bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
+                    bool isErrorA = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA);
+                    bool isErrorB = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB);
 
                     var sbVerify = new System.Text.StringBuilder();
                     sbVerify.AppendLine(metadataHeader);
@@ -1504,10 +1506,59 @@ namespace OverlayApp.ViewModels
                     sbVerify.AppendLine();
                     sbVerify.AppendLine("---");
                     sbVerify.AppendLine();
-                    if (isMatch)
-                        sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
+
+                    if (isErrorA && isErrorB)
+                    {
+                        assistantBubble.HasError = true;
+                        assistantBubble.ShowCheckApiKeyAction = true;
+                        assistantBubble.ErrorSummary = "Both models encountered errors.";
+                        sbVerify.AppendLine("⚠️ **Verification Failed:** Both AI models encountered errors. Please check your API keys or exam environment settings.");
+                    }
+                    else if (isErrorA && !isErrorB)
+                    {
+                        assistantBubble.HasError = true;
+                        assistantBubble.ShowCheckApiKeyAction = true;
+                        assistantBubble.ErrorSummary = "Model A (Gemini) failed. Verified with Model B.";
+                        string cleanB = CleanMcqResponse(answerB);
+                        if (!string.IsNullOrEmpty(cleanB))
+                        {
+                            sbVerify.AppendLine($"⭐ **Verified Option (Model B):** Option **{cleanB.ToUpperInvariant()}**");
+                            sbVerify.AppendLine("*(Model A encountered an API error; answer verified using Model B alone)*");
+                        }
+                        else
+                        {
+                            sbVerify.AppendLine($"⭐ **Answer from Model B:**\n{answerB.Trim()}");
+                        }
+                    }
+                    else if (!isErrorA && isErrorB)
+                    {
+                        assistantBubble.HasError = true;
+                        assistantBubble.ShowCheckApiKeyAction = true;
+                        assistantBubble.ErrorSummary = "Model B (Groq) failed. Verified with Model A.";
+                        string cleanA = CleanMcqResponse(answerA);
+                        if (!string.IsNullOrEmpty(cleanA))
+                        {
+                            sbVerify.AppendLine($"⭐ **Verified Option (Model A):** Option **{cleanA.ToUpperInvariant()}**");
+                            sbVerify.AppendLine("*(Model B encountered an API error; answer verified using Model A alone)*");
+                        }
+                        else
+                        {
+                            sbVerify.AppendLine($"⭐ **Answer from Model A:**\n{answerA.Trim()}");
+                        }
+                    }
                     else
-                        sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. Please double-check your screenshots.");
+                    {
+                        string cleanA = CleanMcqResponse(answerA);
+                        string cleanB = CleanMcqResponse(answerB);
+                        bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
+
+                        assistantBubble.HasError = false;
+                        assistantBubble.ShowCheckApiKeyAction = false;
+                        if (isMatch)
+                            sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
+                        else
+                            sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. Please double-check your screenshots.");
+                    }
 
                     string finalContent = sbVerify.ToString().Trim();
                     assistantBubble.Content = finalContent;
@@ -1526,64 +1577,87 @@ namespace OverlayApp.ViewModels
 
                     assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModel}**...";
 
-                    string keyGemini = string.IsNullOrWhiteSpace(GeminiKey) ? SystemGroqKey : GeminiKey;
-                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, _txtChatHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
-                    initialCode = CleanCodeMarkdown(initialCode);
+                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
 
-                    // Truncation Check & Continuation
-                    if (IsCodeTruncated(initialCode))
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode))
                     {
-                        assistantBubble.Content = $"⏳ Code truncated — requesting continuation...";
+                        assistantBubble.HasError = true;
+                        assistantBubble.ShowCheckApiKeyAction = true;
+                        assistantBubble.ErrorSummary = "Coding model encountered an error.";
+                        string errContent = metadataHeader + initialCode.Trim();
+                        assistantBubble.Content = errContent;
+                        assistantBubble.IsLoading = false;
+                        ScanResponseText = initialCode.Trim();
+                        _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = initialCode.Trim() });
+                    }
+                    else
+                    {
+                        initialCode = CleanCodeMarkdown(initialCode);
 
-                        var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
+                        // Truncation Check & Continuation
+                        if (IsCodeTruncated(initialCode))
                         {
-                            new ChatMessage { Role = "assistant", Content = initialCode },
-                            new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
+                            assistantBubble.Content = $"⏳ Code truncated — requesting continuation...";
+
+                            var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
+                            {
+                                new ChatMessage { Role = "assistant", Content = initialCode },
+                                new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
+                            };
+
+                            string continuationCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, continuationHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
+                            if (!OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(continuationCode))
+                            {
+                                continuationCode = CleanCodeMarkdown(continuationCode);
+                                initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
+                            }
+                        }
+
+                        // Code Audit
+                        assistantBubble.Content = $"⏳ [2/2] Verifying code with **{verifierModel}**...";
+
+                        var verifyHistory = new System.Collections.Generic.List<ChatMessage>
+                        {
+                            new ChatMessage {
+                                Role = "system",
+                                Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem in {targetLang}? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
+                            },
+                            new ChatMessage {
+                                Role = "user",
+                                Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED CODE SOLUTION ({targetLang})]\n{initialCode}"
+                            }
                         };
 
-                        string continuationCode = await _llmService.ProcessChatWithGeminiAsync(keyGemini, continuationHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
-                        continuationCode = CleanCodeMarkdown(continuationCode);
-                        initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
-                    }
+                        string verificationOutput = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierModel);
+                        verificationOutput = verificationOutput.Trim();
 
-                    // Code Audit
-                    assistantBubble.Content = $"⏳ [2/2] Verifying code with **{verifierModel}**...";
+                        string finalCode = initialCode;
+                        string auditNote = $"✅ Code verified bug-free by {verifierModel}.";
 
-                    var verifyHistory = new System.Collections.Generic.List<ChatMessage>
-                    {
-                        new ChatMessage {
-                            Role = "system",
-                            Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem in {targetLang}? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
-                        },
-                        new ChatMessage {
-                            Role = "user",
-                            Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED CODE SOLUTION ({targetLang})]\n{initialCode}"
-                        }
-                    };
-
-                    string verificationOutput = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierModel);
-                    verificationOutput = verificationOutput.Trim();
-
-                    string finalCode = initialCode;
-                    string auditNote = $"✅ Code verified bug-free by {verifierModel}.";
-
-                    if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string correctedCode = verificationOutput.Substring("CORRECTED_CODE:".Length).Trim();
-                        correctedCode = CleanCodeMarkdown(correctedCode);
-                        if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
+                        if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(verificationOutput))
                         {
-                            finalCode = correctedCode;
-                            auditNote = $"✨ Code audited/corrected by {verifierModel}.";
+                            auditNote = $"⚠️ Verification note: {verificationOutput}";
                         }
+                        else if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string correctedCode = verificationOutput.Substring("CORRECTED_CODE:".Length).Trim();
+                            correctedCode = CleanCodeMarkdown(correctedCode);
+                            if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
+                            {
+                                finalCode = correctedCode;
+                                auditNote = $"✨ Code audited/corrected by {verifierModel}.";
+                            }
+                        }
+
+                        assistantBubble.HasError = false;
+                        assistantBubble.ShowCheckApiKeyAction = false;
+                        string finalContent = metadataHeader + $"* **Audit:** {auditNote}\n\n" + finalCode.Trim();
+                        assistantBubble.Content = finalContent;
+                        assistantBubble.IsLoading = false;
+                        ScanResponseText = finalCode.Trim();
+
+                        _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalCode.Trim() });
                     }
-
-                    string finalContent = metadataHeader + $"* **Audit:** {auditNote}\n\n" + finalCode.Trim();
-                    assistantBubble.Content = finalContent;
-                    assistantBubble.IsLoading = false;
-                    ScanResponseText = finalCode.Trim();
-
-                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalCode.Trim() });
                 }
                 else
                 {
@@ -1591,6 +1665,14 @@ namespace OverlayApp.ViewModels
                     assistantBubble.Content = $"⏳ Generating response with **{singleModel}**...";
 
                     string responseBody = await PerformChatAsync(_txtChatHistory, singleModel);
+
+                    bool isError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(responseBody);
+                    assistantBubble.HasError = isError;
+                    assistantBubble.ShowCheckApiKeyAction = isError;
+                    if (isError)
+                    {
+                        assistantBubble.ErrorSummary = "Scan query error.";
+                    }
 
                     string finalContent = metadataHeader + responseBody.Trim();
                     assistantBubble.Content = finalContent;
@@ -1602,9 +1684,13 @@ namespace OverlayApp.ViewModels
             }
             catch (Exception ex)
             {
-                assistantBubble.Content = $"⚠️ Error: {ex.Message}";
+                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Scanner", singleModel, 0, "", ex);
+                assistantBubble.HasError = true;
+                assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
+                assistantBubble.ErrorSummary = errorInfo.FriendlyMessage;
+                assistantBubble.Content = errorInfo.FriendlyMessage;
                 assistantBubble.IsLoading = false;
-                ScanResponseText = $"⚠️ Error processing batch screenshots: {ex.Message}";
+                ScanResponseText = errorInfo.FriendlyMessage;
             }
             finally
             {
@@ -1799,6 +1885,14 @@ namespace OverlayApp.ViewModels
 
                 string explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend);
                 
+                bool isVoiceError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation);
+                assistantBubble.HasError = isVoiceError;
+                assistantBubble.ShowCheckApiKeyAction = isVoiceError;
+                if (isVoiceError)
+                {
+                    assistantBubble.ErrorSummary = "Voice query error.";
+                }
+
                 assistantBubble.Content = explanation;
                 assistantBubble.IsLoading = false;
                 VoiceScanResponseText = explanation;
@@ -1811,12 +1905,17 @@ namespace OverlayApp.ViewModels
             }
             catch (Exception ex)
             {
+                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Assistant", "Groq Qwen 3.6", 0, "", ex);
                 if (VoiceChatBubbles.Count > 0 && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsAssistant && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsLoading)
                 {
-                    VoiceChatBubbles[VoiceChatBubbles.Count - 1].Content = $"⚠️ Voice processing failed: {ex.Message}";
-                    VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsLoading = false;
+                    var bubble = VoiceChatBubbles[VoiceChatBubbles.Count - 1];
+                    bubble.Content = errorInfo.FriendlyMessage;
+                    bubble.HasError = true;
+                    bubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
+                    bubble.ErrorSummary = errorInfo.FriendlyMessage;
+                    bubble.IsLoading = false;
                 }
-                VoiceScanResponseText = $"Voice processing failed: {ex.Message}";
+                VoiceScanResponseText = errorInfo.FriendlyMessage;
                 if (_voiceChatHistory.Count > 0 && _voiceChatHistory[_voiceChatHistory.Count - 1].Role == "user")
                 {
                     _voiceChatHistory.RemoveAt(_voiceChatHistory.Count - 1);
@@ -2444,6 +2543,14 @@ namespace OverlayApp.ViewModels
 
                     string answer = await PerformChatAsync(optimizedHistory, followUpModel);
 
+                    bool isFollowUpError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answer);
+                    assistantBubble.HasError = isFollowUpError;
+                    assistantBubble.ShowCheckApiKeyAction = isFollowUpError;
+                    if (isFollowUpError)
+                    {
+                        assistantBubble.ErrorSummary = "Follow-up error";
+                    }
+
                     assistantBubble.Content = answer;
                     assistantBubble.IsLoading = false;
                     ScanResponseText = answer;
@@ -2457,7 +2564,12 @@ namespace OverlayApp.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    assistantBubble.Content = $"⚠️ Follow-up query failed: {ex.Message}";
+                    string followUpModel = IsCodingScanMode ? "qwen/qwen3.6-27b" : "openai/gpt-oss-120b";
+                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Follow-up", followUpModel, 0, "", ex);
+                    assistantBubble.Content = errorInfo.FriendlyMessage;
+                    assistantBubble.HasError = true;
+                    assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
+                    assistantBubble.ErrorSummary = errorInfo.FriendlyMessage;
                     assistantBubble.IsLoading = false;
                     if (_txtChatHistory.Count > 0 && (_txtChatHistory[_txtChatHistory.Count - 1].Content == question || _txtChatHistory[_txtChatHistory.Count - 1].Content == finalQuestion))
                     {
@@ -2512,6 +2624,14 @@ namespace OverlayApp.ViewModels
 
                     string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend);
                     
+                    bool isVoiceFollowUpError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answer);
+                    assistantBubble.HasError = isVoiceFollowUpError;
+                    assistantBubble.ShowCheckApiKeyAction = isVoiceFollowUpError;
+                    if (isVoiceFollowUpError)
+                    {
+                        assistantBubble.ErrorSummary = "Voice follow-up error";
+                    }
+
                     assistantBubble.Content = answer;
                     assistantBubble.IsLoading = false;
                     VoiceScanResponseText = answer;
@@ -2525,9 +2645,13 @@ namespace OverlayApp.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    assistantBubble.Content = $"⚠️ Follow-up query failed: {ex.Message}";
+                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Follow-up", "Groq Qwen 3.6", 0, "", ex);
+                    assistantBubble.Content = errorInfo.FriendlyMessage;
+                    assistantBubble.HasError = true;
+                    assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
+                    assistantBubble.ErrorSummary = errorInfo.FriendlyMessage;
                     assistantBubble.IsLoading = false;
-                    VoiceScanResponseText = $"Follow-up query failed: {ex.Message}";
+                    VoiceScanResponseText = errorInfo.FriendlyMessage;
                     if (_voiceChatHistory.Count > 0 && _voiceChatHistory[_voiceChatHistory.Count - 1].Content == question)
                     {
                         _voiceChatHistory.RemoveAt(_voiceChatHistory.Count - 1);

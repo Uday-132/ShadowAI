@@ -945,6 +945,10 @@
                                                                          <DataTrigger Binding="{Binding IsAssistant}" Value="True">
                                                                              <Setter Property="Visibility" Value="Visible"/>
                                                                          </DataTrigger>
+                                                                         <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                                             <Setter Property="Background" Value="#252A1515"/>
+                                                                             <Setter Property="BorderBrush" Value="#55EF4444"/>
+                                                                         </DataTrigger>
                                                                      </Style.Triggers>
                                                                  </Style>
                                                              </Border.Style>
@@ -976,6 +980,31 @@
                                                                          </Style>
                                                                      </TextBlock.Style>
                                                                  </TextBlock>
+
+                                                                 <!-- API Key / Environment Verification Action Bar -->
+                                                                 <Border Margin="0,6,0,2" Padding="6,4" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="4"
+                                                                         Visibility="{Binding ShowCheckApiKeyAction, Converter={StaticResource BoolToVis}}">
+                                                                     <DockPanel LastChildFill="True">
+                                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                                                                             <TextBlock Text="⚠️" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                                             <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                                         </StackPanel>
+                                                                         <Button Command="{Binding DataContext.OpenApiKeySettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                 HorizontalAlignment="Right" Padding="8,2" Height="20"
+                                                                                 Background="#40EF4444" Foreground="#FFFFEEEE" BorderBrush="#88EF4444" BorderThickness="1"
+                                                                                 FontSize="8.5" FontWeight="Bold" Cursor="Hand">
+                                                                             <Button.Template>
+                                                                                 <ControlTemplate TargetType="Button">
+                                                                                     <Border CornerRadius="3" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                             <TextBlock Text="🔧 Check / Update Key" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}"/>
+                                                                                         </StackPanel>
+                                                                                     </Border>
+                                                                                 </ControlTemplate>
+                                                                             </Button.Template>
+                                                                         </Button>
+                                                                     </DockPanel>
+                                                                 </Border>
                                                              </StackPanel>
                                                          </Border>
                                                      </Grid>
@@ -1290,6 +1319,10 @@
                                                                         <DataTrigger Binding="{Binding IsAssistant}" Value="True">
                                                                             <Setter Property="Visibility" Value="Visible"/>
                                                                         </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                                            <Setter Property="Background" Value="#252A1515"/>
+                                                                            <Setter Property="BorderBrush" Value="#55EF4444"/>
+                                                                        </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
                                                             </Border.Style>
@@ -1321,6 +1354,31 @@
                                                                         </Style>
                                                                     </TextBlock.Style>
                                                                 </TextBlock>
+
+                                                                <!-- API Key / Environment Verification Action Bar -->
+                                                                <Border Margin="0,6,0,2" Padding="6,4" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="4"
+                                                                        Visibility="{Binding ShowCheckApiKeyAction, Converter={StaticResource BoolToVis}}">
+                                                                    <DockPanel LastChildFill="True">
+                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                                                                            <TextBlock Text="⚠️" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                        <Button Command="{Binding DataContext.OpenApiKeySettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                HorizontalAlignment="Right" Padding="8,2" Height="20"
+                                                                                Background="#40EF4444" Foreground="#FFFFEEEE" BorderBrush="#88EF4444" BorderThickness="1"
+                                                                                FontSize="8.5" FontWeight="Bold" Cursor="Hand">
+                                                                            <Button.Template>
+                                                                                <ControlTemplate TargetType="Button">
+                                                                                    <Border CornerRadius="3" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                            <TextBlock Text="🔧 Check / Update Key" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}"/>
+                                                                                        </StackPanel>
+                                                                                    </Border>
+                                                                                </ControlTemplate>
+                                                                            </Button.Template>
+                                                                        </Button>
+                                                                    </DockPanel>
+                                                                </Border>
                                                             </StackPanel>
                                                         </Border>
                                                     </Grid>
