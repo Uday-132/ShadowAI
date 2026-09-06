@@ -191,17 +191,13 @@ namespace OverlayInstaller
             {
                 string regPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ShadowAI";
 
-                // Write a dedicated uninstaller batch script into the install folder
-                string uninstallBat = Path.Combine(installFolder, "uninstall.bat");
-                string uninstallScript = $@"@echo off
-taskkill /F /IM SystemCoreHost.exe /T >NUL 2>&1
-timeout /t 2 /nobreak >NUL
-rmdir /s /q ""{installFolder}""
-if exist ""{desktopShortcut}"" del /f /q ""{desktopShortcut}""
-if exist ""{startMenuShortcut}"" del /f /q ""{startMenuShortcut}""
-reg delete ""HKCU\{regPath}"" /f >NUL 2>&1
-";
-                File.WriteAllText(uninstallBat, uninstallScript);
+                // Copy the installer exe itself into the install folder so uninstall works even if setup.exe is deleted
+                string uninstallerExe = Path.Combine(installFolder, "uninstall.exe");
+                string currentExe = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                // GetLocation returns .dll in single-file; use process path instead
+                string processExe = Process.GetCurrentProcess().MainModule?.FileName ?? currentExe;
+                if (File.Exists(processExe) && !string.Equals(processExe, uninstallerExe, StringComparison.OrdinalIgnoreCase))
+                    File.Copy(processExe, uninstallerExe, overwrite: true);
 
                 using (RegistryKey? key = Registry.CurrentUser.CreateSubKey(regPath))
                 {
@@ -215,8 +211,8 @@ reg delete ""HKCU\{regPath}"" /f >NUL 2>&1
                     key.SetValue("EstimatedSize",   26000);
                     key.SetValue("NoModify",        1, RegistryValueKind.DWord);
                     key.SetValue("NoRepair",        1, RegistryValueKind.DWord);
-                    // UninstallString must be a direct executable command
-                    key.SetValue("UninstallString", $"\"{uninstallBat}\"");
+                    // UninstallString points to the copied exe with --uninstall flag
+                    key.SetValue("UninstallString", $"\"{uninstallerExe}\" --uninstall");
                 }
             }
             catch (Exception)
