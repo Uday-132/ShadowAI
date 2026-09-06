@@ -60,6 +60,10 @@
       "dest": "/api/pay/verify.js"
     },
     {
+      "src": "/api/version",
+      "dest": "/api/version.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }

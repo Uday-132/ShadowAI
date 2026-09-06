@@ -8,8 +8,8 @@ module.exports = (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
 
   res.status(200).json({
-    version: '1.0.0',
-    downloadUrl: 'https://shadow-ai-iota.vercel.app/download/SystemCoreHost.exe',
-    releaseNotes: 'Initial release.'
+    version: '1.0.1',
+    downloadUrl: 'https://shadow-ai-iota.vercel.app/setup.exe',
+    releaseNotes: 'Improved MCQ dual-model verification, live response timer, better markdown rendering in voice scan, and auto-update support.'
   });
 };
