@@ -43,22 +43,48 @@ namespace OverlayInstaller
                 }
                 catch { }
 
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(800);
 
-                // Remove install folder
-                if (Directory.Exists(installFolder))
-                    Directory.Delete(installFolder, recursive: true);
-
-                // Remove shortcuts
+                // Remove shortcuts first (outside install folder — no lock issues)
                 string desktopShortcut   = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Shadow AI.lnk");
                 string startMenuShortcut = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", "Shadow AI.lnk");
 
-                if (File.Exists(desktopShortcut))   File.Delete(desktopShortcut);
-                if (File.Exists(startMenuShortcut)) File.Delete(startMenuShortcut);
+                try { if (File.Exists(desktopShortcut))   File.Delete(desktopShortcut); } catch { }
+                try { if (File.Exists(startMenuShortcut)) File.Delete(startMenuShortcut); } catch { }
 
-                // Remove registry entries (both old and new key names)
-                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ShadowAI",   throwOnMissingSubKey: false);
-                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\SystemCore", throwOnMissingSubKey: false);
+                // Remove registry entries before deleting folder
+                try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ShadowAI",   throwOnMissingSubKey: false); } catch { }
+                try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\SystemCore", throwOnMissingSubKey: false); } catch { }
+
+                // We cannot delete the install folder while uninstall.exe (this process) is running inside it.
+                // Strategy: copy ourselves to %TEMP%, then launch a batch from there that:
+                //   1. Waits for this process to exit
+                //   2. Deletes the install folder
+                //   3. Deletes the batch file itself
+                string tempDir     = Path.Combine(Path.GetTempPath(), "ShadowAIUninstall_" + Guid.NewGuid().ToString("N")[..8]);
+                Directory.CreateDirectory(tempDir);
+
+                string tempBatch = Path.Combine(tempDir, "cleanup.bat");
+                string batchScript = $@"@echo off
+:wait
+tasklist /FI ""PID eq {Process.GetCurrentProcess().Id}"" 2>NUL | find ""{Process.GetCurrentProcess().Id}"" >NUL
+if not errorlevel 1 (
+    timeout /t 1 /nobreak >NUL
+    goto wait
+)
+if exist ""{installFolder}"" rmdir /s /q ""{installFolder}""
+rmdir /s /q ""{tempDir}"" >NUL 2>&1
+del ""%~f0"" >NUL 2>&1
+";
+                File.WriteAllText(tempBatch, batchScript);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName        = tempBatch,
+                    CreateNoWindow  = true,
+                    WindowStyle     = ProcessWindowStyle.Hidden,
+                    UseShellExecute = true
+                });
 
                 MessageBox.Show("Shadow AI has been successfully uninstalled.", "Shadow AI Uninstaller", MessageBoxButton.OK, MessageBoxImage.Information);
             }
