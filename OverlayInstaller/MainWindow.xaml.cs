@@ -61,6 +61,21 @@ namespace OverlayInstaller
 
                 string targetExePath = Path.Combine(installFolder, "SystemCoreHost.exe");
 
+                // Step 2b: Kill any running instance of the app before overwriting
+                UpdateProgress("Stopping running instance...", 25);
+                await Task.Delay(200);
+                try
+                {
+                    foreach (var proc in System.Diagnostics.Process.GetProcessesByName("SystemCoreHost"))
+                    {
+                        proc.Kill();
+                        await Task.Run(() => proc.WaitForExit(5000));
+                    }
+                    // Brief wait to ensure file handle is fully released
+                    await Task.Delay(800);
+                }
+                catch { /* ignore — process may have already exited */ }
+
                 // Step 3: Extract all embedded files
                 int total = resources.Count;
                 for (int i = 0; i < total; i++)
