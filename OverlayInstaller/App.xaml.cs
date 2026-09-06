@@ -56,8 +56,9 @@ namespace OverlayInstaller
                 if (File.Exists(desktopShortcut))   File.Delete(desktopShortcut);
                 if (File.Exists(startMenuShortcut)) File.Delete(startMenuShortcut);
 
-                // Remove registry entry
-                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ShadowAI", throwOnMissingSubKey: false);
+                // Remove registry entries (both old and new key names)
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\ShadowAI",   throwOnMissingSubKey: false);
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\SystemCore", throwOnMissingSubKey: false);
 
                 MessageBox.Show("Shadow AI has been successfully uninstalled.", "Shadow AI Uninstaller", MessageBoxButton.OK, MessageBoxImage.Information);
             }

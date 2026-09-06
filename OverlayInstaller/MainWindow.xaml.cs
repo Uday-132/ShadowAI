@@ -121,6 +121,9 @@ namespace OverlayInstaller
                 UpdateProgress("Registering application...", 90);
                 await Task.Delay(300);
 
+                // Clean up any old registry entry from previous installs
+                try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\SystemCore", false); } catch { }
+
                 RegisterInSettingsApps(installFolder, targetExePath, desktopShortcut, startMenuShortcut);
 
                 UpdateProgress("Installation complete!", 100);
