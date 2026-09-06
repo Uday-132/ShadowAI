@@ -44,7 +44,7 @@
 
         <!-- Sleek ScrollBar Template -->
         <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="5"/>
+            <Setter Property="Width" Value="4"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -179,16 +179,16 @@
 
         <!-- Theme definitions mapping to dynamic styling triggers -->
         <Style x:Key="MainBorderStyle" TargetType="Border">
-            <Setter Property="Background" Value="#ED161622"/>
+            <Setter Property="Background" Value="#F0090D14"/>
             <Setter Property="BorderBrush">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                         <LinearGradientBrush.RelativeTransform>
                             <RotateTransform CenterX="0.5" CenterY="0.5" Angle="0"/>
                         </LinearGradientBrush.RelativeTransform>
-                        <GradientStop Color="#50FFFFFF" Offset="0"/>
-                        <GradientStop Color="#2000D2FF" Offset="0.5"/>
-                        <GradientStop Color="#15FFFFFF" Offset="1"/>
+                        <GradientStop Color="#4000D2FF" Offset="0"/>
+                        <GradientStop Color="#1500D2FF" Offset="0.5"/>
+                        <GradientStop Color="#3000D2FF" Offset="1"/>
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
@@ -202,16 +202,16 @@
             </Style.Resources>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Theme}" Value="Neon">
-                    <Setter Property="Background" Value="#F21A0A2E"/>
+                    <Setter Property="Background" Value="#F00D0A20"/>
                     <Setter Property="BorderBrush">
                         <Setter.Value>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <LinearGradientBrush.RelativeTransform>
                                     <RotateTransform CenterX="0.5" CenterY="0.5" Angle="0"/>
                                 </LinearGradientBrush.RelativeTransform>
-                                <GradientStop Color="#50FFFFFF" Offset="0"/>
-                                <GradientStop Color="#20FF00A0" Offset="0.5"/>
-                                <GradientStop Color="#15FFFFFF" Offset="1"/>
+                                <GradientStop Color="#40FF00A0" Offset="0"/>
+                                <GradientStop Color="#15FF00A0" Offset="0.5"/>
+                                <GradientStop Color="#30FF00A0" Offset="1"/>
                             </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
@@ -222,16 +222,16 @@
                     </Setter>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Theme}" Value="Emerald">
-                    <Setter Property="Background" Value="#F20A1E1A"/>
+                    <Setter Property="Background" Value="#F0060F0C"/>
                     <Setter Property="BorderBrush">
                         <Setter.Value>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <LinearGradientBrush.RelativeTransform>
                                     <RotateTransform CenterX="0.5" CenterY="0.5" Angle="0"/>
                                 </LinearGradientBrush.RelativeTransform>
-                                <GradientStop Color="#50FFFFFF" Offset="0"/>
-                                <GradientStop Color="#2000FFCC" Offset="0.5"/>
-                                <GradientStop Color="#15FFFFFF" Offset="1"/>
+                                <GradientStop Color="#4000FFCC" Offset="0"/>
+                                <GradientStop Color="#1500FFCC" Offset="0.5"/>
+                                <GradientStop Color="#3000FFCC" Offset="1"/>
                             </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
@@ -242,16 +242,16 @@
                     </Setter>
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Theme}" Value="Sunset">
-                    <Setter Property="Background" Value="#F22C121A"/>
+                    <Setter Property="Background" Value="#F0120608"/>
                     <Setter Property="BorderBrush">
                         <Setter.Value>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                                 <LinearGradientBrush.RelativeTransform>
                                     <RotateTransform CenterX="0.5" CenterY="0.5" Angle="0"/>
                                 </LinearGradientBrush.RelativeTransform>
-                                <GradientStop Color="#50FFFFFF" Offset="0"/>
-                                <GradientStop Color="#20FF7700" Offset="0.5"/>
-                                <GradientStop Color="#15FFFFFF" Offset="1"/>
+                                <GradientStop Color="#40FF7700" Offset="0"/>
+                                <GradientStop Color="#15FF7700" Offset="0.5"/>
+                                <GradientStop Color="#30FF7700" Offset="1"/>
                             </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
@@ -264,63 +264,61 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Navigation tab button style -->
+        <!-- Navigation tab button style — pill-shaped active indicator -->
         <Style x:Key="TabButtonStyle" TargetType="RadioButton">
             <Setter Property="GroupName" Value="Widgets"/>
-            <Setter Property="Foreground" Value="#77FFFFFF"/>
-            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="#55FFFFFF"/>
+            <Setter Property="FontSize" Value="9"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Grid Background="Transparent">
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <ContentPresenter Margin="0,4,0,4" HorizontalAlignment="Center"/>
-                                <Border x:Name="Indicator" Height="2" CornerRadius="1" Width="18" Background="Transparent" SnapsToDevicePixels="True"/>
-                            </StackPanel>
+                            <Border x:Name="Pill" CornerRadius="6" Background="Transparent" Padding="10,5">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <ContentPresenter HorizontalAlignment="Center" Margin="0,2,0,2"/>
+                                    <Border x:Name="Dot" Height="2" CornerRadius="1" Width="14" Background="Transparent" SnapsToDevicePixels="True" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                                <Setter TargetName="Indicator" Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                                <Setter TargetName="Dot" Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                <Setter TargetName="Pill" Property="Background" Value="#12FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#D0FFFFFF"/>
+                                <Setter Property="Foreground" Value="#CCFFFFFF"/>
+                                <Setter TargetName="Pill" Property="Background" Value="#08FFFFFF"/>
                             </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsMouseOver" Value="True"/>
-                                    <Condition Property="IsChecked" Value="True"/>
-                                </MultiTrigger.Conditions>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Segment control radio button style -->
+        <!-- Segment control radio button style — pill chips -->
         <Style x:Key="SegmentButtonStyle" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="#A0FFFFFF"/>
-            <Setter Property="FontSize" Value="8.5"/>
+            <Setter Property="Foreground" Value="#77FFFFFF"/>
+            <Setter Property="FontSize" Value="8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="BgBorder" CornerRadius="4" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="6,3" Margin="2,0">
+                        <Border x:Name="BgBorder" CornerRadius="5" Background="#0CFFFFFF" BorderThickness="1" BorderBrush="#12FFFFFF" Padding="7,3" Margin="1,0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="BgBorder" Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
                                 <Setter TargetName="BgBorder" Property="BorderBrush" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                <Setter Property="Foreground" Value="#000000"/>
+                                <Setter Property="Foreground" Value="#FF000000"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BgBorder" Property="Opacity" Value="0.95"/>
+                                <Setter TargetName="BgBorder" Property="Background" Value="#18FFFFFF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -329,11 +327,10 @@
         </Style>
     </Window.Resources>
 
-    <!-- Glassmorphic Border Container -->
-    <Border x:Name="MainBorder" Style="{StaticResource MainBorderStyle}" CornerRadius="16" BorderThickness="1.2">
+    <!-- Main Container -->
+    <Border x:Name="MainBorder" Style="{StaticResource MainBorderStyle}" CornerRadius="14" BorderThickness="1">
         <Border.Effect>
-            <!-- Soft drop shadow composited by DWM to blend with windows behind -->
-            <DropShadowEffect BlurRadius="20" ShadowDepth="4" Direction="315" Opacity="0.5" Color="Black"/>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="8" Direction="310" Opacity="0.65" Color="Black"/>
         </Border.Effect>
         
         <Grid>
@@ -349,23 +346,26 @@
             </Grid.RowDefinitions>
 
             <!-- Title bar / Header -->
-            <Grid Grid.Row="0" Panel.ZIndex="1000" Margin="4,2,4,4" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+            <Grid Grid.Row="0" Panel.ZIndex="1000" Margin="8,6,8,4" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <!-- Icon and Title -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,4,0,0">
-                    <Image Source="/shadow_ai.ico" Width="14" Height="14" Margin="0,0,6,0" VerticalAlignment="Center" Stretch="Uniform"/>
-                    <TextBlock Text="SHADOW" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold"/>
-                    <TextBlock Text="AI" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="10" FontWeight="Bold" Margin="4,0,0,0"/>
+                <!-- Brand -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/shadow_ai.ico" Width="13" Height="13" Margin="0,0,5,0" VerticalAlignment="Center" Stretch="Uniform"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="9.5" FontWeight="Bold">
+                        <Run Text="SHADOW" Foreground="#55FFFFFF"/>
+                        <Run Text="AI" Foreground="{Binding Tag, ElementName=MainBorder}"/>
+                    </TextBlock>
                 </StackPanel>
 
-                <!-- Session Countdown Timer -->
-                <TextBlock Grid.Column="0" Text="{Binding SessionTimerDisplay}" Foreground="#AAFFFFFF" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,4,0,0">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                <!-- Session Pill (center) -->
+                <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="8" Padding="8,2" Background="#12FFFFFF">
+                    <Border.Style>
+                        <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsLoggedIn}" Value="True">
@@ -373,26 +373,26 @@
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </TextBlock.Style>
-                </TextBlock>
+                    </Border.Style>
+                    <TextBlock Text="{Binding SessionTimerDisplay}" Foreground="#99FFFFFF" FontSize="8.5" FontWeight="SemiBold"/>
+                </Border>
 
-                <!-- Actions (Pin, Settings, Exit) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,2,0">
-                    <!-- Pin (Interactivity Lock) -->
-                    <Button x:Name="PinButton" Command="{Binding ToggleClickThroughCommand}" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Arrow">
+                <!-- Actions (Pin, Settings, Close) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Pin -->
+                    <Button x:Name="PinButton" Command="{Binding ToggleClickThroughCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="Button">
-                                            <Border Background="Transparent" Padding="4">
-                                                <!-- Custom Pin SVG -->
+                                            <Border Background="Transparent" Padding="5,4">
                                                 <Path x:Name="Icon" Data="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" 
-                                                      Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform"/>
+                                                      Fill="#44FFFFFF" Width="11" Height="11" Stretch="Uniform"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="Icon" Property="Fill" Value="#BFFFFFFF"/>
+                                                    <Setter TargetName="Icon" Property="Fill" Value="#AAFFFFFF"/>
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -403,9 +403,9 @@
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border Background="Transparent" Padding="4">
+                                                    <Border Background="Transparent" Padding="5,4">
                                                         <Path Data="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" 
-                                                              Fill="{Binding Tag, ElementName=MainBorder}" Width="12" Height="12" Stretch="Uniform"/>
+                                                              Fill="{Binding Tag, ElementName=MainBorder}" Width="11" Height="11" Stretch="Uniform"/>
                                                     </Border>
                                                 </ControlTemplate>
                                             </Setter.Value>
@@ -417,16 +417,16 @@
                     </Button>
                     
                     <!-- Settings -->
-                    <Button Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Margin="0,0,4,0" Cursor="Arrow">
+                    <Button Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="Transparent" Padding="4">
+                                <Border Background="Transparent" Padding="5,4">
                                     <Path x:Name="Icon" Data="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" 
-                                          Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform"/>
+                                          Fill="#44FFFFFF" Width="11" Height="11" Stretch="Uniform"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Icon" Property="Fill" Value="#BFFFFFFF"/>
+                                        <Setter TargetName="Icon" Property="Fill" Value="#AAFFFFFF"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -437,13 +437,13 @@
                     <Button Command="{Binding CloseAppCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="Transparent" Padding="4">
+                                <Border Background="Transparent" Padding="5,4">
                                     <Path x:Name="Icon" Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                                          Fill="#66FFFFFF" Width="12" Height="12" Stretch="Uniform"/>
+                                          Fill="#44FFFFFF" Width="11" Height="11" Stretch="Uniform"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Icon" Property="Fill" Value="#FFFF3B30"/>
+                                        <Setter TargetName="Icon" Property="Fill" Value="#FFFF453A"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
@@ -452,70 +452,75 @@
                 </StackPanel>
             </Grid>
 
+            <!-- Thin accent divider below header -->
+            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Margin="8,0" Background="#0CFFFFFF"/>
+
             <!-- Navigation Tab Bar -->
-            <Grid Grid.Row="1" Margin="6,2,6,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                
-                <RadioButton Grid.Column="0" Content="NOTES" Style="{StaticResource TabButtonStyle}" 
-                             IsChecked="{Binding IsNotesActive, Mode=OneWay}"
-                             Command="{Binding SelectWidgetCommand}" CommandParameter="Notes"/>
-                             
-                <RadioButton Grid.Column="1" Content="TIMER" Style="{StaticResource TabButtonStyle}" 
-                             IsChecked="{Binding IsTimerActive, Mode=OneWay}"
-                             Command="{Binding SelectWidgetCommand}" CommandParameter="Timer"/>
-                             
-                <RadioButton Grid.Column="2" Style="{StaticResource TabButtonStyle}" 
-                              IsChecked="{Binding IsTxtScanActive, Mode=OneWay}"
-                              Command="{Binding SelectWidgetCommand}" CommandParameter="TxtScan">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="TXT SCAN" VerticalAlignment="Center"/>
-                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
-                              Fill="#FFFF5555" Width="9" Height="9" Stretch="Uniform" Margin="4,0,0,0" VerticalAlignment="Center">
-                            <Path.Style>
-                                <Style TargetType="Path">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Path.Style>
-                        </Path>
-                    </StackPanel>
-                </RadioButton>
+            <Border Grid.Row="1" Margin="6,4,6,2" Background="#08FFFFFF" CornerRadius="8" Padding="2,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <RadioButton Grid.Column="0" Content="NOTES" Style="{StaticResource TabButtonStyle}" 
+                                 IsChecked="{Binding IsNotesActive, Mode=OneWay}"
+                                 Command="{Binding SelectWidgetCommand}" CommandParameter="Notes"/>
+                                 
+                    <RadioButton Grid.Column="1" Content="TIMER" Style="{StaticResource TabButtonStyle}" 
+                                 IsChecked="{Binding IsTimerActive, Mode=OneWay}"
+                                 Command="{Binding SelectWidgetCommand}" CommandParameter="Timer"/>
+                                 
+                    <RadioButton Grid.Column="2" Style="{StaticResource TabButtonStyle}" 
+                                  IsChecked="{Binding IsTxtScanActive, Mode=OneWay}"
+                                  Command="{Binding SelectWidgetCommand}" CommandParameter="TxtScan">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="SCAN" VerticalAlignment="Center"/>
+                            <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
+                                  Fill="#FFFF5555" Width="8" Height="8" Stretch="Uniform" Margin="3,0,0,0" VerticalAlignment="Center">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </StackPanel>
+                    </RadioButton>
 
-                <RadioButton Grid.Column="3" Style="{StaticResource TabButtonStyle}" 
-                              IsChecked="{Binding IsVoiceScanActive, Mode=OneWay}"
-                              Command="{Binding SelectWidgetCommand}" CommandParameter="VoiceScan">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="VOICE" VerticalAlignment="Center"/>
-                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
-                              Fill="#FFFF5555" Width="9" Height="9" Stretch="Uniform" Margin="4,0,0,0" VerticalAlignment="Center">
-                            <Path.Style>
-                                <Style TargetType="Path">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Path.Style>
-                        </Path>
-                    </StackPanel>
-                </RadioButton>
+                    <RadioButton Grid.Column="3" Style="{StaticResource TabButtonStyle}" 
+                                  IsChecked="{Binding IsVoiceScanActive, Mode=OneWay}"
+                                  Command="{Binding SelectWidgetCommand}" CommandParameter="VoiceScan">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="VOICE" VerticalAlignment="Center"/>
+                            <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
+                                  Fill="#FFFF5555" Width="8" Height="8" Stretch="Uniform" Margin="3,0,0,0" VerticalAlignment="Center">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </StackPanel>
+                    </RadioButton>
 
-                <RadioButton Grid.Column="4" Content="PROFILE" Style="{StaticResource TabButtonStyle}" 
-                              IsChecked="{Binding IsProfileActive, Mode=OneWay}"
-                              Command="{Binding SelectWidgetCommand}" CommandParameter="Profile"/>
-            </Grid>
+                    <RadioButton Grid.Column="4" Content="PROFILE" Style="{StaticResource TabButtonStyle}" 
+                                  IsChecked="{Binding IsProfileActive, Mode=OneWay}"
+                                  Command="{Binding SelectWidgetCommand}" CommandParameter="Profile"/>
+                </Grid>
+            </Border>
 
             <!-- Content Area -->
             <Grid Grid.Row="2" Margin="6,2,6,8">
@@ -1707,47 +1712,32 @@
                     </Style>
                 </Grid.Style>
                 
-                <!-- Dark Overlay Divider Line -->
-                <Border BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0">
+                <Border BorderBrush="#0EFFFFFF" BorderThickness="0,1,0,0" Background="#06FFFFFF">
                     <Grid Margin="10,8,10,12">
                         <Grid.RowDefinitions>
-                            <!-- Row 0: Header with Close (X) Button -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 1: Opacity Slider -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 2: Font Size Slider -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 3: Always on Top & Lock toggles -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 4: Theme choices -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 5: Groq API Key input -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 6: Click-Through Warn -->
                             <RowDefinition Height="Auto"/>
-                            <!-- Row 7: Project Quotation -->
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Settings Header with Close Button -->
+                        <!-- Header -->
                         <Grid Grid.Row="0" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32.59.22 2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" 
-                                      Fill="{Binding Tag, ElementName=MainBorder}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="SETTINGS &amp; CONTROLS" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
-                            </StackPanel>
-
-                            <Button Grid.Column="1" Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow" VerticalAlignment="Center">
+                            <TextBlock Text="⚙  SETTINGS" Foreground="#55FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent" Padding="4">
                                             <Path x:Name="Icon" Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                                                  Fill="#55FFFFFF" Width="10" Height="10" Stretch="Uniform"/>
+                                                  Fill="#44FFFFFF" Width="9" Height="9" Stretch="Uniform"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
@@ -1760,58 +1750,55 @@
                         </Grid>
 
                         <!-- Opacity Slider -->
-                        <Grid Grid.Row="1" Margin="0,0,0,8">
+                        <Grid Grid.Row="1" Margin="0,0,0,7">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="60"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="32"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Opacity" Foreground="#88FFFFFF" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="Opacity" Foreground="#66FFFFFF" FontSize="10" VerticalAlignment="Center"/>
                             <Slider Grid.Column="1" Minimum="0.1" Maximum="1.0" Value="{Binding WindowOpacity, Mode=TwoWay}" 
                                     Style="{StaticResource SleekSliderStyle}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding WindowOpacity, StringFormat={}{0:P0}}" 
-                                       Foreground="#88FFFFFF" FontSize="10.5" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                       Foreground="#55FFFFFF" FontSize="9.5" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
                         <!-- Font Size Slider -->
-                        <Grid Grid.Row="2" Margin="0,0,0,8">
+                        <Grid Grid.Row="2" Margin="0,0,0,7">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="60"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="32"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Text Size" Foreground="#88FFFFFF" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="Text" Foreground="#66FFFFFF" FontSize="10" VerticalAlignment="Center"/>
                             <Slider Grid.Column="1" Minimum="8.0" Maximum="22.0" Value="{Binding AppFontSize, Mode=TwoWay}" 
                                     Style="{StaticResource SleekSliderStyle}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding AppFontSize, StringFormat={}{0:F0}pt}" 
-                                       Foreground="#88FFFFFF" FontSize="10" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                       Foreground="#55FFFFFF" FontSize="9.5" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
                         <!-- Toggles -->
-                        <Grid Grid.Row="3" Margin="0,2,0,8">
+                        <Grid Grid.Row="3" Margin="0,2,0,7">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            
                             <CheckBox Grid.Column="0" Content="Always on Top" IsChecked="{Binding AlwaysOnTop, Mode=TwoWay}" Style="{StaticResource ToggleSwitchStyle}"/>
                             <CheckBox Grid.Column="1" Content="Lock Position" IsChecked="{Binding IsLocked, Mode=TwoWay}" Style="{StaticResource ToggleSwitchStyle}" HorizontalAlignment="Right"/>
                         </Grid>
 
-                        <!-- Theme Chooser -->
-                        <Grid Grid.Row="4" Margin="0,2,0,2">
+                        <!-- Theme -->
+                        <Grid Grid.Row="4" Margin="0,2,0,7">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="60"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Theme" Foreground="#88FFFFFF" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                <!-- Onyx Theme Selector -->
+                            <TextBlock Text="Theme" Foreground="#66FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Onyx" IsChecked="True" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FF00D2FF" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FF00D2FF" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
@@ -1825,12 +1812,10 @@
                                         </ControlTemplate>
                                     </RadioButton.Template>
                                 </RadioButton>
-                                
-                                <!-- Neon Theme Selector -->
                                 <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Neon" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FFFF00A0" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FFFF00A0" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
@@ -1844,12 +1829,10 @@
                                         </ControlTemplate>
                                     </RadioButton.Template>
                                 </RadioButton>
-
-                                <!-- Emerald Theme Selector -->
                                 <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Emerald" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FF00FFCC" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FF00FFCC" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
@@ -1863,12 +1846,10 @@
                                         </ControlTemplate>
                                     </RadioButton.Template>
                                 </RadioButton>
-
-                                <!-- Sunset Theme Selector -->
                                 <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Sunset" Cursor="Arrow" Margin="2,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FFFF7700" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FFFF7700" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
@@ -1885,55 +1866,51 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Active API Provider Selector & Key Inputs -->
-                        <StackPanel Grid.Row="5" Margin="0,6,0,2">
-                            <DockPanel Margin="0,0,0,4">
-                                <TextBlock Text="ACTIVE API PROVIDER" Foreground="#88FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                        <!-- API Keys -->
+                        <StackPanel Grid.Row="5" Margin="0,4,0,4">
+                            <DockPanel Margin="0,0,0,5">
+                                <TextBlock Text="API PROVIDER" Foreground="#44FFFFFF" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                    <RadioButton Content="Groq" GroupName="ApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,6,0" Foreground="#A0FFFFFF" FontSize="9.5"/>
-                                    <RadioButton Content="Gemini" GroupName="ApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#A0FFFFFF" FontSize="9.5"/>
+                                    <RadioButton Content="Groq" GroupName="ApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,6,0" Foreground="#88FFFFFF" FontSize="9"/>
+                                    <RadioButton Content="Gemini" GroupName="ApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#88FFFFFF" FontSize="9"/>
                                 </StackPanel>
                             </DockPanel>
-
-                            <!-- Groq Key Input -->
                             <Grid Margin="0,2,0,4">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="65"/>
+                                    <ColumnDefinition Width="58"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Groq Key" Foreground="#88FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                                <TextBlock Text="Groq Key" Foreground="#66FFFFFF" FontSize="9.5" VerticalAlignment="Center"/>
                                 <TextBox x:Name="GroqSettingsKeyBox" Grid.Column="1" Text="{Binding GroqKey, UpdateSourceTrigger=PropertyChanged}" 
-                                         Background="#22000000" BorderBrush="#22FFFFFF" BorderThickness="1" 
-                                         Foreground="#FFFFFF" Padding="6,3" FontSize="10"
+                                         Background="#10FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" 
+                                         Foreground="#CCFFFFFF" Padding="6,3" FontSize="9.5"
                                          VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
                             </Grid>
-
-                            <!-- Gemini Key Input -->
-                            <Grid Margin="0,2,0,2">
+                            <Grid Margin="0,0,0,2">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="65"/>
+                                    <ColumnDefinition Width="58"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Gemini Key" Foreground="#88FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                                <TextBlock Text="Gemini Key" Foreground="#66FFFFFF" FontSize="9.5" VerticalAlignment="Center"/>
                                 <TextBox x:Name="GeminiSettingsKeyBox" Grid.Column="1" Text="{Binding GeminiKey, UpdateSourceTrigger=PropertyChanged}" 
-                                         Background="#22000000" BorderBrush="#22FFFFFF" BorderThickness="1" 
-                                         Foreground="#FFFFFF" Padding="6,3" FontSize="10"
+                                         Background="#10FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" 
+                                         Foreground="#CCFFFFFF" Padding="6,3" FontSize="9.5"
                                          VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
                             </Grid>
                         </StackPanel>
 
-                        <!-- Click Through Note -->
-                        <TextBlock Grid.Row="6" Text="Press Ctrl+Shift+C to exit click-through mode." 
-                                   Foreground="#88FFFFFF" FontSize="9" HorizontalAlignment="Center" Margin="0,6,0,0" Opacity="0.8"/>
+                        <!-- Hint -->
+                        <TextBlock Grid.Row="6" Text="Ctrl+Shift+C — exit click-through mode" 
+                                   Foreground="#33FFFFFF" FontSize="8.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 
-                        <!-- Logout Button in Settings Drawer -->
-                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,8,0,0" Height="26" Cursor="Arrow" Background="#33FF3333" BorderBrush="#55FF3333" BorderThickness="1" Foreground="#FFFF6666" FontSize="10" FontWeight="Bold">
+                        <!-- Logout -->
+                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,8,0,0" Height="24" Cursor="Arrow">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                    <Border CornerRadius="6" Background="#18FF3333" BorderBrush="#30FF3333" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Path Data="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" Fill="#FFFF6666" Width="10" Height="10" Stretch="Uniform" Margin="0,0,6,0"/>
-                                            <TextBlock Text="LOGOUT FROM ACCOUNT" Foreground="#FFFF6666" FontSize="9.5" FontWeight="Bold"/>
+                                            <Path Data="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" Fill="#CCFF6666" Width="9" Height="9" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="LOGOUT" Foreground="#CCFF6666" FontSize="9" FontWeight="Bold"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
