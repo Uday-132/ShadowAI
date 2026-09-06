@@ -11,7 +11,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\SystemCoreHost.exe" Link="Resources\SystemCoreHost.exe" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\SystemCoreHost.exe"             Link="AppFiles\SystemCoreHost.exe" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\SystemCoreHost.dll"             Link="AppFiles\SystemCoreHost.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\SystemCoreHost.deps.json"       Link="AppFiles\SystemCoreHost.deps.json" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\SystemCoreHost.runtimeconfig.json" Link="AppFiles\SystemCoreHost.runtimeconfig.json" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\Microsoft.Windows.SDK.NET.dll"  Link="AppFiles\Microsoft.Windows.SDK.NET.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\WinRT.Runtime.dll"              Link="AppFiles\WinRT.Runtime.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.dll"                     Link="AppFiles\NAudio.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.Asio.dll"                Link="AppFiles\NAudio.Asio.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.Core.dll"                Link="AppFiles\NAudio.Core.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.Midi.dll"                Link="AppFiles\NAudio.Midi.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.Wasapi.dll"              Link="AppFiles\NAudio.Wasapi.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.WinForms.dll"            Link="AppFiles\NAudio.WinForms.dll" />
+    <EmbeddedResource Include="..\OverlayApp\bin\Release\net8.0-windows10.0.19041.0\publish\NAudio.WinMM.dll"               Link="AppFiles\NAudio.WinMM.dll" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
@@ -37,85 +38,103 @@ namespace OverlayInstaller
 
             try
             {
-                // Step 1: Query embedded resource
-                UpdateProgress("Checking installation assets...", 15);
-                await Task.Delay(400);
+                // Step 1: Find all embedded app files
+                UpdateProgress("Checking installation assets...", 10);
+                await Task.Delay(300);
 
                 var assembly = Assembly.GetExecutingAssembly();
-                string resourceName = "";
-                foreach (string name in assembly.GetManifestResourceNames())
-                {
-                    if (name.EndsWith("SystemCoreHost.exe", StringComparison.OrdinalIgnoreCase))
-                    {
-                        resourceName = name;
-                        break;
-                    }
-                }
+                // All embedded resources under the "AppFiles\" prefix
+                var resources = assembly.GetManifestResourceNames()
+                    .Where(n => n.Contains("AppFiles"))
+                    .ToList();
 
-                if (string.IsNullOrEmpty(resourceName))
-                {
-                    throw new FileNotFoundException("System core host assets not found inside installer package.");
-                }
+                if (resources.Count == 0)
+                    throw new FileNotFoundException("Application assets not found inside installer package.");
 
-                // Step 2: Establish target paths
-                UpdateProgress("Creating target folders...", 30);
-                await Task.Delay(400);
+                // Step 2: Establish target folder
+                UpdateProgress("Creating installation folder...", 20);
+                await Task.Delay(300);
 
                 string appDataLocal = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string installFolder = Path.Combine(appDataLocal, "SystemCore");
-                if (!Directory.Exists(installFolder))
-                {
-                    Directory.CreateDirectory(installFolder);
-                }
+                Directory.CreateDirectory(installFolder);
+
                 string targetExePath = Path.Combine(installFolder, "SystemCoreHost.exe");
 
-                // Step 3: Extract binary file
-                UpdateProgress("Extracting application components...", 50);
-                await Task.Delay(400);
-
-                using (Stream? input = assembly.GetManifestResourceStream(resourceName))
+                // Step 3: Extract all embedded files
+                int total = resources.Count;
+                for (int i = 0; i < total; i++)
                 {
-                    if (input == null) throw new InvalidOperationException("Could not open embedded assembly stream.");
-                    using (FileStream output = new FileStream(targetExePath, FileMode.Create, FileAccess.Write))
-                    {
-                        await input.CopyToAsync(output);
-                    }
+                    string resourceName = resources[i];
+
+                    // Derive the output filename from the resource name
+                    // Resource name format: "OverlayInstaller.AppFiles.FileName.ext"
+                    // Extract everything after "AppFiles."
+                    int appFilesIdx = resourceName.IndexOf("AppFiles.", StringComparison.OrdinalIgnoreCase);
+                    string fileName = appFilesIdx >= 0
+                        ? resourceName.Substring(appFilesIdx + "AppFiles.".Length)
+                        : Path.GetFileName(resourceName);
+
+                    // Fix dotted names like "SystemCoreHost.deps.json" — the last two parts are extension
+                    // Resource names replace path separators with dots, so restore known filenames
+                    fileName = RestoreFileName(fileName);
+
+                    string targetPath = Path.Combine(installFolder, fileName);
+
+                    double pct = 20 + (i + 1) * 50.0 / total;
+                    UpdateProgress($"Extracting {fileName}...", pct);
+
+                    using Stream? input = assembly.GetManifestResourceStream(resourceName);
+                    if (input == null) throw new InvalidOperationException($"Could not open embedded stream for {fileName}.");
+                    using FileStream output = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
+                    await input.CopyToAsync(output);
                 }
 
                 // Step 4: Create shortcuts
-                UpdateProgress("Generating desktop and start menu shortcuts...", 75);
-                await Task.Delay(400);
+                UpdateProgress("Creating desktop shortcut...", 75);
+                await Task.Delay(300);
 
-                string desktopFolder = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                string desktopShortcut = Path.Combine(desktopFolder, "Overlay HUD.lnk");
-
+                string desktopFolder   = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+                string desktopShortcut = Path.Combine(desktopFolder, "Shadow AI.lnk");
                 string startMenuFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs");
-                string startMenuShortcut = Path.Combine(startMenuFolder, "Overlay HUD.lnk");
+                string startMenuShortcut = Path.Combine(startMenuFolder, "Shadow AI.lnk");
 
                 CreateShortcut(desktopShortcut, targetExePath);
                 CreateShortcut(startMenuShortcut, targetExePath);
 
-                // Step 5: Configure Windows App list registry
-                UpdateProgress("Registering application configuration...", 90);
-                await Task.Delay(400);
+                // Step 5: Register in Apps & Features
+                UpdateProgress("Registering application...", 90);
+                await Task.Delay(300);
 
                 RegisterInSettingsApps(installFolder, targetExePath, desktopShortcut, startMenuShortcut);
 
-                UpdateProgress("Installation successful!", 100);
+                UpdateProgress("Installation complete!", 100);
                 await Task.Delay(400);
 
-                // Switch to complete slide
                 ProgressScreen.Visibility = Visibility.Collapsed;
                 FinishedScreen.Visibility = Visibility.Visible;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Installation failed:\n{ex.Message}", "Overlay HUD Setup Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                
-                // Roll back to install screen
+                MessageBox.Show($"Installation failed:\n{ex.Message}", "Shadow AI Setup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 ProgressScreen.Visibility = Visibility.Collapsed;
                 InstallScreen.Visibility = Visibility.Visible;
             }
+        }
+
+        /// <summary>
+        /// The .NET embedded resource system replaces '.' in filenames with '.' too,
+        /// so compound extensions like ".deps.json" or ".runtimeconfig.json" get mangled.
+        /// This restores the known filenames.
+        /// </summary>
+        private static string RestoreFileName(string resourceSegment)
+        {
+            // Known multi-dot filenames
+            if (resourceSegment.EndsWith("deps.json",            StringComparison.OrdinalIgnoreCase)) return "SystemCoreHost.deps.json";
+            if (resourceSegment.EndsWith("runtimeconfig.json",   StringComparison.OrdinalIgnoreCase)) return "SystemCoreHost.runtimeconfig.json";
+            // Simple: last segment after the final dot-sequence that forms an extension
+            // For DLLs / EXEs the resource name is already correct ("SystemCoreHost.exe" → "SystemCoreHost.exe")
+            return resourceSegment;
         }
 
         private void UpdateProgress(string status, double percent)
@@ -160,11 +179,11 @@ namespace OverlayInstaller
                 {
                     if (key == null) return;
 
-                    key.SetValue("DisplayName", "Overlay HUD");
+                    key.SetValue("DisplayName", "Shadow AI");
                     key.SetValue("DisplayIcon", targetExePath);
-                    key.SetValue("Publisher", "Overlay HUD Project");
-                    key.SetValue("DisplayVersion", "1.0.0");
-                    key.SetValue("EstimatedSize", 250); // Approximated size in KB
+                    key.SetValue("Publisher", "Shadow AI");
+                    key.SetValue("DisplayVersion", "1.0.1");
+                    key.SetValue("EstimatedSize", 26000); // ~25.5MB in KB
 
                     // The uninstall string executes command to remove folder, shortcuts, and delete this registry key
                     string cleanFolderCmd = $"cmd.exe /c \"rmdir /s /q \\\"{installFolder}\\\" & del \\\"{desktopShortcut}\\\" & del \\\"{startMenuShortcut}\\\" & reg delete \\\"HKCU\\{regPath}\\\" /f\"";
