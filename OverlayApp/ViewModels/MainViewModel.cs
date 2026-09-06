@@ -2872,11 +2872,14 @@ namespace OverlayApp.ViewModels
 
                     var optimizedHistory = PruneChatHistory(_txtChatHistory);
 
-                    string followUpModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
-                    assistantBubble.ModelInfo = followUpModel;
-                    assistantBubble.Content = $"⏳ Generating response with **{followUpModel}**...";
+                    // For coding follow-ups: use Gemini (fast flash) with qwen as Groq fallback
+                    // For normal follow-ups: use openai/gpt-oss-120b via Groq
+                    string displayModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
+                    string groqFallbackModel = IsCodingScanMode ? "qwen/qwen3.6-27b" : "openai/gpt-oss-120b";
+                    assistantBubble.ModelInfo = displayModel;
+                    assistantBubble.Content = $"⏳ Generating response with **{displayModel}**...";
 
-                    string answer = await PerformChatAsync(optimizedHistory, followUpModel);
+                    string answer = await PerformChatAsync(optimizedHistory, groqFallbackModel);
 
                     bool isFollowUpError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answer);
                     assistantBubble.HasError = isFollowUpError;
@@ -2899,8 +2902,8 @@ namespace OverlayApp.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    string followUpModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
-                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Follow-up", followUpModel, 0, "", ex);
+                    string displayModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
+                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Follow-up", displayModel, 0, "", ex);
                     assistantBubble.Content = errorInfo.FriendlyMessage;
                     assistantBubble.HasError = true;
                     assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
