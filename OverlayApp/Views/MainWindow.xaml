@@ -1625,7 +1625,7 @@
 
                                     <!-- Update button -->
                                     <Button Command="{Binding DownloadUpdateCommand}" Cursor="Arrow" Height="26"
-                                            Visibility="{Binding IsUpdating, Converter={StaticResource InverseBoolToVis}}">
+                                            Visibility="{Binding ShowDownloadButton, Converter={StaticResource BoolToVis}}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border CornerRadius="4" Background="#CC00D2FF" BorderThickness="0" Padding="8,0">
@@ -1638,7 +1638,28 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Border.Style>
-                                                    <TextBlock Text="⬇ DOWNLOAD &amp; UPDATE" Foreground="#FF000000" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="⬇ DOWNLOAD UPDATE" Foreground="#FF000000" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+
+                                    <!-- Restart to Apply button (shown after download completes) -->
+                                    <Button Command="{Binding ApplyUpdateCommand}" Cursor="Arrow" Height="26"
+                                            Visibility="{Binding ShowRestartButton, Converter={StaticResource BoolToVis}}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="4" Background="#CC00FFCC" BorderThickness="0" Padding="8,0">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=IsMouseOver}" Value="True">
+                                                                    <Setter Property="Background" Value="#FF00FFCC"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="🔄 RESTART TO APPLY" Foreground="#FF000000" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Button.Template>

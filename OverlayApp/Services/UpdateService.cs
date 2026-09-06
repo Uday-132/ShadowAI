@@ -8,22 +8,28 @@ using System.Diagnostics;
 namespace OverlayApp.Services
 {
     /// <summary>
-    /// Checks for app updates from the remote version endpoint and performs an in-place update
-    /// by downloading the new executable, swapping it via a helper batch script, and restarting.
+    /// Handles silent background updates for Shadow AI.
+    ///
+    /// Flow:
+    ///   1. CheckForUpdateAsync()  — polls /api/version, returns whether a newer version exists.
+    ///   2. DownloadUpdateAsync()  — downloads the new SystemCoreHost.exe to a temp file.
+    ///                               App keeps running normally. Returns path to staged file.
+    ///   3. ApplyUpdateAndRestart() — only called when user explicitly clicks "Restart to Apply".
+    ///                               Writes a batch that swaps the exe after this process exits,
+    ///                               then cleanly shuts down. If anything failed before this point
+    ///                               the current exe is never touched.
     /// </summary>
     public class UpdateService
     {
-        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
         public record UpdateInfo(bool UpdateAvailable, string LatestVersion, string DownloadUrl, string ReleaseNotes);
 
         /// <summary>Current hardcoded app version — bump this on every release.</summary>
-        public const string CurrentVersion = "2.1.0";
+        public const string CurrentVersion = "3.0.0";
 
-        /// <summary>
-        /// Checks the remote version endpoint and returns update info.
-        /// Returns null on network failure (silent fail).
-        /// </summary>
+        // ── Version Check ────────────────────────────────────────────────────────
+
         public static async Task<UpdateInfo?> CheckForUpdateAsync(string apiBaseUrl)
         {
             try
@@ -33,38 +39,42 @@ namespace OverlayApp.Services
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
 
-                string latest = root.GetProperty("version").GetString() ?? "";
+                string latest   = root.GetProperty("version").GetString() ?? "";
                 string download = root.GetProperty("downloadUrl").GetString() ?? "";
-                string notes = root.TryGetProperty("releaseNotes", out var rn) ? rn.GetString() ?? "" : "";
+                string notes    = root.TryGetProperty("releaseNotes", out var rn) ? rn.GetString() ?? "" : "";
 
                 bool newer = IsNewerVersion(latest, CurrentVersion);
                 return new UpdateInfo(newer, latest, download, notes);
             }
             catch
             {
-                return null; // silent fail — no network, endpoint down, etc.
+                return null;
             }
         }
 
-        /// <summary>
-        /// Downloads the new exe and performs an in-place swap via a batch script, then restarts.
-        /// Reports progress via the callback (0.0 – 1.0).
-        /// </summary>
-        public static async Task DownloadAndInstallAsync(string downloadUrl, Action<double> onProgress)
-        {
-            string exePath = Process.GetCurrentProcess().MainModule?.FileName
-                             ?? Path.Combine(AppContext.BaseDirectory, "SystemCoreHost.exe");
-            string dir = Path.GetDirectoryName(exePath)!;
-            string newExePath = Path.Combine(dir, "SystemCoreHost_update.exe");
-            string batchPath = Path.Combine(dir, "_shadow_update.bat");
+        // ── Background Download ──────────────────────────────────────────────────
 
-            // Download with progress
+        /// <summary>
+        /// Downloads the new exe to a temp staging path WITHOUT touching the running exe.
+        /// App stays fully running. Reports 0.0–1.0 progress via callback.
+        /// Returns the path of the staged file on success, or throws on failure.
+        /// </summary>
+        public static async Task<string> DownloadUpdateAsync(string downloadUrl, Action<double> onProgress)
+        {
+            string exePath  = Process.GetCurrentProcess().MainModule?.FileName
+                              ?? Path.Combine(AppContext.BaseDirectory, "SystemCoreHost.exe");
+            string dir      = Path.GetDirectoryName(exePath)!;
+            string stagePath = Path.Combine(dir, "SystemCoreHost_pending.exe");
+
+            // Clean up any previous failed download
+            if (File.Exists(stagePath)) File.Delete(stagePath);
+
             using var response = await _http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
             long total = response.Content.Headers.ContentLength ?? -1;
             using var stream = await response.Content.ReadAsStreamAsync();
-            using var file = File.Create(newExePath);
+            using var file   = File.Create(stagePath);
 
             byte[] buffer = new byte[81920];
             long downloaded = 0;
@@ -76,13 +86,35 @@ namespace OverlayApp.Services
                 if (total > 0) onProgress((double)downloaded / total);
             }
             file.Close();
-            onProgress(1.0);
 
-            // Write a self-deleting batch script that:
-            // 1. Waits for this process to exit
-            // 2. Replaces the exe
-            // 3. Starts the new exe
-            // 4. Deletes itself
+            // Validate — staged file must be a reasonable size (at least 100KB)
+            var info = new FileInfo(stagePath);
+            if (info.Length < 100_000)
+            {
+                File.Delete(stagePath);
+                throw new InvalidDataException("Downloaded file is too small — may be corrupt.");
+            }
+
+            onProgress(1.0);
+            return stagePath;
+        }
+
+        // ── Apply & Restart (user-triggered) ─────────────────────────────────────
+
+        /// <summary>
+        /// Writes a self-deleting batch script that swaps the staged exe for the live one
+        /// after this process exits, then restarts the app.
+        /// Only call this when the user explicitly clicks "Restart to Apply".
+        /// The current exe is never touched until the process exits cleanly.
+        /// </summary>
+        public static void ApplyUpdateAndRestart(string stagedExePath)
+        {
+            string exePath  = Process.GetCurrentProcess().MainModule?.FileName
+                              ?? Path.Combine(AppContext.BaseDirectory, "SystemCoreHost.exe");
+            string dir      = Path.GetDirectoryName(exePath)!;
+            string batchPath = Path.Combine(dir, "_shadow_apply_update.bat");
+
+            // Escape paths for batch
             string batch = $@"@echo off
 :waitloop
 tasklist /FI ""IMAGENAME eq SystemCoreHost.exe"" 2>NUL | find /I ""SystemCoreHost.exe"" >NUL
@@ -90,25 +122,29 @@ if not errorlevel 1 (
     timeout /t 1 /nobreak >NUL
     goto waitloop
 )
-move /Y ""{newExePath}"" ""{exePath}""
+if not exist ""{stagedExePath}"" goto cleanup
+move /Y ""{stagedExePath}"" ""{exePath}""
+if errorlevel 1 goto cleanup
 start """" ""{exePath}""
+:cleanup
 del ""%~f0""
 ";
-            await File.WriteAllTextAsync(batchPath, batch);
+            File.WriteAllText(batchPath, batch);
 
-            // Launch batch and exit current process
             Process.Start(new ProcessStartInfo
             {
-                FileName = batchPath,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
+                FileName        = batchPath,
+                CreateNoWindow  = true,
+                WindowStyle     = ProcessWindowStyle.Hidden,
                 UseShellExecute = true
             });
 
-            // Shut down the current instance
+            // Shut down cleanly — batch will restart once this process exits
             System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                 System.Windows.Application.Current.Shutdown());
         }
+
+        // ── Helpers ──────────────────────────────────────────────────────────────
 
         private static bool IsNewerVersion(string remote, string local)
         {

@@ -22,6 +22,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "SystemCoreHost.exe",
+      "use": "@vercel/static"
+    },
+    {
       "src": "*.png",
       "use": "@vercel/static"
     },

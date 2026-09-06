@@ -189,20 +189,34 @@ namespace OverlayInstaller
         {
             try
             {
-                string regPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\SystemCore";
+                string regPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\ShadowAI";
+
+                // Write a dedicated uninstaller batch script into the install folder
+                string uninstallBat = Path.Combine(installFolder, "uninstall.bat");
+                string uninstallScript = $@"@echo off
+taskkill /F /IM SystemCoreHost.exe /T >NUL 2>&1
+timeout /t 2 /nobreak >NUL
+rmdir /s /q ""{installFolder}""
+if exist ""{desktopShortcut}"" del /f /q ""{desktopShortcut}""
+if exist ""{startMenuShortcut}"" del /f /q ""{startMenuShortcut}""
+reg delete ""HKCU\{regPath}"" /f >NUL 2>&1
+";
+                File.WriteAllText(uninstallBat, uninstallScript);
+
                 using (RegistryKey? key = Registry.CurrentUser.CreateSubKey(regPath))
                 {
                     if (key == null) return;
 
-                    key.SetValue("DisplayName", "Shadow AI");
-                    key.SetValue("DisplayIcon", targetExePath);
-                    key.SetValue("Publisher", "Shadow AI");
-                    key.SetValue("DisplayVersion", "2.1.0");
-                    key.SetValue("EstimatedSize", 26000); // ~25.5MB in KB
-
-                    // The uninstall string executes command to remove folder, shortcuts, and delete this registry key
-                    string cleanFolderCmd = $"cmd.exe /c \"rmdir /s /q \\\"{installFolder}\\\" & del \\\"{desktopShortcut}\\\" & del \\\"{startMenuShortcut}\\\" & reg delete \\\"HKCU\\{regPath}\\\" /f\"";
-                    key.SetValue("UninstallString", cleanFolderCmd);
+                    key.SetValue("DisplayName",     "Shadow AI");
+                    key.SetValue("DisplayIcon",     targetExePath + ",0");
+                    key.SetValue("Publisher",       "Shadow AI");
+                    key.SetValue("DisplayVersion",  "3.0.0");
+                    key.SetValue("InstallLocation", installFolder);
+                    key.SetValue("EstimatedSize",   26000);
+                    key.SetValue("NoModify",        1, RegistryValueKind.DWord);
+                    key.SetValue("NoRepair",        1, RegistryValueKind.DWord);
+                    // UninstallString must be a direct executable command
+                    key.SetValue("UninstallString", $"\"{uninstallBat}\"");
                 }
             }
             catch (Exception)

@@ -158,6 +158,7 @@ namespace OverlayApp.ViewModels
         // Update Commands
         public ICommand CheckForUpdateCommand { get; }
         public ICommand DownloadUpdateCommand { get; }
+        public ICommand ApplyUpdateCommand { get; }
 
         // Update State
         private bool _updateAvailable;
@@ -165,6 +166,8 @@ namespace OverlayApp.ViewModels
         private string _updateDownloadUrl = "";
         private string _updateReleaseNotes = "";
         private bool _isUpdating;
+        private bool _updateDownloaded;
+        private string _stagedExePath = "";
         private double _updateProgress;
         private string _updateStatusText = "";
 
@@ -185,6 +188,14 @@ namespace OverlayApp.ViewModels
             get => _isUpdating;
             set { if (_isUpdating != value) { _isUpdating = value; OnPropertyChanged(); } }
         }
+        /// <summary>True once download is complete and ready to apply — shows "Restart to Apply" button.</summary>
+        public bool UpdateDownloaded
+        {
+            get => _updateDownloaded;
+            set { if (_updateDownloaded != value) { _updateDownloaded = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowDownloadButton)); OnPropertyChanged(nameof(ShowRestartButton)); } }
+        }
+        public bool ShowDownloadButton => UpdateAvailable && !IsUpdating && !UpdateDownloaded;
+        public bool ShowRestartButton  => UpdateDownloaded && !IsUpdating;
         public double UpdateProgress
         {
             get => _updateProgress;
@@ -423,6 +434,8 @@ namespace OverlayApp.ViewModels
             CheckForUpdateCommand = new RelayCommand(async _ => await CheckForUpdateAsync());
             DownloadUpdateCommand = new RelayCommand(async _ => await ExecuteDownloadUpdateAsync(),
                 _ => UpdateAvailable && !IsUpdating);
+            ApplyUpdateCommand = new RelayCommand(_ => Services.UpdateService.ApplyUpdateAndRestart(_stagedExePath),
+                _ => UpdateDownloaded && !IsUpdating);
 
             // Run initial check if we have a saved token
             if (IsLoggedIn)
@@ -3524,20 +3537,29 @@ namespace OverlayApp.ViewModels
         {
             if (string.IsNullOrWhiteSpace(_updateDownloadUrl)) return;
             IsUpdating = true;
-            UpdateStatusText = "Downloading update...";
+            UpdateDownloaded = false;
+            UpdateStatusText = "Downloading update in background...";
             try
             {
-                await Services.UpdateService.DownloadAndInstallAsync(_updateDownloadUrl, progress =>
+                string staged = await Services.UpdateService.DownloadUpdateAsync(_updateDownloadUrl, progress =>
                 {
                     UpdateProgress = progress;
-                    UpdateStatusText = progress >= 1.0
-                        ? "Installing — app will restart..."
-                        : $"Downloading... {(int)(progress * 100)}%";
+                    UpdateStatusText = $"Downloading... {(int)(progress * 100)}%";
                 });
+
+                // Download complete — app is still fully running
+                _stagedExePath = staged;
+                UpdateDownloaded = true;
+                UpdateStatusText = "✅ Update ready — click Restart to Apply when convenient.";
             }
             catch (Exception ex)
             {
-                UpdateStatusText = $"Update failed: {ex.Message}";
+                UpdateStatusText = $"⚠️ Download failed: {ex.Message}";
+                UpdateDownloaded = false;
+                _stagedExePath = "";
+            }
+            finally
+            {
                 IsUpdating = false;
             }
         }
