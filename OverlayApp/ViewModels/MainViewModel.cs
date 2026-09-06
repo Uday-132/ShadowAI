@@ -1744,28 +1744,51 @@ namespace OverlayApp.ViewModels
                 }
                 else if (IsCodingScanMode)
                 {
-                    // Set A (primary): gemma-4-31b-it generator + gemini-3.5-flash-lite verifier (both Gemini)
-                    // Set B (fallback): gemini-3.7-flash generator + groq/compound verifier — used if Set A has any error
+                    // Generator: gemma-4-31b-it (25s timeout) → fallback to gemini-3.5-flash-lite if slow
+                    // Verifier: gemini-3.5-flash-lite always
+                    // Set B (error fallback): gemini-3.7-flash generator + groq/compound verifier
                     string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
                     string primaryModelA = "gemma-4-31b-it";
+                    string timeoutFallbackModel = "gemini-3.5-flash-lite";
                     string verifierModelA = "gemini-3.5-flash-lite";
                     string primaryModelB = "gemini-3.7-flash";
                     string verifierModelB = "groq/compound";
                     bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
-                    assistantBubble.ModelInfo = $"Set A: {primaryModelA} → {verifierModelA}";
+                    assistantBubble.ModelInfo = $"{primaryModelA} → {verifierModelA}";
 
-                    assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModelA}** (Set A)...";
+                    assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModelA}**...";
 
-                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelA, effectiveGroqKey, "qwen/qwen3.6-27b");
+                    // Run Gemma with a 25s timeout — if it doesn't respond, switch to gemini-3.5-flash-lite
+                    var gemmaTask = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelA, effectiveGroqKey, "qwen/qwen3.6-27b");
+                    var timeoutTask = Task.Delay(25000);
+                    var firstDone = await Task.WhenAny(gemmaTask, timeoutTask);
+
+                    string initialCode;
+                    string generatorUsed;
+                    string verifierUsed = verifierModelA;
+
+                    if (firstDone == timeoutTask)
+                    {
+                        // Gemma timed out — switch immediately to gemini-3.5-flash-lite for the answer
+                        generatorUsed = timeoutFallbackModel;
+                        assistantBubble.Content = $"⏳ Gemma timed out — switching to **{timeoutFallbackModel}**...";
+                        assistantBubble.ModelInfo = $"{timeoutFallbackModel} (timeout fallback) → {verifierModelA}";
+                        initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, timeoutFallbackModel, effectiveGroqKey, "qwen/qwen3.6-27b");
+                    }
+                    else
+                    {
+                        // Gemma responded in time — use its output
+                        initialCode = await gemmaTask;
+                        generatorUsed = primaryModelA;
+                    }
+
                     bool isErrorGen = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode);
 
-                    // If Set A generator fails, fall back to Set B generator
-                    string generatorUsed = primaryModelA;
-                    string verifierUsed = verifierModelA;
+                    // If generator still errors, fall back to Set B
                     if (isErrorGen)
                     {
                         assistantBubble.ModelInfo = $"Set B (fallback): {primaryModelB} → {verifierModelB}";
-                        assistantBubble.Content = $"⚠️ Set A generator error — retrying with **{primaryModelB}** (Set B)...";
+                        assistantBubble.Content = $"⚠️ Generator error — retrying with **{primaryModelB}** (Set B)...";
                         initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelB, effectiveGroqKey, "qwen/qwen3.6-27b");
                         generatorUsed = primaryModelB;
                         verifierUsed = verifierModelB;
@@ -1774,7 +1797,7 @@ namespace OverlayApp.ViewModels
                         {
                             assistantBubble.HasError = true;
                             assistantBubble.ShowCheckApiKeyAction = true;
-                            assistantBubble.ErrorSummary = "Both Set A and Set B generators encountered errors.";
+                            assistantBubble.ErrorSummary = "Both generators encountered errors.";
                             string errContent = metadataHeader + initialCode.Trim();
                             assistantBubble.Content = errContent;
                             assistantBubble.IsLoading = false;

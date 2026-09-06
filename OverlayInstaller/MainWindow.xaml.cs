@@ -197,7 +197,7 @@ namespace OverlayInstaller
                     key.SetValue("DisplayName", "Shadow AI");
                     key.SetValue("DisplayIcon", targetExePath);
                     key.SetValue("Publisher", "Shadow AI");
-                    key.SetValue("DisplayVersion", "2.0.0");
+                    key.SetValue("DisplayVersion", "2.1.0");
                     key.SetValue("EstimatedSize", 26000); // ~25.5MB in KB
 
                     // The uninstall string executes command to remove folder, shortcuts, and delete this registry key

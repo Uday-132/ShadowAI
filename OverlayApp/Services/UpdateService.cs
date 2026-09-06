@@ -18,7 +18,7 @@ namespace OverlayApp.Services
         public record UpdateInfo(bool UpdateAvailable, string LatestVersion, string DownloadUrl, string ReleaseNotes);
 
         /// <summary>Current hardcoded app version — bump this on every release.</summary>
-        public const string CurrentVersion = "2.0.0";
+        public const string CurrentVersion = "2.1.0";
 
         /// <summary>
         /// Checks the remote version endpoint and returns update info.
