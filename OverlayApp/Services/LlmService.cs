@@ -418,7 +418,7 @@ namespace OverlayApp.Services
         /// <summary>
         /// Sends the entire conversational message history to Groq for stateful chat completions.
         /// </summary>
-        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "qwen/qwen3.6-27b")
+        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "qwen/qwen3.6-27b", int maxOutputTokens = 0)
         {
             if (string.IsNullOrWhiteSpace(groqKey))
             {
@@ -436,9 +436,13 @@ namespace OverlayApp.Services
             }
             int approxInputTokens = totalChars / 4;
 
-            // Dynamically optimize max_tokens so (input_tokens + max_tokens) stays well below TPM limits
+            // If maxOutputTokens override is specified, use it directly; otherwise calculate dynamically
             int maxTokens;
-            if (modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+            if (maxOutputTokens > 0)
+            {
+                maxTokens = maxOutputTokens;
+            }
+            else if (modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
             {
                 maxTokens = Math.Clamp(3800 - approxInputTokens, 1000, 2500);
             }
@@ -596,7 +600,7 @@ namespace OverlayApp.Services
             if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
                 string base64Image = Convert.ToBase64String(imageBytes);
-                string[] geminiModels = new[] { "gemini-2.0-flash", "gemini-1.5-flash" };
+                string[] geminiModels = new[] { "gemini-3.6-flash", "gemini-1.5-flash" };
 
                 foreach (var model in geminiModels)
                 {
@@ -686,7 +690,7 @@ namespace OverlayApp.Services
         /// <summary>
         /// Stage 2 (Gemini): Sends chat history to Google Gemini API with fallback to Groq if configured.
         /// </summary>
-        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-2.0-flash", string systemGroqKey = "", string fallbackGroqModel = "qwen/qwen3.6-27b")
+        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-3.5-flash-lite", string systemGroqKey = "", string fallbackGroqModel = "qwen/qwen3.6-27b", int maxOutputTokens = 0)
         {
             string lastGeminiError = "";
 
@@ -722,18 +726,24 @@ namespace OverlayApp.Services
                     object payload;
                     if (!string.IsNullOrWhiteSpace(systemPrompt))
                     {
-                        payload = new
-                        {
-                            system_instruction = new
+                        payload = maxOutputTokens > 0
+                            ? (object)new
                             {
-                                parts = new[] { new { text = systemPrompt.Trim() } }
-                            },
-                            contents = contentsList
-                        };
+                                system_instruction = new { parts = new[] { new { text = systemPrompt.Trim() } } },
+                                contents = contentsList,
+                                generationConfig = new { maxOutputTokens }
+                            }
+                            : new
+                            {
+                                system_instruction = new { parts = new[] { new { text = systemPrompt.Trim() } } },
+                                contents = contentsList
+                            };
                     }
                     else
                     {
-                        payload = new { contents = contentsList };
+                        payload = maxOutputTokens > 0
+                            ? (object)new { contents = contentsList, generationConfig = new { maxOutputTokens } }
+                            : new { contents = contentsList };
                     }
 
                     string jsonPayload = JsonSerializer.Serialize(payload);

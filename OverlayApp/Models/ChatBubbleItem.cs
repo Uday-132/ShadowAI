@@ -17,6 +17,7 @@ namespace OverlayApp.Models
         private int _turnNumber;
         private bool _isLoading;
         private string _modelInfo = "";
+        private int _elapsedSeconds;
 
         /// <summary>
         /// "user" or "assistant"
@@ -72,6 +73,18 @@ namespace OverlayApp.Models
             get => _modelInfo;
             set { if (_modelInfo != value) { _modelInfo = value; OnPropertyChanged(); } }
         }
+
+        /// <summary>
+        /// Elapsed seconds since the request started — shown as a live red timer during loading.
+        /// </summary>
+        public int ElapsedSeconds
+        {
+            get => _elapsedSeconds;
+            set { if (_elapsedSeconds != value) { _elapsedSeconds = value; OnPropertyChanged(); OnPropertyChanged(nameof(ElapsedLabel)); } }
+        }
+
+        /// <summary>Formatted elapsed time label shown in the bubble, e.g. "12s".</summary>
+        public string ElapsedLabel => $"{_elapsedSeconds}s";
 
         private bool _hasError;
         public bool HasError

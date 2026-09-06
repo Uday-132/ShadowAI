@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OverlayApp.Views"
         xmlns:models="clr-namespace:OverlayApp.Models"
+        xmlns:helpers="clr-namespace:OverlayApp.Helpers"
         mc:Ignorable="d"
         Title="Shadow AI" 
         Icon="/shadow_ai.ico"
@@ -38,6 +39,8 @@
     <Window.Resources>
         <!-- Standard WPF Boolean to Visibility Converter -->
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+        <helpers:StringToVisibilityConverter x:Key="StringToVisConverter"/>
 
         <!-- Sleek ScrollBar Template -->
         <Style TargetType="ScrollBar">
@@ -963,10 +966,20 @@
                                                                      </TextBlock>
                                                                  </Border>
                                                                  <!-- Loading indicator -->
-                                                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                                                                     <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
-                                                                     <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
-                                                                 </StackPanel>
+                                                                 <Grid Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                                                     <Grid.ColumnDefinitions>
+                                                                         <ColumnDefinition Width="*"/>
+                                                                         <ColumnDefinition Width="Auto"/>
+                                                                     </Grid.ColumnDefinitions>
+                                                                     <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                                                                         <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
+                                                                         <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                     </StackPanel>
+                                                                     <!-- Red live timer on the right -->
+                                                                     <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="5,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                         <TextBlock Text="{Binding ElapsedLabel}" Foreground="#FFFF4444" FontSize="10" FontWeight="Bold" FontFamily="Consolas"/>
+                                                                     </Border>
+                                                                 </Grid>
                                                                  <!-- Response content (hidden during loading) -->
                                                                  <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#E0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
                                                                      <TextBlock.Style>
@@ -1337,10 +1350,20 @@
                                                                     </TextBlock>
                                                                 </Border>
                                                                 <!-- Loading indicator -->
-                                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                                                                    <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
-                                                                    <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
-                                                                </StackPanel>
+                                                                <Grid Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
+                                                                        <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                    </StackPanel>
+                                                                    <!-- Red live timer on the right -->
+                                                                    <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="5,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding ElapsedLabel}" Foreground="#FFFF4444" FontSize="10" FontWeight="Bold" FontFamily="Consolas"/>
+                                                                    </Border>
+                                                                </Grid>
                                                                 <!-- Response content (hidden during loading) -->
                                                                 <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#E0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
                                                                     <TextBlock.Style>
@@ -1529,6 +1552,123 @@
                             
                             <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,10"/>
                             <TextBlock Text="To edit your key, please use the settings drawer or log out and log back in." Foreground="#66FFFFFF" FontSize="8.5" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+
+                            <!-- Version & Update Section -->
+                            <Border Height="1" Background="#20FFFFFF" Margin="0,10,0,10"/>
+
+                            <!-- Current version row -->
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Version:" Foreground="#88FFFFFF" FontSize="10.5" Width="70" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding CurrentAppVersion, StringFormat=v{0}}" Foreground="#AAFFFFFF" FontSize="10.5" FontFamily="Consolas" VerticalAlignment="Center"/>
+                                <!-- Check for update link -->
+                                <Button Grid.Column="2" Command="{Binding CheckForUpdateCommand}"
+                                        Background="Transparent" BorderThickness="0" Cursor="Arrow" VerticalAlignment="Center">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <TextBlock Text="🔄 Check" Foreground="#6690CAF9" FontSize="9" TextDecorations="Underline">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=IsMouseOver}" Value="True">
+                                                                <Setter Property="Foreground" Value="#CC90CAF9"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+
+                            <!-- Update available banner -->
+                            <Border Background="#2200D2FF" BorderBrush="#4400D2FF" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,2,0,6">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding UpdateAvailable}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <TextBlock Foreground="#00D2FF" FontSize="10" FontWeight="Bold" TextWrapping="Wrap">
+                                        <Run Text="🆕 Update available: v"/>
+                                        <Run Text="{Binding LatestVersion}"/>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding UpdateReleaseNotes}" Foreground="#88FFFFFF" FontSize="9" TextWrapping="Wrap" Margin="0,3,0,6"
+                                               Visibility="{Binding UpdateReleaseNotes, Converter={StaticResource StringToVisConverter}}"/>
+
+                                    <!-- Progress bar (shown during download) -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.Style>
+                                            <Style TargetType="Grid">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsUpdating}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Grid.Style>
+                                        <ProgressBar Value="{Binding UpdateProgress, Mode=OneWay}" Maximum="1" Height="5" Background="#22FFFFFF" Foreground="#00D2FF" BorderThickness="0"/>
+                                    </Grid>
+                                    <TextBlock Text="{Binding UpdateStatusText}" Foreground="#88FFFFFF" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,6"
+                                               Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}"/>
+
+                                    <!-- Update button -->
+                                    <Button Command="{Binding DownloadUpdateCommand}" Cursor="Arrow" Height="26"
+                                            Visibility="{Binding IsUpdating, Converter={StaticResource InverseBoolToVis}}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="4" Background="#CC00D2FF" BorderThickness="0" Padding="8,0">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=IsMouseOver}" Value="True">
+                                                                    <Setter Property="Background" Value="#FF00D2FF"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="⬇ DOWNLOAD &amp; UPDATE" Foreground="#FF000000" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Up to date message -->
+                            <TextBlock Foreground="#6600FFCC" FontSize="9" HorizontalAlignment="Center" Text="✅ App is up to date">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding UpdateAvailable}" Value="False"/>
+                                                    <Condition Binding="{Binding LatestVersion}" Value=""/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </MultiDataTrigger>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding UpdateAvailable}" Value="False"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </Border>
                 </Grid>

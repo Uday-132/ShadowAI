@@ -155,6 +155,53 @@ namespace OverlayApp.ViewModels
         public ICommand StartPaidSessionCommand { get; }
         public ICommand RefreshSessionStatusCommand { get; }
 
+        // Update Commands
+        public ICommand CheckForUpdateCommand { get; }
+        public ICommand DownloadUpdateCommand { get; }
+
+        // Update State
+        private bool _updateAvailable;
+        private string _latestVersion = "";
+        private string _updateDownloadUrl = "";
+        private string _updateReleaseNotes = "";
+        private bool _isUpdating;
+        private double _updateProgress;
+        private string _updateStatusText = "";
+
+        public string CurrentAppVersion => Services.UpdateService.CurrentVersion;
+
+        public bool UpdateAvailable
+        {
+            get => _updateAvailable;
+            set { if (_updateAvailable != value) { _updateAvailable = value; OnPropertyChanged(); } }
+        }
+        public string LatestVersion
+        {
+            get => _latestVersion;
+            set { if (_latestVersion != value) { _latestVersion = value; OnPropertyChanged(); } }
+        }
+        public bool IsUpdating
+        {
+            get => _isUpdating;
+            set { if (_isUpdating != value) { _isUpdating = value; OnPropertyChanged(); } }
+        }
+        public double UpdateProgress
+        {
+            get => _updateProgress;
+            set { if (_updateProgress != value) { _updateProgress = value; OnPropertyChanged(); OnPropertyChanged(nameof(UpdateProgressPercent)); } }
+        }
+        public string UpdateProgressPercent => $"{(int)(_updateProgress * 100)}%";
+        public string UpdateStatusText
+        {
+            get => _updateStatusText;
+            set { if (_updateStatusText != value) { _updateStatusText = value; OnPropertyChanged(); } }
+        }
+        public string UpdateReleaseNotes
+        {
+            get => _updateReleaseNotes;
+            set { if (_updateReleaseNotes != value) { _updateReleaseNotes = value; OnPropertyChanged(); } }
+        }
+
         // Groq Key Validation & Free Trial Commands
         public ICommand ValidateGroqKeyCommand { get; }
         public ICommand OpenApiKeySettingsCommand { get; }
@@ -373,16 +420,24 @@ namespace OverlayApp.ViewModels
             StartPaidSessionCommand = new RelayCommand(async _ => await ExecuteStartPaidSessionAsync());
             RefreshSessionStatusCommand = new RelayCommand(async _ => await CheckSessionStatusAsync(true));
 
+            CheckForUpdateCommand = new RelayCommand(async _ => await CheckForUpdateAsync());
+            DownloadUpdateCommand = new RelayCommand(async _ => await ExecuteDownloadUpdateAsync(),
+                _ => UpdateAvailable && !IsUpdating);
+
             // Run initial check if we have a saved token
             if (IsLoggedIn)
             {
                 Dispatcher.CurrentDispatcher.BeginInvoke(new Action(async () => {
                     await CheckSessionStatusAsync(false);
+                    await CheckForUpdateAsync();
                 }));
             }
             else
             {
                 UpdateOverlayVisibilities();
+                Dispatcher.CurrentDispatcher.BeginInvoke(new Action(async () => {
+                    await CheckForUpdateAsync();
+                }));
             }
 
             // Auto-save settings on change
@@ -1377,7 +1432,29 @@ namespace OverlayApp.ViewModels
             };
             ChatBubbles.Add(assistantBubble);
 
-            string singleModel = IsGeminiApiActive ? "gemini-2.0-flash" : "openai/gpt-oss-120b";
+            string singleModel = IsGeminiApiActive ? "gemini-3.5-flash-lite + gemma-4-31b-it" : "groq/compound";
+
+            // Live elapsed-time ticker — updates the bubble every second while waiting for LLM
+            var scanStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var timerCts = new System.Threading.CancellationTokenSource();
+            _ = Task.Run(async () =>
+            {
+                while (!timerCts.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(1000, timerCts.Token).ContinueWith(_ => { });
+                    if (timerCts.Token.IsCancellationRequested) break;
+                    int elapsed = (int)scanStopwatch.Elapsed.TotalSeconds;
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    if (dispatcher != null && !timerCts.Token.IsCancellationRequested)
+                    {
+                        dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (assistantBubble.IsLoading)
+                                assistantBubble.ElapsedSeconds = elapsed;
+                        }));
+                    }
+                }
+            }, timerCts.Token);
 
             try
             {
@@ -1420,7 +1497,7 @@ namespace OverlayApp.ViewModels
                     return;
                 }
 
-                string providerInfo = IsGeminiApiActive ? "Google Gemini API (gemini-2.0-flash)" : "Groq API";
+                string providerInfo = IsGeminiApiActive ? "Google Gemini API (gemini-3.5-flash-lite + gemma-4-31b-it → gemini-3.7-flash + groq/compound)" : "Groq API (groq/compound)";
                 string metadataHeader = $"**🔍 Scan Info** — {CapturedScreenshots.Count} screenshots, {totalChars} chars extracted ({providerInfo})\n\n";
 
                 string combinedExtractedText = combinedTextBuilder.ToString().Trim();
@@ -1431,13 +1508,10 @@ namespace OverlayApp.ViewModels
                 {
                     if (IsMcqScanMode)
                     {
-                        _txtChatHistory.Add(new ChatMessage {
-                            Role = "system",
-                            Content = "You are a strict multiple-choice question solver. Your task is to analyze the multiple-choice questions (MCQs) captured across all screenshots, and output ONLY the correct option letter (e.g., A, B, C, or D) or exact correct answer choice. Do not provide any explanation, working out, preamble, or conversational text. Return only the single character or short answer choice."
-                        });
+                        // Single combined user message — no system role, works universally across all models
                         _txtChatHistory.Add(new ChatMessage {
                             Role = "user",
-                            Content = $"Here is the raw text extracted from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                            Content = $"Task: Look at the multiple choice question below. Output only the letter of the correct answer. Do not write anything else. Not even a period.\n\n{combinedExtractedText}\n\nAnswer (single letter only):"
                         });
                     }
                     else if (IsCodingScanMode)
@@ -1481,83 +1555,184 @@ namespace OverlayApp.ViewModels
                 // --- LLM Response Phase ---
                 if (IsMcqScanMode)
                 {
-                    string modelA = "gemini-2.0-flash";
-                    string modelB = "openai/gpt-oss-120b";
-                    assistantBubble.ModelInfo = $"{modelA} + {modelB}";
-                    assistantBubble.Content = $"⏳ Verifying MCQ answer with dual models...";
+                    // Set A (primary): gemini-3.5-flash-lite + gemma-4-31b-it (both Gemini)
+                    // Qwen tiebreaker: used ONLY if (a) a model exceeds 40s, or (b) Set A answers mismatch
+                    // Set B (fallback): gemini-3.7-flash + groq/compound — used only if BOTH Set A models fail
+                    string modelA = "gemini-3.5-flash-lite";
+                    string modelB = "gemma-4-31b-it";
+                    string modelC = "gemini-3.7-flash";
+                    string modelD = "groq/compound";
+                    string modelQwen = "openai/gpt-oss-120b";
+                    assistantBubble.ModelInfo = $"Set A: {modelA} + {modelB}";
+                    assistantBubble.Content = $"⏳ Verifying MCQ answer with Set A ({modelA} + {modelB})...";
 
-                    // In dual-model mode, Model A queries Gemini exclusively (no fallback to Groq)
+                    // Run Set A in parallel with a 40s timeout per model
+                    var cts = new System.Threading.CancellationTokenSource();
+                    var timeout = Task.Delay(40000, cts.Token);
+
                     var taskA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA, "", "");
-                    var taskB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB);
+                    var taskB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelB, "", "");
 
-                    await Task.WhenAll(taskA, taskB);
-                    string answerA = await taskA;
-                    string answerB = await taskB;
+                    // Wait for both, but track if either exceeds 40s
+                    var taskAWithTimeout = Task.WhenAny(taskA, Task.Delay(40000));
+                    var taskBWithTimeout = Task.WhenAny(taskB, Task.Delay(40000));
 
-                    bool isErrorA = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA);
-                    bool isErrorB = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB);
+                    await Task.WhenAll(taskAWithTimeout, taskBWithTimeout);
+
+                    string answerA = taskA.IsCompleted ? await taskA : "";
+                    string answerB = taskB.IsCompleted ? await taskB : "";
+
+                    bool timedOutA = !taskA.IsCompleted;
+                    bool timedOutB = !taskB.IsCompleted;
+
+                    // If timed out, replace with Groq qwen
+                    if (timedOutA || timedOutB)
+                    {
+                        assistantBubble.Content = $"⏳ {(timedOutA ? modelA : modelB)} timed out — fetching from Groq qwen...";
+                        string qwenAnswer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelQwen);
+                        if (timedOutA) answerA = qwenAnswer;
+                        if (timedOutB) answerB = qwenAnswer;
+                        assistantBubble.ModelInfo = $"Set A: {(timedOutA ? modelQwen : modelA)} + {(timedOutB ? modelQwen : modelB)} (qwen substituted)";
+                    }
+
+                    bool isErrorA = answerA == null || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA);
+                    bool isErrorB = answerB == null || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB);
+
+                    string answerC = "", answerD = "";
+                    bool isErrorC = false, isErrorD = false;
+                    bool usedFallback = false;
+
+                    // If BOTH Set A models fail, fall back to Set B
+                    if (isErrorA && isErrorB)
+                    {
+                        usedFallback = true;
+                        assistantBubble.ModelInfo = $"Set B (fallback): {modelC} + {modelD}";
+                        assistantBubble.Content = $"⚠️ Set A had errors — retrying with Set B ({modelC} + {modelD})...";
+
+                        var taskC = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelC, "", "");
+                        var taskD = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelD);
+                        await Task.WhenAll(taskC, taskD);
+                        answerC = await taskC;
+                        answerD = await taskD;
+                        isErrorC = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerC);
+                        isErrorD = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerD);
+                    }
+
+                    // If Set A both succeeded but answers mismatch — call Groq qwen as tiebreaker
+                    string answerQwen = "";
+                    bool usedQwenTiebreaker = false;
+                    if (!usedFallback && !isErrorA && !isErrorB)
+                    {
+                        string cleanA = CleanMcqResponse(answerA);
+                        string cleanB = CleanMcqResponse(answerB);
+                        bool mismatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) &&
+                                        !cleanA.Equals(cleanB, StringComparison.OrdinalIgnoreCase);
+                        if (mismatch)
+                        {
+                            usedQwenTiebreaker = true;
+                            assistantBubble.Content = $"⚠️ Mismatch detected — calling Groq qwen tiebreaker...";
+                            answerQwen = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelQwen);
+                        }
+                    }
 
                     var sbVerify = new System.Text.StringBuilder();
                     sbVerify.AppendLine(metadataHeader);
-                    sbVerify.AppendLine("### 🤖 MCQ Dual-Model Verification");
-                    sbVerify.AppendLine();
-                    sbVerify.AppendLine($"* **Model A ({modelA} - Gemini):** {answerA.Trim()}");
-                    sbVerify.AppendLine($"* **Model B ({modelB} - Groq):** {answerB.Trim()}");
-                    sbVerify.AppendLine();
-                    sbVerify.AppendLine("---");
+                    sbVerify.AppendLine(usedFallback
+                        ? "### 🤖 MCQ Verification — Set B (Fallback)"
+                        : usedQwenTiebreaker
+                            ? "### 🤖 MCQ Verification — Set A + Qwen Tiebreaker"
+                            : "### 🤖 MCQ Verification — Set A");
                     sbVerify.AppendLine();
 
-                    if (isErrorA && isErrorB)
+                    if (!usedFallback)
                     {
-                        assistantBubble.HasError = true;
-                        assistantBubble.ShowCheckApiKeyAction = true;
-                        assistantBubble.ErrorSummary = "Both models encountered errors.";
-                        sbVerify.AppendLine("⚠️ **Verification Failed:** Both AI models encountered errors. Please check your API keys or exam environment settings.");
-                    }
-                    else if (isErrorA && !isErrorB)
-                    {
-                        assistantBubble.HasError = true;
-                        assistantBubble.ShowCheckApiKeyAction = true;
-                        assistantBubble.ErrorSummary = "Model A (Gemini) failed. Verified with Model B.";
-                        string cleanB = CleanMcqResponse(answerB);
-                        if (!string.IsNullOrEmpty(cleanB))
+                        string cleanedA = CleanMcqResponse(answerA ?? "");
+                        string cleanedB = CleanMcqResponse(answerB ?? "");
+                        string displayA = isErrorA ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedA) ? cleanedA.ToUpperInvariant() : (answerA ?? "").Trim());
+                        string displayB = isErrorB ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedB) ? cleanedB.ToUpperInvariant() : (answerB ?? "").Trim());
+                        string labelA = timedOutA ? $"{modelQwen} (qwen sub)" : $"{modelA} (Gemini)";
+                        string labelB = timedOutB ? $"{modelQwen} (qwen sub)" : $"{modelB} (Gemini)";
+                        sbVerify.AppendLine($"* **{labelA}:** {displayA}");
+                        sbVerify.AppendLine($"* **{labelB}:** {displayB}");
+                        if (usedQwenTiebreaker)
                         {
-                            sbVerify.AppendLine($"⭐ **Verified Option (Model B):** Option **{cleanB.ToUpperInvariant()}**");
-                            sbVerify.AppendLine("*(Model A encountered an API error; answer verified using Model B alone)*");
-                        }
-                        else
-                        {
-                            sbVerify.AppendLine($"⭐ **Answer from Model B:**\n{answerB.Trim()}");
-                        }
-                    }
-                    else if (!isErrorA && isErrorB)
-                    {
-                        assistantBubble.HasError = true;
-                        assistantBubble.ShowCheckApiKeyAction = true;
-                        assistantBubble.ErrorSummary = "Model B (Groq) failed. Verified with Model A.";
-                        string cleanA = CleanMcqResponse(answerA);
-                        if (!string.IsNullOrEmpty(cleanA))
-                        {
-                            sbVerify.AppendLine($"⭐ **Verified Option (Model A):** Option **{cleanA.ToUpperInvariant()}**");
-                            sbVerify.AppendLine("*(Model B encountered an API error; answer verified using Model A alone)*");
-                        }
-                        else
-                        {
-                            sbVerify.AppendLine($"⭐ **Answer from Model A:**\n{answerA.Trim()}");
+                            string cleanedQ = CleanMcqResponse(answerQwen);
+                            bool isErrorQ = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerQwen);
+                            string displayQ = isErrorQ ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedQ) ? cleanedQ.ToUpperInvariant() : answerQwen.Trim());
+                            sbVerify.AppendLine($"* **{modelQwen} (Groq tiebreaker):** {displayQ}");
                         }
                     }
                     else
                     {
-                        string cleanA = CleanMcqResponse(answerA);
-                        string cleanB = CleanMcqResponse(answerB);
-                        bool isMatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) && cleanA == cleanB;
+                        sbVerify.AppendLine($"* **{modelA} (Gemini):** ⚠️ Error — fell back to Set B");
+                        sbVerify.AppendLine($"* **{modelB} (Gemini):** {(isErrorB ? "⚠️ Error — fell back to Set B" : "✅ OK")}");
+                        string cleanedC = CleanMcqResponse(answerC);
+                        string cleanedD = CleanMcqResponse(answerD);
+                        string displayC = isErrorC ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedC) ? cleanedC.ToUpperInvariant() : answerC.Trim());
+                        string displayD = isErrorD ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedD) ? cleanedD.ToUpperInvariant() : answerD.Trim());
+                        sbVerify.AppendLine($"* **{modelC} (Gemini fallback):** {displayC}");
+                        sbVerify.AppendLine($"* **{modelD} (Groq fallback):** {displayD}");
+                    }
+                    sbVerify.AppendLine();
+                    sbVerify.AppendLine("---");
+                    sbVerify.AppendLine();
 
-                        assistantBubble.HasError = false;
-                        assistantBubble.ShowCheckApiKeyAction = false;
-                        if (isMatch)
-                            sbVerify.AppendLine($"✅ **Match!** Both models agree on the option: **{cleanA.ToUpperInvariant()}**");
+                    // Collect valid answers for consensus
+                    var validAnswers = new System.Collections.Generic.List<(string label, string raw, string clean)>();
+                    if (!usedFallback)
+                    {
+                        if (!isErrorA) { string c = CleanMcqResponse(answerA ?? ""); if (!string.IsNullOrEmpty(c)) validAnswers.Add((timedOutA ? modelQwen : modelA, answerA, c)); }
+                        if (!isErrorB) { string c = CleanMcqResponse(answerB ?? ""); if (!string.IsNullOrEmpty(c)) validAnswers.Add((timedOutB ? modelQwen : modelB, answerB, c)); }
+                        if (usedQwenTiebreaker && !OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerQwen))
+                        {
+                            string c = CleanMcqResponse(answerQwen);
+                            if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelQwen, answerQwen, c));
+                        }
+                    }
+                    else
+                    {
+                        if (!isErrorC) { string c = CleanMcqResponse(answerC); if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelC, answerC, c)); }
+                        if (!isErrorD) { string c = CleanMcqResponse(answerD); if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelD, answerD, c)); }
+                    }
+
+                    bool anyError = usedFallback ? (isErrorC || isErrorD) : (isErrorA && isErrorB);
+                    assistantBubble.HasError = anyError;
+                    assistantBubble.ShowCheckApiKeyAction = anyError;
+
+                    if (validAnswers.Count == 0)
+                    {
+                        assistantBubble.ErrorSummary = "All models encountered errors.";
+                        sbVerify.AppendLine("⚠️ **Verification Failed:** All AI models encountered errors. Please check your API keys or exam environment settings.");
+                    }
+                    else
+                    {
+                        var voteCounts = new System.Collections.Generic.Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var (_, _, clean) in validAnswers)
+                        {
+                            string key = clean.ToUpperInvariant();
+                            voteCounts[key] = voteCounts.TryGetValue(key, out int v) ? v + 1 : 1;
+                        }
+
+                        string consensusAnswer = "";
+                        int maxVotes = 0;
+                        foreach (var kv in voteCounts)
+                        {
+                            if (kv.Value > maxVotes) { maxVotes = kv.Value; consensusAnswer = kv.Key; }
+                        }
+
+                        bool fullConsensus = maxVotes == validAnswers.Count;
+                        bool majorityConsensus = maxVotes >= 2;
+
+                        if (anyError) assistantBubble.ErrorSummary = "Some models had errors; consensus from available responses.";
+
+                        if (fullConsensus && validAnswers.Count >= 2)
+                            sbVerify.AppendLine($"✅ **Both models agree:** Option **{consensusAnswer}**");
+                        else if (majorityConsensus)
+                            sbVerify.AppendLine($"✅ **Majority ({maxVotes}/{validAnswers.Count}) agree:** Option **{consensusAnswer}**");
+                        else if (validAnswers.Count == 1)
+                            sbVerify.AppendLine($"✅ **Answer:** Option **{consensusAnswer}**");
                         else
-                            sbVerify.AppendLine("⚠️ **Mismatch!** The models returned different answers. Please double-check your screenshots.");
+                            sbVerify.AppendLine($"⚠️ **Mismatch!** Models returned different answers — review results above.");
                     }
 
                     string finalContent = sbVerify.ToString().Trim();
@@ -1569,121 +1744,212 @@ namespace OverlayApp.ViewModels
                 }
                 else if (IsCodingScanMode)
                 {
+                    // Set A (primary): gemma-4-31b-it generator + gemini-3.5-flash-lite verifier (both Gemini)
+                    // Set B (fallback): gemini-3.7-flash generator + groq/compound verifier — used if Set A has any error
                     string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
-                    string primaryModel = "gemini-2.0-flash";
-                    string verifierModel = "openai/gpt-oss-120b";
+                    string primaryModelA = "gemma-4-31b-it";
+                    string verifierModelA = "gemini-3.5-flash-lite";
+                    string primaryModelB = "gemini-3.7-flash";
+                    string verifierModelB = "groq/compound";
                     bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
-                    assistantBubble.ModelInfo = $"{primaryModel} → {verifierModel}";
+                    assistantBubble.ModelInfo = $"Set A: {primaryModelA} → {verifierModelA}";
 
-                    assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModel}**...";
+                    assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModelA}** (Set A)...";
 
-                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
+                    string initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelA, effectiveGroqKey, "qwen/qwen3.6-27b");
+                    bool isErrorGen = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode);
 
-                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode))
+                    // If Set A generator fails, fall back to Set B generator
+                    string generatorUsed = primaryModelA;
+                    string verifierUsed = verifierModelA;
+                    if (isErrorGen)
                     {
-                        assistantBubble.HasError = true;
-                        assistantBubble.ShowCheckApiKeyAction = true;
-                        assistantBubble.ErrorSummary = "Coding model encountered an error.";
-                        string errContent = metadataHeader + initialCode.Trim();
-                        assistantBubble.Content = errContent;
-                        assistantBubble.IsLoading = false;
-                        ScanResponseText = initialCode.Trim();
-                        _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = initialCode.Trim() });
+                        assistantBubble.ModelInfo = $"Set B (fallback): {primaryModelB} → {verifierModelB}";
+                        assistantBubble.Content = $"⚠️ Set A generator error — retrying with **{primaryModelB}** (Set B)...";
+                        initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelB, effectiveGroqKey, "qwen/qwen3.6-27b");
+                        generatorUsed = primaryModelB;
+                        verifierUsed = verifierModelB;
+
+                        if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode))
+                        {
+                            assistantBubble.HasError = true;
+                            assistantBubble.ShowCheckApiKeyAction = true;
+                            assistantBubble.ErrorSummary = "Both Set A and Set B generators encountered errors.";
+                            string errContent = metadataHeader + initialCode.Trim();
+                            assistantBubble.Content = errContent;
+                            assistantBubble.IsLoading = false;
+                            ScanResponseText = initialCode.Trim();
+                            _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = initialCode.Trim() });
+                            return;
+                        }
+                    }
+
+                    initialCode = CleanCodeMarkdown(initialCode);
+
+                    // Truncation Check & Continuation
+                    if (IsCodeTruncated(initialCode))
+                    {
+                        assistantBubble.Content = $"⏳ Code truncated — requesting continuation from {generatorUsed}...";
+
+                        var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
+                        {
+                            new ChatMessage { Role = "assistant", Content = initialCode },
+                            new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
+                        };
+
+                        string continuationCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, continuationHistory, generatorUsed, effectiveGroqKey, "qwen/qwen3.6-27b");
+                        if (!OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(continuationCode))
+                        {
+                            continuationCode = CleanCodeMarkdown(continuationCode);
+                            initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
+                        }
+                    }
+
+                    // Code Audit with the verifier from whichever set was used
+                    assistantBubble.Content = $"⏳ [2/2] Verifying code with **{verifierUsed}**...";
+
+                    var verifyHistory = new System.Collections.Generic.List<ChatMessage>
+                    {
+                        new ChatMessage {
+                            Role = "system",
+                            Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem in {targetLang}? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
+                        },
+                        new ChatMessage {
+                            Role = "user",
+                            Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED CODE SOLUTION ({targetLang})]\n{initialCode}"
+                        }
+                    };
+
+                    // Set A verifier uses Gemini; Set B verifier uses Groq
+                    string verificationOutput;
+                    if (verifierUsed == verifierModelA)
+                        verificationOutput = (await _llmService.ProcessChatWithGeminiAsync(GeminiKey, verifyHistory, verifierUsed, "", "")).Trim();
+                    else
+                        verificationOutput = (await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierUsed)).Trim();
+
+                    // If Set A verifier fails, try Set B verifier
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(verificationOutput) && verifierUsed == verifierModelA)
+                    {
+                        verifierUsed = verifierModelB;
+                        verificationOutput = (await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierUsed)).Trim();
+                    }
+
+                    string finalCode = initialCode;
+                    string auditNote;
+
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(verificationOutput))
+                    {
+                        auditNote = $"⚠️ Verifier error. Code shown as generated by {generatorUsed}.";
+                    }
+                    else if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string correctedCode = CleanCodeMarkdown(verificationOutput.Substring("CORRECTED_CODE:".Length).Trim());
+                        if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
+                        {
+                            finalCode = correctedCode;
+                            auditNote = $"✨ Code audited/corrected by {verifierUsed}.";
+                        }
+                        else
+                        {
+                            auditNote = $"✅ Code verified bug-free by {verifierUsed}.";
+                        }
                     }
                     else
                     {
-                        initialCode = CleanCodeMarkdown(initialCode);
-
-                        // Truncation Check & Continuation
-                        if (IsCodeTruncated(initialCode))
-                        {
-                            assistantBubble.Content = $"⏳ Code truncated — requesting continuation...";
-
-                            var continuationHistory = new System.Collections.Generic.List<ChatMessage>(_txtChatHistory)
-                            {
-                                new ChatMessage { Role = "assistant", Content = initialCode },
-                                new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
-                            };
-
-                            string continuationCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, continuationHistory, primaryModel, effectiveGroqKey, "qwen/qwen3.6-27b");
-                            if (!OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(continuationCode))
-                            {
-                                continuationCode = CleanCodeMarkdown(continuationCode);
-                                initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
-                            }
-                        }
-
-                        // Code Audit
-                        assistantBubble.Content = $"⏳ [2/2] Verifying code with **{verifierModel}**...";
-
-                        var verifyHistory = new System.Collections.Generic.List<ChatMessage>
-                        {
-                            new ChatMessage {
-                                Role = "system",
-                                Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem in {targetLang}? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
-                            },
-                            new ChatMessage {
-                                Role = "user",
-                                Content = $"[PROBLEM STATEMENT]\n{combinedExtractedText}\n\n[GENERATED CODE SOLUTION ({targetLang})]\n{initialCode}"
-                            }
-                        };
-
-                        string verificationOutput = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierModel);
-                        verificationOutput = verificationOutput.Trim();
-
-                        string finalCode = initialCode;
-                        string auditNote = $"✅ Code verified bug-free by {verifierModel}.";
-
-                        if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(verificationOutput))
-                        {
-                            auditNote = $"⚠️ Verification note: {verificationOutput}";
-                        }
-                        else if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
-                        {
-                            string correctedCode = verificationOutput.Substring("CORRECTED_CODE:".Length).Trim();
-                            correctedCode = CleanCodeMarkdown(correctedCode);
-                            if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
-                            {
-                                finalCode = correctedCode;
-                                auditNote = $"✨ Code audited/corrected by {verifierModel}.";
-                            }
-                        }
-
-                        assistantBubble.HasError = false;
-                        assistantBubble.ShowCheckApiKeyAction = false;
-                        string finalContent = metadataHeader + $"* **Audit:** {auditNote}\n\n" + finalCode.Trim();
-                        assistantBubble.Content = finalContent;
-                        assistantBubble.IsLoading = false;
-                        ScanResponseText = finalCode.Trim();
-
-                        _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalCode.Trim() });
+                        auditNote = $"✅ Code verified bug-free by {verifierUsed}.";
                     }
+
+                    assistantBubble.HasError = false;
+                    assistantBubble.ShowCheckApiKeyAction = false;
+                    string finalContent = metadataHeader + $"* **Generator:** {generatorUsed}\n* **Audit:** {auditNote}\n\n" + finalCode.Trim();
+                    assistantBubble.Content = finalContent;
+                    assistantBubble.IsLoading = false;
+                    ScanResponseText = finalCode.Trim();
+
+                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalCode.Trim() });
                 }
                 else
                 {
-                    assistantBubble.ModelInfo = singleModel;
-                    assistantBubble.Content = $"⏳ Generating response with **{singleModel}**...";
+                    // Normal scan — Set A first (gemini-3.5-flash-lite + gemma-4-31b-it, both Gemini), fallback to Set B (gemini-3.7-flash + groq/compound)
+                    string geminiModelA = "gemini-3.5-flash-lite";
+                    string geminiModelA2 = "gemma-4-31b-it";
+                    string geminiModelB = "gemini-3.7-flash";
+                    string groqModelB = "groq/compound";
+                    assistantBubble.ModelInfo = $"Set A: {geminiModelA} + {geminiModelA2}";
+                    assistantBubble.Content = $"⏳ Generating response with Set A ({geminiModelA} + {geminiModelA2})...";
 
-                    string responseBody = await PerformChatAsync(_txtChatHistory, singleModel);
+                    // Run Set A in parallel — both via Gemini API
+                    var taskGA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, geminiModelA, "", "");
+                    var taskQA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, geminiModelA2, "", "");
+                    await Task.WhenAll(taskGA, taskQA);
+                    string respGA = await taskGA;
+                    string respQA = await taskQA;
 
-                    bool isError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(responseBody);
-                    assistantBubble.HasError = isError;
-                    assistantBubble.ShowCheckApiKeyAction = isError;
-                    if (isError)
+                    bool errGA = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(respGA);
+                    bool errQA = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(respQA);
+
+                    string respGB = "", respQB = "";
+                    bool errGB = false, errQB = false;
+                    bool usedFallback = false;
+
+                    // If BOTH Set A models fail, fall back to Set B. If at least one succeeds, display that and stop.
+                    if (errGA && errQA)
                     {
-                        assistantBubble.ErrorSummary = "Scan query error.";
+                        usedFallback = true;
+                        assistantBubble.ModelInfo = $"Set B (fallback): {geminiModelB} + {groqModelB}";
+                        assistantBubble.Content = $"⚠️ Set A had errors — retrying with Set B ({geminiModelB} + {groqModelB})...";
+
+                        var taskGB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, geminiModelB, "", "");
+                        var taskQB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, groqModelB);
+                        await Task.WhenAll(taskGB, taskQB);
+                        respGB = await taskGB;
+                        respQB = await taskQB;
+                        errGB = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(respGB);
+                        errQB = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(respQB);
                     }
 
-                    string finalContent = metadataHeader + responseBody.Trim();
+                    var sbNormal = new System.Text.StringBuilder();
+                    sbNormal.AppendLine(metadataHeader);
+
+                    bool allFailed = usedFallback ? (errGB && errQB) : (errGA && errQA);
+
+                    if (allFailed)
+                    {
+                        sbNormal.AppendLine("⚠️ All models encountered errors. Please check your API keys.");
+                        assistantBubble.HasError = true;
+                        assistantBubble.ShowCheckApiKeyAction = true;
+                        assistantBubble.ErrorSummary = "All models failed.";
+                    }
+                    else if (!usedFallback)
+                    {
+                        if (!errGA) { sbNormal.AppendLine($"### 🔵 {geminiModelA}\n\n{respGA.Trim()}\n"); sbNormal.AppendLine("---\n"); }
+                        if (!errQA) { sbNormal.AppendLine($"### � {geminiModelA2}\n\n{respQA.Trim()}\n"); }
+                        // At least one succeeded — not an error state
+                        assistantBubble.HasError = false;
+                        assistantBubble.ShowCheckApiKeyAction = false;
+                    }
+                    else
+                    {
+                        if (!errGB) { sbNormal.AppendLine($"### 🔵 {geminiModelB} (fallback)\n\n{respGB.Trim()}\n"); sbNormal.AppendLine("---\n"); }
+                        if (!errQB) { sbNormal.AppendLine($"### 🟢 {groqModelB} (fallback)\n\n{respQB.Trim()}\n"); }
+                        bool anyErr = errGB || errQB;
+                        assistantBubble.HasError = anyErr;
+                        assistantBubble.ShowCheckApiKeyAction = anyErr;
+                        if (anyErr) assistantBubble.ErrorSummary = "Fallback models had errors; partial results shown.";
+                    }
+
+                    string finalContent = sbNormal.ToString().Trim();
                     assistantBubble.Content = finalContent;
                     assistantBubble.IsLoading = false;
-                    ScanResponseText = responseBody.Trim();
+                    ScanResponseText = finalContent;
 
-                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = responseBody.Trim() });
+                    _txtChatHistory.Add(new ChatMessage { Role = "assistant", Content = finalContent });
                 }
             }
             catch (Exception ex)
             {
+                timerCts.Cancel();
+                scanStopwatch.Stop();
                 var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Scanner", singleModel, 0, "", ex);
                 assistantBubble.HasError = true;
                 assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
@@ -1694,6 +1960,12 @@ namespace OverlayApp.ViewModels
             }
             finally
             {
+                timerCts.Cancel();
+                scanStopwatch.Stop();
+                // Append final elapsed time to the model info badge
+                int totalSecs = (int)scanStopwatch.Elapsed.TotalSeconds;
+                if (!string.IsNullOrEmpty(assistantBubble.ModelInfo))
+                    assistantBubble.ModelInfo = $"{assistantBubble.ModelInfo} · {totalSecs}s";
                 IsScanning = false;
                 OnPropertyChanged(nameof(IsFollowUpVisible));
             }
@@ -1821,6 +2093,9 @@ namespace OverlayApp.ViewModels
             if (_isProcessingVoice) return;
             _isProcessingVoice = true;
 
+            var voiceStopwatch = new System.Diagnostics.Stopwatch();
+            var voiceTimerCts = new System.Threading.CancellationTokenSource();
+
             try
             {
                 IsScanning = true;
@@ -1863,9 +2138,9 @@ namespace OverlayApp.ViewModels
                 {
                     Role = "assistant",
                     TurnNumber = turnNum,
-                    Content = "⏳ Analyzing query (Groq Qwen 3.6)...",
+                    Content = "⏳ Analyzing query (gemini-3.7-flash)...",
                     IsLoading = true,
-                    ModelInfo = "Groq Qwen 3.6"
+                    ModelInfo = "gemini-3.7-flash"
                 };
                 VoiceChatBubbles.Add(assistantBubble);
 
@@ -1883,7 +2158,44 @@ namespace OverlayApp.ViewModels
 
                 var historyToSend = PruneVoiceChatHistory(_voiceChatHistory);
 
-                string explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend);
+                // Live elapsed-time ticker for voice scan
+                voiceStopwatch.Restart();
+                _ = Task.Run(async () =>
+                {
+                    while (!voiceTimerCts.Token.IsCancellationRequested)
+                    {
+                        await Task.Delay(1000, voiceTimerCts.Token).ContinueWith(_ => { });
+                        if (voiceTimerCts.Token.IsCancellationRequested) break;
+                        int elapsed = (int)voiceStopwatch.Elapsed.TotalSeconds;
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        if (dispatcher != null && !voiceTimerCts.Token.IsCancellationRequested)
+                        {
+                            dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                if (assistantBubble.IsLoading)
+                                    assistantBubble.ElapsedSeconds = elapsed;
+                            }));
+                        }
+                    }
+                }, voiceTimerCts.Token);
+
+                // First preference: gemini-3.7-flash; fallback: qwen/qwen3.8-27b (Groq)
+                string explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.7-flash", effectiveGroqKey, "");
+                string voiceModelUsed = "gemini-3.7-flash";
+
+                if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation))
+                {
+                    assistantBubble.Content = "⏳ Gemini unavailable — falling back to qwen/qwen3.8-27b...";
+                    assistantBubble.ModelInfo = "qwen/qwen3.8-27b";
+                    voiceModelUsed = "qwen/qwen3.8-27b";
+                    explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, "qwen/qwen3.8-27b");
+                }
+
+                voiceTimerCts.Cancel();
+                voiceStopwatch.Stop();
+                int voiceTotalSecs = (int)voiceStopwatch.Elapsed.TotalSeconds;
+
+                assistantBubble.ModelInfo = $"{voiceModelUsed} · {voiceTotalSecs}s";
                 
                 bool isVoiceError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation);
                 assistantBubble.HasError = isVoiceError;
@@ -1905,7 +2217,9 @@ namespace OverlayApp.ViewModels
             }
             catch (Exception ex)
             {
-                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Assistant", "Groq Qwen 3.6", 0, "", ex);
+                voiceTimerCts.Cancel();
+                voiceStopwatch.Stop();
+                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Assistant", "gemini-3.7-flash / qwen3.8-27b", 0, "", ex);
                 if (VoiceChatBubbles.Count > 0 && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsAssistant && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsLoading)
                 {
                     var bubble = VoiceChatBubbles[VoiceChatBubbles.Count - 1];
@@ -1923,6 +2237,8 @@ namespace OverlayApp.ViewModels
             }
             finally
             {
+                voiceTimerCts.Cancel();
+                voiceStopwatch.Stop();
                 IsScanning = false;
                 _isProcessingVoice = false;
             }
@@ -2037,29 +2353,48 @@ namespace OverlayApp.ViewModels
             return pruned;
         }
 
+        private static readonly System.Text.RegularExpressions.Regex _mcqSingleLetter =
+            new System.Text.RegularExpressions.Regex(@"^[(\[]?([A-Ea-e])[)\].]?\s*$",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static readonly System.Text.RegularExpressions.Regex _mcqConclusionPhrase =
+            new System.Text.RegularExpressions.Regex(
+                @"(?:correct\s+answer\s+is|answer\s+is|the\s+answer\s*[:\-=]|answer\s*[:\-=]|option\s+is|is\s+option|is\s+answer)\s*[:\-]?\s*[(\[]?([A-Ea-e])[)\].]?(?:\s|$)",
+                System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        private static readonly System.Text.RegularExpressions.Regex _mcqOptionLabel =
+            new System.Text.RegularExpressions.Regex(
+                @"\boption\s+([A-Ea-e])\b",
+                System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        private static readonly System.Text.RegularExpressions.Regex _mcqStandaloneLetter =
+            new System.Text.RegularExpressions.Regex(
+                @"(?<![A-Za-z])([A-Ea-e])(?![A-Za-z])",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
         private string CleanMcqResponse(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-            
-            // Trim whitespaces, quotes, and punctuation
-            string cleaned = input.Trim().Trim('"', '\'', '.', ':', ')', '(', '[', ']');
-            
-            // Convert to lower case for case-insensitive comparison
-            cleaned = cleaned.ToLowerInvariant();
-            
-            // If it is long, just take the first word or first character if it starts with a/b/c/d/e
-            if (cleaned.Length > 0)
-            {
-                char first = cleaned[0];
-                if (first >= 'a' && first <= 'e')
-                {
-                    if (cleaned.Length == 1 || !char.IsLetter(cleaned[1]))
-                    {
-                        return first.ToString();
-                    }
-                }
-            }
-            return cleaned;
+
+            string trimmed = input.Trim().Trim('"', '\'', '*', ' ');
+
+            // 1. Fast path — already a single letter (e.g. "B", "b.", "(C)", "[D]")
+            var m = _mcqSingleLetter.Match(trimmed);
+            if (m.Success) return m.Groups[1].Value.ToLowerInvariant();
+
+            // 2. Conclusion phrases — search from the end (last match wins)
+            var matches = _mcqConclusionPhrase.Matches(trimmed);
+            if (matches.Count > 0) return matches[matches.Count - 1].Groups[1].Value.ToLowerInvariant();
+
+            // 3. "option X" anywhere
+            matches = _mcqOptionLabel.Matches(trimmed);
+            if (matches.Count > 0) return matches[matches.Count - 1].Groups[1].Value.ToLowerInvariant();
+
+            // 4. Last standalone letter A-E in the text
+            matches = _mcqStandaloneLetter.Matches(trimmed);
+            if (matches.Count > 0) return matches[matches.Count - 1].Groups[1].Value.ToLowerInvariant();
+
+            return string.Empty;
         }
 
         private System.Windows.Media.ImageSource? CaptureScreenArea(System.Windows.Int32Rect rect, out byte[] imageBytes)
@@ -2311,7 +2646,7 @@ namespace OverlayApp.ViewModels
 
             if (IsGeminiApiActive)
             {
-                return await _llmService.ProcessChatWithGeminiAsync(GeminiKey, history, "gemini-2.0-flash", effectiveGroqKey, groqModel);
+                return await _llmService.ProcessChatWithGeminiAsync(GeminiKey, history, "gemini-3.5-flash-lite", effectiveGroqKey, groqModel);
             }
             else
             {
@@ -2537,7 +2872,7 @@ namespace OverlayApp.ViewModels
 
                     var optimizedHistory = PruneChatHistory(_txtChatHistory);
 
-                    string followUpModel = IsCodingScanMode ? "qwen/qwen3.6-27b" : "openai/gpt-oss-120b";
+                    string followUpModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
                     assistantBubble.ModelInfo = followUpModel;
                     assistantBubble.Content = $"⏳ Generating response with **{followUpModel}**...";
 
@@ -2564,7 +2899,7 @@ namespace OverlayApp.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    string followUpModel = IsCodingScanMode ? "qwen/qwen3.6-27b" : "openai/gpt-oss-120b";
+                    string followUpModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
                     var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Follow-up", followUpModel, 0, "", ex);
                     assistantBubble.Content = errorInfo.FriendlyMessage;
                     assistantBubble.HasError = true;
@@ -3139,6 +3474,45 @@ namespace OverlayApp.ViewModels
             finally
             {
                 IsAuthLoading = false;
+            }
+        }
+
+        // ─── Auto-Update ─────────────────────────────────────────────────────────
+
+        private async Task CheckForUpdateAsync()
+        {
+            try
+            {
+                var info = await Services.UpdateService.CheckForUpdateAsync(_settings.ApiBaseUrl);
+                if (info == null) return;
+
+                LatestVersion = info.LatestVersion;
+                _updateDownloadUrl = info.DownloadUrl;
+                UpdateReleaseNotes = info.ReleaseNotes;
+                UpdateAvailable = info.UpdateAvailable;
+            }
+            catch { /* silent */ }
+        }
+
+        private async Task ExecuteDownloadUpdateAsync()
+        {
+            if (string.IsNullOrWhiteSpace(_updateDownloadUrl)) return;
+            IsUpdating = true;
+            UpdateStatusText = "Downloading update...";
+            try
+            {
+                await Services.UpdateService.DownloadAndInstallAsync(_updateDownloadUrl, progress =>
+                {
+                    UpdateProgress = progress;
+                    UpdateStatusText = progress >= 1.0
+                        ? "Installing — app will restart..."
+                        : $"Downloading... {(int)(progress * 100)}%";
+                });
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusText = $"Update failed: {ex.Message}";
+                IsUpdating = false;
             }
         }
 
