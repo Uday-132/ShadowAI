@@ -1530,11 +1530,8 @@ namespace OverlayApp.ViewModels
                     else if (IsCodingScanMode)
                     {
                         string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
-                        bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
 
-                        string systemPrompt = isProjectMode ?
-                            "You are a strict expert full-stack senior developer and project architect. Solve the project challenge, bug fix, or feature request across all captured screenshots. Analyze the code files, HTML structure, CSS styles, JavaScript/Python backend routes, and database schemas. Output clear, modular, file-by-file code fixes (e.g. index.html, style.css, script.js, app.py/server.js) with clean, 100% working code. Write the code in a humanized style as if written by a senior developer in a real coding interview. Do not include markdown code block backticks (```)." :
-                            $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. You must output ONLY the complete, working source code in {targetLang} language by default. Write the code in a humanized style as if written by a senior developer in a real coding interview (use natural variable names, standard spacing, clean modular logic, and complete all functions thoroughly without cutting off). Do not include any warnings, intro/outro text, or markdown code block formatting (no ```). Return ONLY the raw code.";
+                        string systemPrompt = $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. Output ONLY the complete, working source code in {targetLang}. All explanatory text, section descriptions, or non-code content MUST be written as inline code comments (e.g. // comment in JS/Java/C++, # comment in Python/CSS). Do NOT include any standalone text lines outside of code. Do NOT use markdown code block backticks (```). Write code in a humanized developer style: natural variable names, clean modular logic, all functions fully implemented without cutting off.";
 
                         _txtChatHistory.Add(new ChatMessage {
                             Role = "system",
@@ -1542,7 +1539,7 @@ namespace OverlayApp.ViewModels
                         });
                         _txtChatHistory.Add(new ChatMessage {
                             Role = "user",
-                            Content = $"Here is the {(isProjectMode ? "full-stack project" : "coding problem")} raw text from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
+                            Content = $"Here is the coding problem from {CapturedScreenshots.Count} screenshots:\n\n{combinedExtractedText}"
                         });
                     }
                     else
@@ -1766,7 +1763,7 @@ namespace OverlayApp.ViewModels
                     string verifierModelA = "gemini-3.5-flash-lite";
                     string primaryModelB = "gemini-3.7-flash";
                     string verifierModelB = "groq/compound";
-                    bool isProjectMode = targetLang.Equals("Project", StringComparison.OrdinalIgnoreCase);
+                    bool isProjectMode = false; // Project mode removed — always single-language
                     assistantBubble.ModelInfo = $"{primaryModelA} → {verifierModelA}";
 
                     assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModelA}**...";

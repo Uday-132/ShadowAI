@@ -634,7 +634,6 @@
                                          <RadioButton Content="C++" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsCppSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="HTML" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsHtmlSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="CSS" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsCssSelected, Mode=TwoWay}"/>
-                                         <RadioButton Content="📦 PROJECT" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsProjectSelected, Mode=TwoWay}"/>
                                      </StackPanel>
                                  </DockPanel>
                              </Grid>
