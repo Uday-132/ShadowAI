@@ -209,7 +209,7 @@ namespace OverlayInstaller
                     key.SetValue("DisplayName",     "Shadow AI");
                     key.SetValue("DisplayIcon",     targetExePath + ",0");
                     key.SetValue("Publisher",       "Shadow AI");
-                    key.SetValue("DisplayVersion",  "4.0.0");
+                    key.SetValue("DisplayVersion",  "5.0.0");
                     key.SetValue("InstallLocation", installFolder);
                     key.SetValue("EstimatedSize",   26000);
                     key.SetValue("NoModify",        1, RegistryValueKind.DWord);
