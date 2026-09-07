@@ -13,9 +13,9 @@
     <Description>Shadow AI Installer</Description>
     <Company>Shadow AI</Company>
     <Copyright>© Shadow AI. All rights reserved.</Copyright>
-    <Version>8.1.0</Version>
-    <FileVersion>8.1.0.0</FileVersion>
-    <AssemblyVersion>8.1.0.0</AssemblyVersion>
+    <Version>8.2.0</Version>
+    <FileVersion>8.2.0.0</FileVersion>
+    <AssemblyVersion>8.2.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
