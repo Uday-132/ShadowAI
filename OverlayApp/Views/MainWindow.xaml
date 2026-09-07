@@ -118,7 +118,7 @@
         <!-- Custom Toggle Switch Template (representing CheckBox) -->
         <Style x:Key="ToggleSwitchStyle" TargetType="CheckBox">
             <Setter Property="Foreground" Value="#F0FFFFFF"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
@@ -179,7 +179,7 @@
 
         <!-- Theme definitions mapping to dynamic styling triggers -->
         <Style x:Key="MainBorderStyle" TargetType="Border">
-            <Setter Property="Background" Value="#F0090D14"/>
+            <Setter Property="Background" Value="#F40A0E17"/>
             <Setter Property="BorderBrush">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -267,31 +267,27 @@
         <!-- Navigation tab button style — pill-shaped active indicator -->
         <Style x:Key="TabButtonStyle" TargetType="RadioButton">
             <Setter Property="GroupName" Value="Widgets"/>
-            <Setter Property="Foreground" Value="#55FFFFFF"/>
-            <Setter Property="FontSize" Value="9"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#66FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Grid Background="Transparent">
-                            <Border x:Name="Pill" CornerRadius="6" Background="Transparent" Padding="10,5">
-                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <ContentPresenter HorizontalAlignment="Center" Margin="0,2,0,2"/>
-                                    <Border x:Name="Dot" Height="2" CornerRadius="1" Width="14" Background="Transparent" SnapsToDevicePixels="True" Margin="0,2,0,0"/>
-                                </StackPanel>
+                            <Border x:Name="Pill" CornerRadius="7" Background="Transparent" Padding="10,6">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter Property="Foreground" Value="#FFFFFFFF"/>
-                                <Setter TargetName="Dot" Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                <Setter TargetName="Pill" Property="Background" Value="#12FFFFFF"/>
+                                <Setter Property="Foreground" Value="#FF000000"/>
+                                <Setter TargetName="Pill" Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#CCFFFFFF"/>
-                                <Setter TargetName="Pill" Property="Background" Value="#08FFFFFF"/>
+                                <Setter Property="Foreground" Value="#DDFFFFFF"/>
+                                <Setter TargetName="Pill" Property="Background" Value="#14FFFFFF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -301,14 +297,14 @@
 
         <!-- Segment control radio button style — pill chips -->
         <Style x:Key="SegmentButtonStyle" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="#77FFFFFF"/>
-            <Setter Property="FontSize" Value="8"/>
+            <Setter Property="Foreground" Value="#88FFFFFF"/>
+            <Setter Property="FontSize" Value="9"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Arrow"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="BgBorder" CornerRadius="5" Background="#0CFFFFFF" BorderThickness="1" BorderBrush="#12FFFFFF" Padding="7,3" Margin="1,0">
+                        <Border x:Name="BgBorder" CornerRadius="6" Background="#10FFFFFF" BorderThickness="1" BorderBrush="#18FFFFFF" Padding="9,4" Margin="1,0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -318,7 +314,7 @@
                                 <Setter Property="Foreground" Value="#FF000000"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BgBorder" Property="Background" Value="#18FFFFFF"/>
+                                <Setter TargetName="BgBorder" Property="Background" Value="#1EFFFFFF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -346,7 +342,7 @@
             </Grid.RowDefinitions>
 
             <!-- Title bar / Header -->
-            <Grid Grid.Row="0" Panel.ZIndex="1000" Margin="8,6,8,4" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+            <Grid Grid.Row="0" Panel.ZIndex="1000" Margin="10,7,10,5" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -355,15 +351,15 @@
                 
                 <!-- Brand -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Image Source="/shadow_ai.ico" Width="13" Height="13" Margin="0,0,5,0" VerticalAlignment="Center" Stretch="Uniform"/>
-                    <TextBlock VerticalAlignment="Center" FontSize="9.5" FontWeight="Bold">
-                        <Run Text="SHADOW" Foreground="#55FFFFFF"/>
+                    <Image Source="/shadow_ai.ico" Width="15" Height="15" Margin="0,0,6,0" VerticalAlignment="Center" Stretch="Uniform"/>
+                    <TextBlock VerticalAlignment="Center" FontSize="11" FontWeight="Bold">
+                        <Run Text="SHADOW" Foreground="#66FFFFFF"/>
                         <Run Text="AI" Foreground="{Binding Tag, ElementName=MainBorder}"/>
                     </TextBlock>
                 </StackPanel>
 
                 <!-- Session Pill (center) -->
-                <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="8" Padding="8,2" Background="#12FFFFFF">
+                <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="10" Padding="10,3" Background="#16FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -374,7 +370,7 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="{Binding SessionTimerDisplay}" Foreground="#99FFFFFF" FontSize="8.5" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding SessionTimerDisplay}" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="9.5" FontWeight="Bold"/>
                 </Border>
 
                 <!-- Actions (Pin, Settings, Close) -->
@@ -453,10 +449,10 @@
             </Grid>
 
             <!-- Thin accent divider below header -->
-            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Margin="8,0" Background="#0CFFFFFF"/>
+            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Margin="8,0" Background="#18FFFFFF"/>
 
             <!-- Navigation Tab Bar -->
-            <Border Grid.Row="1" Margin="6,4,6,2" Background="#08FFFFFF" CornerRadius="8" Padding="2,1">
+            <Border Grid.Row="1" Margin="6,5,6,3" Background="#0AFFFFFF" CornerRadius="10" Padding="3,2">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -527,7 +523,7 @@
                 
                 <!-- NOTES WIDGET -->
                 <Grid Visibility="{Binding IsNotesActive, Converter={StaticResource BoolToVis}}">
-                    <Border Background="#11FFFFFF" CornerRadius="6" Padding="6">
+                    <Border Background="#14FFFFFF" CornerRadius="8" Padding="8">
                         <TextBox Text="{Binding NotesText, UpdateSourceTrigger=PropertyChanged}" 
                                  Background="Transparent" BorderThickness="0" Foreground="#EFFFFFFF" 
                                  AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" 
@@ -539,7 +535,7 @@
 
                 <!-- PRESENTATION TIMER WIDGET -->
                 <Grid Visibility="{Binding IsTimerActive, Converter={StaticResource BoolToVis}}">
-                    <Border Background="#11FFFFFF" CornerRadius="6" Padding="12">
+                    <Border Background="#14FFFFFF" CornerRadius="8" Padding="14">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -551,15 +547,15 @@
                                        Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             
                             <!-- Timer Buttons -->
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,4">
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,4">
                                 <!-- Start/Pause Button -->
-                                <Button Command="{Binding TimerStartPauseCommand}" Margin="0,0,12,0" Cursor="Arrow" Width="80" Height="28">
+                                <Button Command="{Binding TimerStartPauseCommand}" Margin="0,0,12,0" Cursor="Arrow" Width="88" Height="32">
                                     <Button.Style>
                                         <Style TargetType="Button">
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border CornerRadius="14" Background="{Binding Tag, ElementName=MainBorder}" Padding="8,4">
+                                                        <Border CornerRadius="8" Background="{Binding Tag, ElementName=MainBorder}" Padding="8,4">
                                                             <TextBlock x:Name="BtnText" Text="START" Foreground="#000000" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
@@ -575,7 +571,7 @@
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
-                                                                <Border CornerRadius="14" Background="#33FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1" Padding="8,4">
+                                                                <Border CornerRadius="6" Background="#33FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1" Padding="8,4">
                                                                     <TextBlock Text="PAUSE" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                                                 </Border>
                                                             </ControlTemplate>
@@ -588,10 +584,10 @@
                                 </Button>
                                 
                                 <!-- Reset Button -->
-                                <Button Command="{Binding TimerResetCommand}" Cursor="Arrow" Width="80" Height="28">
+                                <Button Command="{Binding TimerResetCommand}" Cursor="Arrow" Width="88" Height="32">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border CornerRadius="14" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="8,4">
+                                            <Border CornerRadius="8" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="8,4">
                                                 <TextBlock Text="RESET" Foreground="#E0FFFFFF" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                             </Border>
                                             <ControlTemplate.Triggers>
@@ -609,7 +605,7 @@
 
                 <!-- TXT SCAN WIDGET -->
                 <Grid Visibility="{Binding IsTxtScanActive, Converter={StaticResource BoolToVis}}">
-                    <Border Background="#11FFFFFF" CornerRadius="6" Padding="8">
+                    <Border Background="#14FFFFFF" CornerRadius="8" Padding="8">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- Row 0: Option Toggles -->
@@ -624,7 +620,7 @@
                              <Grid Grid.Row="0" Margin="0,0,0,8">
                                  <DockPanel LastChildFill="False">
                                      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                                         <TextBlock Text="SCAN TYPE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
+                                         <TextBlock Text="SCAN TYPE:" VerticalAlignment="Center" Foreground="#99FFFFFF" FontSize="9.5" FontWeight="Bold" Margin="0,0,6,0"/>
                                          <RadioButton Content="NORMAL SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsNormalScanMode, Mode=TwoWay}"/>
                                          <RadioButton Content="MCQ SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsMcqScanMode, Mode=TwoWay}"/>
                                          <RadioButton Content="CODING SCAN" Style="{StaticResource SegmentButtonStyle}" GroupName="TxtScanMode" IsChecked="{Binding IsCodingScanMode, Mode=TwoWay}"/>
@@ -656,10 +652,10 @@
                                       </Grid.ColumnDefinitions>
 
                                       <!-- + CAPTURE SCREENSHOT Button -->
-                                      <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Arrow" Height="28" Margin="0,0,4,0">
+                                      <Button Grid.Column="0" Command="{Binding StartScanCommand}" Cursor="Arrow" Height="32" Margin="0,0,4,0">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
-                                                  <Border CornerRadius="4" Background="{Binding Tag, ElementName=MainBorder}" Padding="6,4">
+                                                  <Border CornerRadius="7" Background="{Binding Tag, ElementName=MainBorder}" Padding="6,4">
                                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                           <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" 
                                                                 Fill="#000000" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
@@ -676,10 +672,10 @@
                                       </Button>
 
                                       <!-- SEND BUTTON -->
-                                      <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Arrow" Height="28" Margin="0,0,4,0">
+                                      <Button Grid.Column="1" Command="{Binding SendScreenshotsCommand}" Cursor="Arrow" Height="32" Margin="0,0,4,0">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
-                                                  <Border x:Name="SendBorder" CornerRadius="4" Background="#10B981" Padding="6,4">
+                                                  <Border x:Name="SendBorder" CornerRadius="7" Background="#10B981" Padding="6,4">
                                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                           <Path Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
                                                                 Fill="#FFFFFF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
@@ -696,7 +692,7 @@
                                       </Button>
 
                                       <!-- Copy Button (Original Position Next to Send) -->
-                                      <Button Grid.Column="2" Command="{Binding CopyTxtCommand}" Cursor="Arrow" Height="28" Width="28" Margin="0,0,4,0">
+                                      <Button Grid.Column="2" Command="{Binding CopyTxtCommand}" Cursor="Arrow" Height="32" Width="32" Margin="0,0,4,0">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
                                                   <Border x:Name="CopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -713,7 +709,7 @@
                                       </Button>
 
                                       <!-- Clear/Refresh Button (Original Position Next to Copy) -->
-                                      <Button Grid.Column="3" Command="{Binding ClearTxtScanCommand}" Cursor="Arrow" Height="28" Width="28">
+                                      <Button Grid.Column="3" Command="{Binding ClearTxtScanCommand}" Cursor="Arrow" Height="32" Width="32">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
                                                   <Border x:Name="ClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
@@ -734,16 +730,16 @@
                                   <DockPanel LastChildFill="False">
                                       <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                           <!-- Font Size Decrement (A-) -->
-                                          <Button Command="{Binding DecreaseFontSizeCommand}" Cursor="Arrow" Height="22" Padding="8,1" Margin="0,0,4,0">
+                                          <Button Command="{Binding DecreaseFontSizeCommand}" Cursor="Arrow" Height="24" Padding="8,2" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
-                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                      <Border x:Name="BtnBorder" CornerRadius="4" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
                                                           <TextBlock Text="A-" Foreground="#B0FFFFFF" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                       </Border>
                                                       <ControlTemplate.Triggers>
                                                           <Trigger Property="IsMouseOver" Value="True">
-                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#25FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#66FFFFFF"/>
                                                           </Trigger>
                                                       </ControlTemplate.Triggers>
                                                   </ControlTemplate>
@@ -751,16 +747,16 @@
                                           </Button>
 
                                           <!-- Font Size Increment (A+) -->
-                                          <Button Command="{Binding IncreaseFontSizeCommand}" Cursor="Arrow" Height="22" Padding="8,1" Margin="0,0,4,0">
+                                          <Button Command="{Binding IncreaseFontSizeCommand}" Cursor="Arrow" Height="24" Padding="8,2" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
-                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                      <Border x:Name="BtnBorder" CornerRadius="4" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
                                                           <TextBlock Text="A+" Foreground="#B0FFFFFF" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                       </Border>
                                                       <ControlTemplate.Triggers>
                                                           <Trigger Property="IsMouseOver" Value="True">
-                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#25FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#66FFFFFF"/>
                                                           </Trigger>
                                                       </ControlTemplate.Triggers>
                                                   </ControlTemplate>
@@ -768,16 +764,16 @@
                                           </Button>
 
                                           <!-- Window Height Expansion Toggle Button -->
-                                          <Button Command="{Binding ToggleExpandHeightCommand}" Cursor="Arrow" Height="22" Padding="8,1" Margin="0,0,4,0">
+                                          <Button Command="{Binding ToggleExpandHeightCommand}" Cursor="Arrow" Height="24" Padding="8,2" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
-                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
-                                                          <TextBlock Text="{Binding ExpandHeightButtonText}" Foreground="#B0FFFFFF" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                      <Border x:Name="BtnBorder" CornerRadius="4" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                          <TextBlock Text="{Binding ExpandHeightButtonText}" Foreground="#B0FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
                                                       </Border>
                                                       <ControlTemplate.Triggers>
                                                           <Trigger Property="IsMouseOver" Value="True">
-                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#25FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#66FFFFFF"/>
                                                           </Trigger>
                                                       </ControlTemplate.Triggers>
                                                   </ControlTemplate>
@@ -785,16 +781,16 @@
                                           </Button>
 
                                           <!-- Max Screenshots Limit Cycle Button -->
-                                          <Button Command="{Binding CycleMaxScreenshotsLimitCommand}" Cursor="Arrow" Height="22" Padding="8,1" Margin="0,0,4,0">
+                                          <Button Command="{Binding CycleMaxScreenshotsLimitCommand}" Cursor="Arrow" Height="24" Padding="8,2" Margin="0,0,4,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
-                                                      <Border x:Name="BtnBorder" CornerRadius="3" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
-                                                          <TextBlock Text="{Binding MaxScreenshotsButtonText}" Foreground="#B0FFFFFF" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                      <Border x:Name="BtnBorder" CornerRadius="4" Background="#14FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="{TemplateBinding Padding}">
+                                                          <TextBlock Text="{Binding MaxScreenshotsButtonText}" Foreground="#B0FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
                                                       </Border>
                                                       <ControlTemplate.Triggers>
                                                           <Trigger Property="IsMouseOver" Value="True">
-                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#28FFFFFF"/>
-                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#55FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="Background" Value="#25FFFFFF"/>
+                                                              <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#66FFFFFF"/>
                                                           </Trigger>
                                                       </ControlTemplate.Triggers>
                                                   </ControlTemplate>
@@ -803,7 +799,7 @@
                                       </StackPanel>
 
                                       <!-- MCQ Scan Notice (Shown under capture/send when in MCQ mode) -->
-                                      <Border DockPanel.Dock="Right" Background="#20FF9900" BorderBrush="#55FF9900" BorderThickness="1" CornerRadius="3" Padding="6,2"
+                                      <Border DockPanel.Dock="Right" Background="#25FF9900" BorderBrush="#55FF9900" BorderThickness="1" CornerRadius="4" Padding="8,2"
                                               Visibility="{Binding IsMcqScanMode, Converter={StaticResource BoolToVis}}">
                                           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                               <TextBlock Text="⚠️ Note: Do not capture 2+ questions in one screenshot" Foreground="#FFD54F" FontSize="8.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -821,9 +817,9 @@
                                  </Grid.RowDefinitions>
 
                                  <!-- Badge / Header Text -->
-                                 <Border Grid.Row="0" Background="#15FFFFFF" CornerRadius="4" Padding="6,3" Margin="0,0,0,4">
+                                 <Border Grid.Row="0" Background="#18FFFFFF" CornerRadius="5" Padding="8,3" Margin="0,0,0,4">
                                      <DockPanel>
-                                         <TextBlock Text="{Binding ScreenshotsBadgeText}" Foreground="#D1D5DB" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                         <TextBlock Text="{Binding ScreenshotsBadgeText}" Foreground="#E5E7EB" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                      </DockPanel>
                                  </Border>
 
@@ -837,22 +833,22 @@
                                          </ItemsControl.ItemsPanel>
                                          <ItemsControl.ItemTemplate>
                                              <DataTemplate>
-                                                 <Border CornerRadius="4" BorderBrush="#33FFFFFF" BorderThickness="1" Background="#22000000" Margin="0,0,6,0" Width="64" Height="42" ClipToBounds="True">
+                                                 <Border CornerRadius="5" BorderBrush="#35FFFFFF" BorderThickness="1" Background="#33000000" Margin="0,0,6,0" Width="66" Height="44" ClipToBounds="True">
                                                      <Grid>
                                                          <Image Source="{Binding PreviewImage}" Stretch="UniformToFill"/>
                                                          <!-- Label Badge -->
-                                                         <Border Background="#CC000000" CornerRadius="2" VerticalAlignment="Bottom" HorizontalAlignment="Left" Padding="3,1" Margin="2">
-                                                             <TextBlock Text="{Binding DisplayName}" Foreground="#FFFFFF" FontSize="7.5" FontWeight="Bold"/>
+                                                         <Border Background="#E6000000" CornerRadius="3" VerticalAlignment="Bottom" HorizontalAlignment="Left" Padding="4,1" Margin="2">
+                                                             <TextBlock Text="{Binding DisplayName}" Foreground="#FFFFFF" FontSize="8" FontWeight="Bold"/>
                                                          </Border>
                                                          <!-- Delete (x) Button -->
                                                          <Button Command="{Binding DataContext.RemoveScreenshotCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
                                                                  CommandParameter="{Binding}" 
                                                                  HorizontalAlignment="Right" VerticalAlignment="Top" 
-                                                                 Margin="2" Width="14" Height="14" Cursor="Arrow">
+                                                                 Margin="2" Width="16" Height="16" Cursor="Arrow">
                                                              <Button.Template>
                                                                  <ControlTemplate TargetType="Button">
-                                                                     <Border CornerRadius="7" Background="#CCEF4444">
-                                                                         <TextBlock Text="✕" Foreground="#FFFFFF" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                                                     <Border CornerRadius="8" Background="#E5EF4444">
+                                                                         <TextBlock Text="✕" Foreground="#FFFFFF" FontSize="8.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
                                                                      </Border>
                                                                  </ControlTemplate>
                                                              </Button.Template>
@@ -866,11 +862,11 @@
                              </Grid>
 
                              <!-- Chat-Style Response Area -->
-                             <Border Grid.Row="3" Background="#08FFFFFF" CornerRadius="4" Padding="2">
+                             <Border Grid.Row="3" Background="#0AFFFFFF" CornerRadius="6" Padding="3">
                                  <ScrollViewer x:Name="TxtScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
                                      <Grid>
                                          <!-- Fallback: plain ScanResponseText when no chat bubbles exist yet -->
-                                         <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" Padding="4">
+                                         <TextBlock local:TextBlockHelper.FormattedText="{Binding ScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" Padding="6">
                                              <TextBlock.Style>
                                                  <Style TargetType="TextBlock">
                                                      <Setter Property="Visibility" Value="Collapsed"/>
@@ -902,10 +898,10 @@
                                              </ItemsControl.ItemsPanel>
                                              <ItemsControl.ItemTemplate>
                                                  <DataTemplate>
-                                                     <Grid Margin="0,3">
+                                                     <Grid Margin="0,4">
                                                          <!-- USER BUBBLE (right-aligned, cyan accent) -->
-                                                         <Border HorizontalAlignment="Right" MaxWidth="280" CornerRadius="8,8,2,8" Padding="8,6" Margin="30,0,0,0"
-                                                                 Background="#1800D2FF" BorderBrush="#3300D2FF" BorderThickness="1">
+                                                         <Border HorizontalAlignment="Right" MaxWidth="290" CornerRadius="10,10,3,10" Padding="10,8" Margin="24,0,0,0"
+                                                                 Background="#2200D2FF" BorderBrush="#4400D2FF" BorderThickness="1">
                                                              <Border.Style>
                                                                  <Style TargetType="Border">
                                                                      <Setter Property="Visibility" Value="Collapsed"/>
@@ -918,12 +914,12 @@
                                                              </Border.Style>
                                                              <StackPanel>
                                                                  <!-- Turn label -->
-                                                                 <TextBlock Foreground="#7700D2FF" FontSize="8.5" FontWeight="Bold" Margin="0,0,0,4">
+                                                                 <TextBlock Foreground="#9900D2FF" FontSize="9" FontWeight="Bold" Margin="0,0,0,5">
                                                                      <Run Text="📸 "/>
                                                                      <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
                                                                  </TextBlock>
                                                                  <!-- Screenshot thumbnails row -->
-                                                                 <ItemsControl ItemsSource="{Binding ScreenshotPreviews}" Margin="0,0,0,4">
+                                                                 <ItemsControl ItemsSource="{Binding ScreenshotPreviews}" Margin="0,0,0,5">
                                                                      <ItemsControl.ItemsPanel>
                                                                          <ItemsPanelTemplate>
                                                                              <WrapPanel Orientation="Horizontal"/>
@@ -931,20 +927,20 @@
                                                                      </ItemsControl.ItemsPanel>
                                                                      <ItemsControl.ItemTemplate>
                                                                          <DataTemplate>
-                                                                             <Border CornerRadius="4" BorderBrush="#3300D2FF" BorderThickness="1" Background="#15000000" Width="52" Height="34" Margin="0,0,4,4" ClipToBounds="True">
+                                                                             <Border CornerRadius="4" BorderBrush="#4000D2FF" BorderThickness="1" Background="#20000000" Width="54" Height="36" Margin="0,0,4,4" ClipToBounds="True">
                                                                                  <Image Source="{Binding}" Stretch="UniformToFill"/>
                                                                              </Border>
                                                                          </DataTemplate>
                                                                      </ItemsControl.ItemTemplate>
                                                                  </ItemsControl>
                                                                  <!-- Content text -->
-                                                                 <TextBlock Text="{Binding Content}" Foreground="#AA00D2FF" FontSize="9" TextWrapping="Wrap"/>
+                                                                 <TextBlock Text="{Binding Content}" Foreground="#E0FFFFFF" FontSize="9.5" TextWrapping="Wrap"/>
                                                              </StackPanel>
                                                          </Border>
 
                                                          <!-- ASSISTANT BUBBLE (left-aligned, darker bg) -->
-                                                         <Border HorizontalAlignment="Left" MaxWidth="320" CornerRadius="8,8,8,2" Padding="8,6" Margin="0,0,30,0"
-                                                                 Background="#15FFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1">
+                                                         <Border HorizontalAlignment="Left" MaxWidth="330" CornerRadius="10,10,10,3" Padding="10,8" Margin="0,0,24,0"
+                                                                 Background="#18FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1">
                                                              <Border.Style>
                                                                  <Style TargetType="Border">
                                                                      <Setter Property="Visibility" Value="Collapsed"/>
@@ -961,8 +957,8 @@
                                                              </Border.Style>
                                                              <StackPanel>
                                                                  <!-- Model info badge -->
-                                                                 <Border Background="#10FFFFFF" CornerRadius="3" Padding="4,2" Margin="0,0,0,4" HorizontalAlignment="Left">
-                                                                     <TextBlock Foreground="#6690CAF9" FontSize="8" FontWeight="SemiBold">
+                                                                 <Border Background="#14FFFFFF" CornerRadius="4" Padding="5,2" Margin="0,0,0,5" HorizontalAlignment="Left">
+                                                                     <TextBlock Foreground="#8890CAF9" FontSize="8.5" FontWeight="SemiBold">
                                                                          <Run Text="🤖 "/>
                                                                          <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
                                                                          <Run Text=" · "/>
@@ -970,22 +966,22 @@
                                                                      </TextBlock>
                                                                  </Border>
                                                                  <!-- Loading indicator -->
-                                                                 <Grid Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                                                 <Grid Margin="0,3,0,3" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
                                                                      <Grid.ColumnDefinitions>
                                                                          <ColumnDefinition Width="*"/>
                                                                          <ColumnDefinition Width="Auto"/>
                                                                      </Grid.ColumnDefinitions>
                                                                      <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
-                                                                         <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
-                                                                         <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                         <TextBlock Text="⏳ " Foreground="#A0FFFFFF" FontSize="11"/>
+                                                                         <TextBlock Text="{Binding Content}" Foreground="#A0FFFFFF" FontSize="10" FontStyle="Italic" TextWrapping="Wrap"/>
                                                                      </StackPanel>
                                                                      <!-- Red live timer on the right -->
-                                                                     <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="5,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                     <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center">
                                                                          <TextBlock Text="{Binding ElapsedLabel}" Foreground="#FFFF4444" FontSize="10" FontWeight="Bold" FontFamily="Consolas"/>
                                                                      </Border>
                                                                  </Grid>
                                                                  <!-- Response content (hidden during loading) -->
-                                                                 <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#E0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
+                                                                 <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#F0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
                                                                      <TextBlock.Style>
                                                                          <Style TargetType="TextBlock">
                                                                              <Setter Property="Visibility" Value="Visible"/>
@@ -999,20 +995,20 @@
                                                                  </TextBlock>
 
                                                                  <!-- API Key / Environment Verification Action Bar -->
-                                                                 <Border Margin="0,6,0,2" Padding="6,4" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="4"
+                                                                 <Border Margin="0,8,0,2" Padding="8,5" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="5"
                                                                          Visibility="{Binding ShowCheckApiKeyAction, Converter={StaticResource BoolToVis}}">
                                                                      <DockPanel LastChildFill="True">
                                                                          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                                                                             <TextBlock Text="⚠️" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                                                             <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                                             <TextBlock Text="⚠️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                             <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/>
                                                                          </StackPanel>
                                                                          <Button Command="{Binding DataContext.OpenApiKeySettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                 HorizontalAlignment="Right" Padding="8,2" Height="20"
+                                                                                 HorizontalAlignment="Right" Padding="8,2" Height="22"
                                                                                  Background="#40EF4444" Foreground="#FFFFEEEE" BorderBrush="#88EF4444" BorderThickness="1"
-                                                                                 FontSize="8.5" FontWeight="Bold" Cursor="Hand">
+                                                                                 FontSize="9" FontWeight="Bold" Cursor="Hand">
                                                                              <Button.Template>
                                                                                  <ControlTemplate TargetType="Button">
-                                                                                     <Border CornerRadius="3" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                                                     <Border CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
                                                                                          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                                                              <TextBlock Text="🔧 Check / Update Key" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}"/>
                                                                                          </StackPanel>
@@ -1036,7 +1032,7 @@
                              <StackPanel Grid.Row="4" Margin="0,6,0,0" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
                                   
                                   <!-- 7-Second Cooldown Timer Alert Banner -->
-                                  <Border Background="#33FF4444" BorderBrush="#88FF5555" BorderThickness="1" CornerRadius="4" Padding="6,4" Margin="0,0,0,4"
+                                  <Border Background="#33FF4444" BorderBrush="#88FF5555" BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="0,0,0,4"
                                           Visibility="{Binding IsFollowUpCooldownActive, Converter={StaticResource BoolToVis}}">
                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                           <TextBlock Text="⏳" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center"/>
@@ -1055,10 +1051,10 @@
                                       </Border>
 
                                       <!-- + ASK WITH SCREENSHOT Button -->
-                                      <Button Command="{Binding StartScanCommand}" Cursor="Arrow" Height="28" Margin="0,2,0,0">
+                                      <Button Command="{Binding StartScanCommand}" Cursor="Arrow" Height="30" Margin="0,2,0,0">
                                           <Button.Template>
                                               <ControlTemplate TargetType="Button">
-                                                  <Border x:Name="AskBtnBorder" CornerRadius="4" Background="#2000D2FF" BorderBrush="#5000D2FF" BorderThickness="1" Padding="8,4">
+                                                  <Border x:Name="AskBtnBorder" CornerRadius="6" Background="#2000D2FF" BorderBrush="#5000D2FF" BorderThickness="1" Padding="8,4">
                                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                           <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Fill="#00D2FF" Width="10" Height="10" Stretch="Uniform" Margin="0,0,6,0"/>
                                                           <TextBlock Text="📸 + ASK WITH SCREENSHOT" Foreground="#00D2FF" FontSize="9.5" FontWeight="Bold"/>
@@ -1089,8 +1085,8 @@
                                                               Cursor="Arrow" Margin="0,0,4,0">
                                                           <Button.Template>
                                                               <ControlTemplate TargetType="Button">
-                                                                  <Border x:Name="PillBorder" CornerRadius="10" Background="#1800D2FF" BorderBrush="#3500D2FF" BorderThickness="1" Padding="8,3">
-                                                                      <TextBlock Text="{Binding}" Foreground="#00D2FF" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                  <Border x:Name="PillBorder" CornerRadius="12" Background="#1800D2FF" BorderBrush="#3500D2FF" BorderThickness="1" Padding="10,4">
+                                                                      <TextBlock Text="{Binding}" Foreground="#00D2FF" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                   </Border>
                                                                   <ControlTemplate.Triggers>
                                                                       <Trigger Property="IsMouseOver" Value="True">
@@ -1109,10 +1105,10 @@
                                       <!-- Follow-up Text Input + Send Button -->
                                       <DockPanel Margin="0,4,0,0">
                                           <!-- Send Button -->
-                                          <Button DockPanel.Dock="Right" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Width="36" Height="26" Margin="4,0,0,0">
+                                          <Button DockPanel.Dock="Right" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Width="40" Height="28" Margin="4,0,0,0">
                                               <Button.Template>
                                                   <ControlTemplate TargetType="Button">
-                                                      <Border x:Name="SendBtnBorder" CornerRadius="4" Background="#2000D2FF" BorderBrush="#4000D2FF" BorderThickness="1">
+                                                      <Border x:Name="SendBtnBorder" CornerRadius="6" Background="#2000D2FF" BorderBrush="#4000D2FF" BorderThickness="1">
                                                           <TextBlock Text="➤" Foreground="#00D2FF" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                       </Border>
                                                       <ControlTemplate.Triggers>
@@ -1124,10 +1120,10 @@
                                               </Button.Template>
                                           </Button>
                                           <!-- Text Input -->
-                                          <Border CornerRadius="4" Background="#12FFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
+                                          <Border CornerRadius="6" Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1">
                                               <TextBox Text="{Binding FollowUpText, UpdateSourceTrigger=PropertyChanged}" 
-                                                       Background="Transparent" Foreground="#D0FFFFFF" FontSize="10" 
-                                                       BorderThickness="0" Padding="6,4" VerticalContentAlignment="Center"
+                                                       Background="Transparent" Foreground="#F0FFFFFF" FontSize="10.5" 
+                                                       BorderThickness="0" Padding="8,5" VerticalContentAlignment="Center"
                                                        CaretBrush="#00D2FF" AcceptsReturn="False">
                                                   <TextBox.InputBindings>
                                                       <KeyBinding Key="Return" Command="{Binding SubmitFollowUpCommand}"/>
@@ -1146,7 +1142,7 @@
 
                 <!-- VOICE SCAN WIDGET -->
                 <Grid Visibility="{Binding IsVoiceScanActive, Converter={StaticResource BoolToVis}}">
-                    <Border Background="#11FFFFFF" CornerRadius="6" Padding="8">
+                    <Border Background="#14FFFFFF" CornerRadius="8" Padding="8">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/> <!-- Row 0: Option Toggles -->
@@ -1165,14 +1161,14 @@
 
                                 <!-- Left Column: Audio Source -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="SOURCE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
+                                    <TextBlock Text="SOURCE:" VerticalAlignment="Center" Foreground="#99FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,5,0"/>
                                     <RadioButton Content="MIC" Style="{StaticResource SegmentButtonStyle}" GroupName="VoiceSource" IsChecked="{Binding IsMicrophoneSource, Mode=TwoWay}"/>
                                     <RadioButton Content="SYSTEM" Style="{StaticResource SegmentButtonStyle}" GroupName="VoiceSource" IsChecked="{Binding IsSystemAudioSource, Mode=TwoWay}"/>
                                 </StackPanel>
 
                                 <!-- Right Column: Recording Mode -->
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <TextBlock Text="MODE:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="0,0,4,0"/>
+                                    <TextBlock Text="MODE:" VerticalAlignment="Center" Foreground="#99FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,5,0"/>
                                     <RadioButton Content="MANUAL" Style="{StaticResource SegmentButtonStyle}" GroupName="VoiceMode" IsChecked="{Binding IsManualMode, Mode=TwoWay}"/>
                                     <RadioButton Content="LIVE AUTO" Style="{StaticResource SegmentButtonStyle}" GroupName="VoiceMode" IsChecked="{Binding IsLiveMode, Mode=TwoWay}"/>
                                 </StackPanel>
@@ -1187,22 +1183,22 @@
                                  </Grid.ColumnDefinitions>
 
                                  <!-- Voice Record Button -->
-                                 <Button Grid.Column="0" Command="{Binding ToggleVoiceCommand}" Cursor="Arrow" Height="28" Margin="0,0,4,0">
+                                 <Button Grid.Column="0" Command="{Binding ToggleVoiceCommand}" Cursor="Arrow" Height="32" Margin="0,0,4,0">
                                      <Button.Style>
                                          <Style TargetType="Button">
                                              <Setter Property="Template">
                                                  <Setter.Value>
                                                      <ControlTemplate TargetType="Button">
-                                                         <Border CornerRadius="4" Background="#20FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1" Padding="6,4">
+                                                         <Border CornerRadius="7" Background="#22FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1" Padding="8,4">
                                                              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                  <Path Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
-                                                                       Fill="#FFFFFF" Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                                       Fill="#FFFFFF" Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0"/>
                                                                  <TextBlock Text="{Binding VoiceBtnText}" Foreground="#FFFFFF" FontSize="10.5" FontWeight="Bold"/>
                                                              </StackPanel>
                                                          </Border>
                                                          <ControlTemplate.Triggers>
                                                              <Trigger Property="IsMouseOver" Value="True">
-                                                                 <Setter Property="Opacity" Value="0.9"/>
+                                                                 <Setter Property="Opacity" Value="0.92"/>
                                                              </Trigger>
                                                          </ControlTemplate.Triggers>
                                                      </ControlTemplate>
@@ -1213,10 +1209,10 @@
                                                      <Setter Property="Template">
                                                          <Setter.Value>
                                                              <ControlTemplate TargetType="Button">
-                                                                 <Border CornerRadius="4" Background="#FFFF453A" Padding="6,4">
+                                                                 <Border CornerRadius="7" Background="#FFFF453A" Padding="8,4">
                                                                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                          <Path Data="M6 19h12V5H6v14z" 
-                                                                               Fill="#000000" Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0"/>
+                                                                               Fill="#000000" Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0"/>
                                                                          <TextBlock Text="{Binding VoiceBtnText}" Foreground="#000000" FontSize="10.5" FontWeight="Bold"/>
                                                                      </StackPanel>
                                                                  </Border>
@@ -1230,12 +1226,12 @@
                                  </Button>
 
                                  <!-- Copy Button -->
-                                 <Button Grid.Column="1" Command="{Binding CopyVoiceCommand}" Cursor="Arrow" Height="28" Width="28" Margin="0,0,4,0">
+                                 <Button Grid.Column="1" Command="{Binding CopyVoiceCommand}" Cursor="Arrow" Height="32" Width="32" Margin="0,0,4,0">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="VoiceCopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
                                                  <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" 
-                                                       Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                       Fill="#88FFFFFF" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                              </Border>
                                              <ControlTemplate.Triggers>
                                                  <Trigger Property="IsMouseOver" Value="True">
@@ -1247,12 +1243,12 @@
                                  </Button>
 
                                  <!-- Clear/Refresh Button -->
-                                 <Button Grid.Column="2" Command="{Binding ClearVoiceScanCommand}" Cursor="Arrow" Height="28" Width="28">
+                                 <Button Grid.Column="2" Command="{Binding ClearVoiceScanCommand}" Cursor="Arrow" Height="32" Width="32">
                                      <Button.Template>
                                          <ControlTemplate TargetType="Button">
                                              <Border x:Name="VoiceClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
                                                  <Path Data="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" 
-                                                       Fill="#88FFFFFF" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                       Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                              </Border>
                                              <ControlTemplate.Triggers>
                                                  <Trigger Property="IsMouseOver" Value="True">
@@ -1265,11 +1261,11 @@
                              </Grid>
 
                             <!-- Voice Response Area (Chat Bubble Style with Fallback) -->
-                            <Border Grid.Row="2" Background="#08FFFFFF" CornerRadius="4" Padding="2">
+                            <Border Grid.Row="2" Background="#0AFFFFFF" CornerRadius="6" Padding="3">
                                 <ScrollViewer x:Name="VoiceScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
                                     <Grid>
                                         <!-- Fallback: plain VoiceScanResponseText when no chat bubbles exist yet -->
-                                        <TextBlock local:TextBlockHelper.FormattedText="{Binding VoiceScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" Padding="4">
+                                        <TextBlock local:TextBlockHelper.FormattedText="{Binding VoiceScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" Padding="6">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -1301,10 +1297,10 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Grid Margin="0,3">
+                                                    <Grid Margin="0,4">
                                                         <!-- USER BUBBLE (right-aligned, violet accent) -->
-                                                        <Border HorizontalAlignment="Right" MaxWidth="280" CornerRadius="8,8,2,8" Padding="8,6" Margin="30,0,0,0"
-                                                                Background="#1A7C4DFF" BorderBrush="#33B388FF" BorderThickness="1">
+                                                        <Border HorizontalAlignment="Right" MaxWidth="290" CornerRadius="10,10,3,10" Padding="10,8" Margin="24,0,0,0"
+                                                                Background="#257C4DFF" BorderBrush="#50B388FF" BorderThickness="1">
                                                             <Border.Style>
                                                                 <Style TargetType="Border">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -1317,18 +1313,18 @@
                                                             </Border.Style>
                                                             <StackPanel>
                                                                 <!-- Turn label -->
-                                                                <TextBlock Foreground="#B388FF" FontSize="8.5" FontWeight="Bold" Margin="0,0,0,4">
+                                                                <TextBlock Foreground="#D1C4E9" FontSize="9" FontWeight="Bold" Margin="0,0,0,4">
                                                                     <Run Text="🎙️ "/>
                                                                     <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
                                                                 </TextBlock>
                                                                 <!-- Content text -->
-                                                                <TextBlock Text="{Binding Content}" Foreground="#EDE7F6" FontSize="9.5" TextWrapping="Wrap"/>
+                                                                <TextBlock Text="{Binding Content}" Foreground="#EDE7F6" FontSize="10" TextWrapping="Wrap"/>
                                                             </StackPanel>
                                                         </Border>
 
                                                         <!-- ASSISTANT BUBBLE (left-aligned, darker bg) -->
-                                                        <Border HorizontalAlignment="Left" MaxWidth="320" CornerRadius="8,8,8,2" Padding="8,6" Margin="0,0,30,0"
-                                                                Background="#15FFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1">
+                                                        <Border HorizontalAlignment="Left" MaxWidth="330" CornerRadius="10,10,10,3" Padding="10,8" Margin="0,0,24,0"
+                                                                Background="#18FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1">
                                                             <Border.Style>
                                                                 <Style TargetType="Border">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -1345,8 +1341,8 @@
                                                             </Border.Style>
                                                             <StackPanel>
                                                                 <!-- Model info badge -->
-                                                                <Border Background="#10FFFFFF" CornerRadius="3" Padding="4,2" Margin="0,0,0,4" HorizontalAlignment="Left">
-                                                                    <TextBlock Foreground="#6690CAF9" FontSize="8" FontWeight="SemiBold">
+                                                                <Border Background="#14FFFFFF" CornerRadius="4" Padding="5,2" Margin="0,0,0,5" HorizontalAlignment="Left">
+                                                                    <TextBlock Foreground="#8890CAF9" FontSize="8.5" FontWeight="SemiBold">
                                                                         <Run Text="🤖 "/>
                                                                         <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
                                                                         <Run Text=" · "/>
@@ -1354,22 +1350,22 @@
                                                                     </TextBlock>
                                                                 </Border>
                                                                 <!-- Loading indicator -->
-                                                                <Grid Margin="0,2,0,2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                                                <Grid Margin="0,3,0,3" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
                                                                     <Grid.ColumnDefinitions>
                                                                         <ColumnDefinition Width="*"/>
                                                                         <ColumnDefinition Width="Auto"/>
                                                                     </Grid.ColumnDefinitions>
                                                                     <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
-                                                                        <TextBlock Text="⏳ " Foreground="#88FFFFFF" FontSize="10"/>
-                                                                        <TextBlock Text="{Binding Content}" Foreground="#88FFFFFF" FontSize="9.5" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                        <TextBlock Text="⏳ " Foreground="#A0FFFFFF" FontSize="11"/>
+                                                                        <TextBlock Text="{Binding Content}" Foreground="#A0FFFFFF" FontSize="10" FontStyle="Italic" TextWrapping="Wrap"/>
                                                                     </StackPanel>
                                                                     <!-- Red live timer on the right -->
-                                                                    <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="5,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                    <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center">
                                                                         <TextBlock Text="{Binding ElapsedLabel}" Foreground="#FFFF4444" FontSize="10" FontWeight="Bold" FontFamily="Consolas"/>
                                                                     </Border>
                                                                 </Grid>
                                                                 <!-- Response content (hidden during loading) -->
-                                                                <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#E0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
+                                                                <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#F0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
                                                                     <TextBlock.Style>
                                                                         <Style TargetType="TextBlock">
                                                                             <Setter Property="Visibility" Value="Visible"/>
@@ -1383,20 +1379,20 @@
                                                                 </TextBlock>
 
                                                                 <!-- API Key / Environment Verification Action Bar -->
-                                                                <Border Margin="0,6,0,2" Padding="6,4" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="4"
+                                                                <Border Margin="0,8,0,2" Padding="8,5" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="5"
                                                                         Visibility="{Binding ShowCheckApiKeyAction, Converter={StaticResource BoolToVis}}">
                                                                     <DockPanel LastChildFill="True">
                                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
-                                                                            <TextBlock Text="⚠️" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                                                            <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="⚠️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/>
                                                                         </StackPanel>
                                                                         <Button Command="{Binding DataContext.OpenApiKeySettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                HorizontalAlignment="Right" Padding="8,2" Height="20"
+                                                                                HorizontalAlignment="Right" Padding="8,2" Height="22"
                                                                                 Background="#40EF4444" Foreground="#FFFFEEEE" BorderBrush="#88EF4444" BorderThickness="1"
-                                                                                FontSize="8.5" FontWeight="Bold" Cursor="Hand">
+                                                                                FontSize="9" FontWeight="Bold" Cursor="Hand">
                                                                             <Button.Template>
                                                                                 <ControlTemplate TargetType="Button">
-                                                                                    <Border CornerRadius="3" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                                                    <Border CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
                                                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                                                             <TextBlock Text="🔧 Check / Update Key" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}"/>
                                                                                         </StackPanel>
@@ -1433,12 +1429,12 @@
                                                         Cursor="Arrow" Margin="0,0,4,0">
                                                     <Button.Template>
                                                         <ControlTemplate TargetType="Button">
-                                                            <Border x:Name="PillBorder" CornerRadius="10" Background="#187C4DFF" BorderBrush="#35B388FF" BorderThickness="1" Padding="8,3">
-                                                                <TextBlock Text="{Binding}" Foreground="#B388FF" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                            <Border x:Name="PillBorder" CornerRadius="12" Background="#187C4DFF" BorderBrush="#35B388FF" BorderThickness="1" Padding="10,4">
+                                                                <TextBlock Text="{Binding}" Foreground="#B388FF" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="PillBorder" Property="Background" Value="#35B388FF"/>
+                                                                    <Setter TargetName="PillBorder" Property="Background" Value="#357C4DFF"/>
                                                                     <Setter TargetName="PillBorder" Property="BorderBrush" Value="#70B388FF"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
@@ -1451,7 +1447,7 @@
                                 </ScrollViewer>
 
                                 <!-- Follow-up Input Bar -->
-                                <Border Background="#11FFFFFF" CornerRadius="4" Padding="4,2">
+                                <Border Background="#14FFFFFF" CornerRadius="6" Padding="6,3">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -1462,7 +1458,7 @@
 
                                         <!-- Chat Input TextBox -->
                                         <TextBox Grid.Column="0" Text="{Binding FollowUpText, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Foreground="#E0FFFFFF" FontSize="10.5" Background="Transparent" BorderThickness="0" 
+                                                 Foreground="#F0FFFFFF" FontSize="10.5" Background="Transparent" BorderThickness="0" 
                                                  VerticalContentAlignment="Center" Margin="4,2" CaretBrush="#FFFFFF" SelectionBrush="{Binding Tag, ElementName=MainBorder}">
                                             <TextBox.InputBindings>
                                                 <KeyBinding Key="Enter" Command="{Binding SubmitFollowUpCommand}"/>
@@ -1470,7 +1466,7 @@
                                         </TextBox>
 
                                         <!-- 7-Second Cooldown Timer Badge -->
-                                        <Border Grid.Column="1" Background="#33FF4444" CornerRadius="3" Padding="6,2" Margin="2,0" VerticalAlignment="Center"
+                                        <Border Grid.Column="1" Background="#33FF4444" CornerRadius="4" Padding="6,2" Margin="2,0" VerticalAlignment="Center"
                                                 Visibility="{Binding IsFollowUpCooldownActive, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="{Binding FollowUpCooldownText}" Foreground="#FFFF8888" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/>
                                         </Border>
@@ -1479,10 +1475,10 @@
                                         <Button Grid.Column="2" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border Background="Transparent" Padding="4">
+                                                    <Border Background="Transparent" Padding="5">
                                                         <!-- Simple mic SVG -->
                                                         <Path x:Name="MicIcon" Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
-                                                              Fill="{Binding FollowUpMicColor}" Width="10.5" Height="10.5" Stretch="Uniform"/>
+                                                              Fill="{Binding FollowUpMicColor}" Width="12" Height="12" Stretch="Uniform"/>
                                                     </Border>
                                                 </ControlTemplate>
                                             </Button.Template>
@@ -1492,10 +1488,10 @@
                                         <Button Grid.Column="3" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border Background="Transparent" Padding="4">
+                                                    <Border Background="Transparent" Padding="5">
                                                         <!-- Simple paper plane Send SVG -->
                                                         <Path x:Name="SendIcon" Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
-                                                              Fill="#88FFFFFF" Width="10.5" Height="10.5" Stretch="Uniform"/>
+                                                              Fill="#88FFFFFF" Width="12" Height="12" Stretch="Uniform"/>
                                                     </Border>
                                                     <ControlTemplate.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
@@ -1517,81 +1513,79 @@
 
                 <!-- PROFILE WIDGET -->
                 <Grid Visibility="{Binding IsProfileActive, Converter={StaticResource BoolToVis}}">
-                    <Border Background="#11FFFFFF" CornerRadius="6" Padding="14">
+                    <Border Background="#14FFFFFF" CornerRadius="8" Padding="14">
                         <StackPanel VerticalAlignment="Center">
-                            <Border Width="36" Height="36" CornerRadius="18" Background="#2000FFCC" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                <TextBlock Text="👤" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <!-- Avatar circle -->
+                            <Border Width="46" Height="46" CornerRadius="23" Background="#2500FFCC" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                <TextBlock Text="👤" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="ACCOUNT PROFILE" Foreground="#FFFFFF" FontSize="12.5" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                            <TextBlock Text="ACCOUNT PROFILE" Foreground="#FFFFFF" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,14"/>
                             
-                            <!-- Name Row -->
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Name:" Foreground="#88FFFFFF" FontSize="10.5" Width="70"/>
-                                <TextBlock Grid.Column="1" Text="{Binding ProfileName}" Foreground="#00FFCC" FontSize="11" FontWeight="SemiBold"/>
-                            </Grid>
+                            <!-- Info Cards Container -->
+                            <Border Background="#0CFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <!-- Name Row -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Name" Foreground="#88FFFFFF" FontSize="11" Width="70" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding ProfileName}" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </Grid>
 
-                            <!-- Email Row -->
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Email:" Foreground="#88FFFFFF" FontSize="10.5" Width="70"/>
-                                <TextBlock Grid.Column="1" Text="{Binding UserEmail}" Foreground="#FFFFFF" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                            </Grid>
+                                    <!-- Email Row -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Email" Foreground="#88FFFFFF" FontSize="11" Width="70" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding UserEmail}" Foreground="#FFFFFF" FontSize="11.5" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </Grid>
 
-                            <!-- Groq Key Row -->
-                            <Grid Margin="0,0,0,16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Groq Key:" Foreground="#88FFFFFF" FontSize="10.5" Width="70"/>
-                                <TextBlock Grid.Column="1" Text="{Binding MaskedGroqKey}" Foreground="#FFFFFF" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                            </Grid>
+                                    <!-- Groq Key Row -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Groq Key" Foreground="#88FFFFFF" FontSize="11" Width="70" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding MaskedGroqKey}" Foreground="#E0FFFFFF" FontSize="10.5" FontFamily="Consolas" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
                             
-                            <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,10"/>
-                            <TextBlock Text="To edit your key, please use the settings drawer or log out and log back in." Foreground="#66FFFFFF" FontSize="8.5" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="To edit your key, please use the settings drawer or log out and log back in." Foreground="#66FFFFFF" FontSize="9" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,2,0,8"/>
 
                             <!-- Version & Update Section -->
-                            <Border Height="1" Background="#20FFFFFF" Margin="0,10,0,10"/>
-
-                            <!-- Current version row -->
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Version:" Foreground="#88FFFFFF" FontSize="10.5" Width="70" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{Binding CurrentAppVersion, StringFormat=v{0}}" Foreground="#AAFFFFFF" FontSize="10.5" FontFamily="Consolas" VerticalAlignment="Center"/>
-                                <!-- Check for update link -->
-                                <Button Grid.Column="2" Command="{Binding CheckForUpdateCommand}"
-                                        Background="Transparent" BorderThickness="0" Cursor="Arrow" VerticalAlignment="Center">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <TextBlock Text="🔄 Check" Foreground="#6690CAF9" FontSize="9" TextDecorations="Underline">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=IsMouseOver}" Value="True">
-                                                                <Setter Property="Foreground" Value="#CC90CAF9"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </Grid>
+                            <Border Background="#0CFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,2,0,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Version" Foreground="#88FFFFFF" FontSize="11" Width="70" VerticalAlignment="Center"/>
+                                    <Border Grid.Column="1" Background="#18FFFFFF" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding CurrentAppVersion, StringFormat=v{0}}" Foreground="#AAFFFFFF" FontSize="10" FontFamily="Consolas" FontWeight="Bold"/>
+                                    </Border>
+                                    <!-- Check for update link -->
+                                    <Button Grid.Column="2" Command="{Binding CheckForUpdateCommand}"
+                                            Background="Transparent" BorderThickness="0" Cursor="Arrow" VerticalAlignment="Center">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="4" Background="#14FFFFFF" Padding="6,3">
+                                                    <TextBlock Text="🔄 Check" Foreground="#90CAF9" FontSize="9.5" FontWeight="SemiBold"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+                            </Border>
 
                             <!-- Update available banner -->
-                            <Border Background="#2200D2FF" BorderBrush="#4400D2FF" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,2,0,6">
+                            <Border Background="#2500D2FF" BorderBrush="#5000D2FF" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,4,0,4">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -1603,11 +1597,11 @@
                                     </Style>
                                 </Border.Style>
                                 <StackPanel>
-                                    <TextBlock Foreground="#00D2FF" FontSize="10" FontWeight="Bold" TextWrapping="Wrap">
+                                    <TextBlock Foreground="#00D2FF" FontSize="10.5" FontWeight="Bold" TextWrapping="Wrap">
                                         <Run Text="🆕 Update available: v"/>
                                         <Run Text="{Binding LatestVersion}"/>
                                     </TextBlock>
-                                    <TextBlock Text="{Binding UpdateReleaseNotes}" Foreground="#88FFFFFF" FontSize="9" TextWrapping="Wrap" Margin="0,3,0,6"
+                                    <TextBlock Text="{Binding UpdateReleaseNotes}" Foreground="#AAFFFFFF" FontSize="9.5" TextWrapping="Wrap" Margin="0,3,0,6"
                                                Visibility="{Binding UpdateReleaseNotes, Converter={StaticResource StringToVisConverter}}"/>
 
                                     <!-- Progress bar (shown during download) -->
@@ -1622,17 +1616,17 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </Grid.Style>
-                                        <ProgressBar Value="{Binding UpdateProgress, Mode=OneWay}" Maximum="1" Height="5" Background="#22FFFFFF" Foreground="#00D2FF" BorderThickness="0"/>
+                                        <ProgressBar Value="{Binding UpdateProgress, Mode=OneWay}" Maximum="1" Height="6" Background="#22FFFFFF" Foreground="#00D2FF" BorderThickness="0"/>
                                     </Grid>
-                                    <TextBlock Text="{Binding UpdateStatusText}" Foreground="#88FFFFFF" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,6"
+                                    <TextBlock Text="{Binding UpdateStatusText}" Foreground="#AAFFFFFF" FontSize="9.5" TextWrapping="Wrap" Margin="0,0,0,6"
                                                Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}"/>
 
                                     <!-- Update button -->
-                                    <Button Command="{Binding DownloadUpdateCommand}" Cursor="Arrow" Height="26"
+                                    <Button Command="{Binding DownloadUpdateCommand}" Cursor="Arrow" Height="28"
                                             Visibility="{Binding ShowDownloadButton, Converter={StaticResource BoolToVis}}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="4" Background="#CC00D2FF" BorderThickness="0" Padding="8,0">
+                                                <Border CornerRadius="6" Background="#CC00D2FF" BorderThickness="0" Padding="8,0">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Style.Triggers>
@@ -1642,18 +1636,18 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Border.Style>
-                                                    <TextBlock Text="⬇ DOWNLOAD UPDATE" Foreground="#FF000000" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="⬇ DOWNLOAD UPDATE" Foreground="#FF000000" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
 
                                     <!-- Restart to Apply button (shown after download completes) -->
-                                    <Button Command="{Binding ApplyUpdateCommand}" Cursor="Arrow" Height="26"
+                                    <Button Command="{Binding ApplyUpdateCommand}" Cursor="Arrow" Height="28"
                                             Visibility="{Binding ShowRestartButton, Converter={StaticResource BoolToVis}}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="4" Background="#CC00FFCC" BorderThickness="0" Padding="8,0">
+                                                <Border CornerRadius="6" Background="#CC00FFCC" BorderThickness="0" Padding="8,0">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Style.Triggers>
@@ -1663,7 +1657,7 @@
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Border.Style>
-                                                    <TextBlock Text="🔄 RESTART TO APPLY" Foreground="#FF000000" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="🔄 RESTART TO APPLY" Foreground="#FF000000" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Button.Template>
@@ -1672,7 +1666,7 @@
                             </Border>
 
                             <!-- Up to date message -->
-                            <TextBlock Foreground="#6600FFCC" FontSize="9" HorizontalAlignment="Center" Text="✅ App is up to date">
+                            <TextBlock Foreground="#8800FFCC" FontSize="9.5" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0" Text="✅ App is up to date">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -1712,8 +1706,8 @@
                     </Style>
                 </Grid.Style>
                 
-                <Border BorderBrush="#0EFFFFFF" BorderThickness="0,1,0,0" Background="#06FFFFFF">
-                    <Grid Margin="10,8,10,12">
+                <Border BorderBrush="#15FFFFFF" BorderThickness="0,1,0,0" Background="#0AFFFFFF">
+                    <Grid Margin="12,10,12,14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -1731,13 +1725,13 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="⚙  SETTINGS" Foreground="#55FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="⚙  SETTINGS" Foreground="#77FFFFFF" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
                             <Button Grid.Column="1" Command="{Binding ToggleSettingsCommand}" Background="Transparent" BorderThickness="0" Cursor="Arrow">
                                 <Button.Template>
                                     <ControlTemplate TargetType="Button">
                                         <Border Background="Transparent" Padding="4">
                                             <Path x:Name="Icon" Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
-                                                  Fill="#44FFFFFF" Width="9" Height="9" Stretch="Uniform"/>
+                                                  Fill="#66FFFFFF" Width="10" Height="10" Stretch="Uniform"/>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
@@ -1750,35 +1744,35 @@
                         </Grid>
 
                         <!-- Opacity Slider -->
-                        <Grid Grid.Row="1" Margin="0,0,0,7">
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="65"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="32"/>
+                                <ColumnDefinition Width="36"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Opacity" Foreground="#66FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="Opacity" Foreground="#88FFFFFF" FontSize="10.5" VerticalAlignment="Center"/>
                             <Slider Grid.Column="1" Minimum="0.1" Maximum="1.0" Value="{Binding WindowOpacity, Mode=TwoWay}" 
                                     Style="{StaticResource SleekSliderStyle}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding WindowOpacity, StringFormat={}{0:P0}}" 
-                                       Foreground="#55FFFFFF" FontSize="9.5" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                       Foreground="#88FFFFFF" FontSize="10" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
                         <!-- Font Size Slider -->
-                        <Grid Grid.Row="2" Margin="0,0,0,7">
+                        <Grid Grid.Row="2" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="65"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="32"/>
+                                <ColumnDefinition Width="36"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Text" Foreground="#66FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="Text" Foreground="#88FFFFFF" FontSize="10.5" VerticalAlignment="Center"/>
                             <Slider Grid.Column="1" Minimum="8.0" Maximum="22.0" Value="{Binding AppFontSize, Mode=TwoWay}" 
                                     Style="{StaticResource SleekSliderStyle}" VerticalAlignment="Center"/>
                             <TextBlock Grid.Column="2" Text="{Binding AppFontSize, StringFormat={}{0:F0}pt}" 
-                                       Foreground="#55FFFFFF" FontSize="9.5" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                       Foreground="#88FFFFFF" FontSize="10" FontFamily="Consolas" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
 
                         <!-- Toggles -->
-                        <Grid Grid.Row="3" Margin="0,2,0,7">
+                        <Grid Grid.Row="3" Margin="0,2,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -1788,22 +1782,22 @@
                         </Grid>
 
                         <!-- Theme -->
-                        <Grid Grid.Row="4" Margin="0,2,0,7">
+                        <Grid Grid.Row="4" Margin="0,2,0,8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="60"/>
+                                <ColumnDefinition Width="65"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Theme" Foreground="#66FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="Theme" Foreground="#88FFFFFF" FontSize="10.5" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Onyx" IsChecked="True" Cursor="Arrow" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Onyx" IsChecked="True" Cursor="Arrow" Margin="3,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FF00D2FF" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FF00D2FF" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked}" Value="True">
-                                                                <Setter Property="BorderThickness" Value="1.5"/>
+                                                                <Setter Property="BorderThickness" Value="2"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1812,15 +1806,15 @@
                                         </ControlTemplate>
                                     </RadioButton.Template>
                                 </RadioButton>
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Neon" Cursor="Arrow" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Neon" Cursor="Arrow" Margin="3,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FFFF00A0" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FFFF00A0" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked}" Value="True">
-                                                                <Setter Property="BorderThickness" Value="1.5"/>
+                                                                <Setter Property="BorderThickness" Value="2"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1829,15 +1823,15 @@
                                         </ControlTemplate>
                                     </RadioButton.Template>
                                 </RadioButton>
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Emerald" Cursor="Arrow" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Emerald" Cursor="Arrow" Margin="3,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FF00FFCC" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FF00FFCC" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked}" Value="True">
-                                                                <Setter Property="BorderThickness" Value="1.5"/>
+                                                                <Setter Property="BorderThickness" Value="2"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1846,15 +1840,15 @@
                                         </ControlTemplate>
                                     </RadioButton.Template>
                                 </RadioButton>
-                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Sunset" Cursor="Arrow" Margin="2,0">
+                                <RadioButton Command="{Binding ChangeThemeCommand}" CommandParameter="Sunset" Cursor="Arrow" Margin="3,0">
                                     <RadioButton.Template>
                                         <ControlTemplate TargetType="RadioButton">
-                                            <Border Width="14" Height="14" CornerRadius="7" Background="#FFFF7700" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
+                                            <Border Width="16" Height="16" CornerRadius="8" Background="#FFFF7700" BorderBrush="#FFFFFF" BorderThickness="0" Margin="2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked}" Value="True">
-                                                                <Setter Property="BorderThickness" Value="1.5"/>
+                                                                <Setter Property="BorderThickness" Value="2"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -1867,50 +1861,54 @@
                         </Grid>
 
                         <!-- API Keys -->
-                        <StackPanel Grid.Row="5" Margin="0,4,0,4">
-                            <DockPanel Margin="0,0,0,5">
-                                <TextBlock Text="API PROVIDER" Foreground="#44FFFFFF" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                        <StackPanel Grid.Row="5" Margin="0,4,0,6">
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock Text="API PROVIDER" Foreground="#66FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                    <RadioButton Content="Groq" GroupName="ApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,6,0" Foreground="#88FFFFFF" FontSize="9"/>
-                                    <RadioButton Content="Gemini" GroupName="ApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#88FFFFFF" FontSize="9"/>
+                                    <RadioButton Content="Groq" GroupName="ApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,8,0" Foreground="#AAFFFFFF" FontSize="9.5"/>
+                                    <RadioButton Content="Gemini" GroupName="ApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#AAFFFFFF" FontSize="9.5"/>
                                 </StackPanel>
                             </DockPanel>
-                            <Grid Margin="0,2,0,4">
+                            <Grid Margin="0,2,0,5">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="58"/>
+                                    <ColumnDefinition Width="65"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Groq Key" Foreground="#66FFFFFF" FontSize="9.5" VerticalAlignment="Center"/>
-                                <TextBox x:Name="GroqSettingsKeyBox" Grid.Column="1" Text="{Binding GroqKey, UpdateSourceTrigger=PropertyChanged}" 
-                                         Background="#10FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" 
-                                         Foreground="#CCFFFFFF" Padding="6,3" FontSize="9.5"
-                                         VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
+                                <TextBlock Text="Groq Key" Foreground="#88FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#12FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="6">
+                                    <TextBox x:Name="GroqSettingsKeyBox" Text="{Binding GroqKey, UpdateSourceTrigger=PropertyChanged}" 
+                                             Background="Transparent" BorderThickness="0" 
+                                             Foreground="#E0FFFFFF" Padding="8,4" FontSize="10"
+                                             VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
+                                </Border>
                             </Grid>
                             <Grid Margin="0,0,0,2">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="58"/>
+                                    <ColumnDefinition Width="65"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="Gemini Key" Foreground="#66FFFFFF" FontSize="9.5" VerticalAlignment="Center"/>
-                                <TextBox x:Name="GeminiSettingsKeyBox" Grid.Column="1" Text="{Binding GeminiKey, UpdateSourceTrigger=PropertyChanged}" 
-                                         Background="#10FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" 
-                                         Foreground="#CCFFFFFF" Padding="6,3" FontSize="9.5"
-                                         VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
+                                <TextBlock Text="Gemini Key" Foreground="#88FFFFFF" FontSize="10" VerticalAlignment="Center"/>
+                                <Border Grid.Column="1" Background="#12FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="6">
+                                    <TextBox x:Name="GeminiSettingsKeyBox" Text="{Binding GeminiKey, UpdateSourceTrigger=PropertyChanged}" 
+                                             Background="Transparent" BorderThickness="0" 
+                                             Foreground="#E0FFFFFF" Padding="8,4" FontSize="10"
+                                             VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
+                                </Border>
                             </Grid>
                         </StackPanel>
 
                         <!-- Hint -->
                         <TextBlock Grid.Row="6" Text="Ctrl+Shift+C — exit click-through mode" 
-                                   Foreground="#33FFFFFF" FontSize="8.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                   Foreground="#44FFFFFF" FontSize="9" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 
                         <!-- Logout -->
-                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,8,0,0" Height="24" Cursor="Arrow">
+                        <Button Grid.Row="7" Command="{Binding LogoutCommand}" Margin="0,10,0,0" Height="28" Cursor="Arrow">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border CornerRadius="6" Background="#18FF3333" BorderBrush="#30FF3333" BorderThickness="1">
+                                    <Border CornerRadius="7" Background="#20FF3333" BorderBrush="#40FF3333" BorderThickness="1">
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Path Data="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" Fill="#CCFF6666" Width="9" Height="9" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="LOGOUT" Foreground="#CCFF6666" FontSize="9" FontWeight="Bold"/>
+                                            <Path Data="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" Fill="#FFFF7777" Width="10" Height="10" Stretch="Uniform" Margin="0,0,6,0"/>
+                                            <TextBlock Text="LOGOUT" Foreground="#FFFF7777" FontSize="9.5" FontWeight="Bold"/>
                                         </StackPanel>
                                     </Border>
                                 </ControlTemplate>
@@ -1924,9 +1922,9 @@
             <!--   MANDATORY GROQ & GEMINI API KEYS OVERLAY -->
             <!-- ========================================== -->
             <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#FF0B0F19" Visibility="{Binding IsGroqKeyOverlayVisible, Converter={StaticResource BoolToVis}}">
-                <Border Width="340" Height="460" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#30FFFFFF" Padding="18" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border Width="360" Height="480" CornerRadius="18" Background="#18FFFFFF" BorderThickness="1.2" BorderBrush="#35FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+                        <DropShadowEffect BlurRadius="28" ShadowDepth="0" Color="Black" Opacity="0.65"/>
                     </Border.Effect>
 
                     <Grid>
@@ -1937,49 +1935,49 @@
                         </Grid.RowDefinitions>
 
                         <!-- Header -->
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
                             <!-- Back Button to log out / change account -->
-                            <Button Command="{Binding LogoutCommand}" Content="← Back" Foreground="#A0FFFFFF" FontSize="10" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Cursor="Arrow" Margin="0,-4,0,0"/>
+                            <Button Command="{Binding LogoutCommand}" Content="← Back" Foreground="#CCFFFFFF" FontSize="10.5" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" Cursor="Arrow" Margin="0,-4,0,0"/>
 
                             <StackPanel HorizontalAlignment="Center">
-                                <Border Width="36" Height="36" CornerRadius="18" Background="#2000D2FF" HorizontalAlignment="Center" Margin="0,0,0,6">
-                                    <TextBlock Text="🔑" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Border Width="44" Height="44" CornerRadius="22" Background="#2500D2FF" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                    <TextBlock Text="🔑" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
-                                <TextBlock Text="API KEYS SETUP (GROQ &amp; GEMINI)" Foreground="#FFFFFF" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock Text="Setup your Groq and Google Gemini API keys to activate dual-model AI OCR &amp; analysis." Foreground="#88FFFFFF" FontSize="9.5" TextWrapping="Wrap" TextAlignment="Center" Margin="0,3,0,0"/>
+                                <TextBlock Text="API KEYS SETUP" Foreground="#FFFFFF" FontSize="14.5" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Setup your Groq &amp; Google Gemini API keys to activate dual-model AI OCR &amp; analysis." Foreground="#AAFFFFFF" FontSize="10" TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Grid>
 
                         <!-- Inputs Section -->
                         <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,2">
                             <!-- Groq Key Section -->
-                            <DockPanel Margin="0,0,0,3">
-                                <TextBlock Text="1. GROQ API KEY" Foreground="#00D2FF" FontSize="10" FontWeight="Bold" DockPanel.Dock="Left"/>
+                            <DockPanel Margin="0,0,0,4">
+                                <TextBlock Text="1. GROQ API KEY" Foreground="#00D2FF" FontSize="10.5" FontWeight="Bold" DockPanel.Dock="Left"/>
                                 <Button Command="{Binding OpenGroqConsoleCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" DockPanel.Dock="Right">
-                                    <TextBlock Text="🌐 console.groq.com/keys" Foreground="#88FFFFFF" FontSize="9" TextDecorations="Underline"/>
+                                    <TextBlock Text="🌐 console.groq.com/keys" Foreground="#99FFFFFF" FontSize="9.5" TextDecorations="Underline"/>
                                 </Button>
                             </DockPanel>
-                            <Border CornerRadius="6" Background="#20000000" BorderThickness="1" BorderBrush="#33FFFFFF" Padding="8,5" Margin="0,0,0,8">
-                                <TextBox Text="{Binding GroqInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="10.5" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
+                            <Border CornerRadius="7" Background="#30000000" BorderThickness="1" BorderBrush="#35FFFFFF" Padding="10,6" Margin="0,0,0,10">
+                                <TextBox Text="{Binding GroqInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
                             </Border>
 
                             <!-- Gemini Key Section -->
-                            <DockPanel Margin="0,0,0,3">
-                                <TextBlock Text="2. GOOGLE GEMINI API KEY" Foreground="#4285F4" FontSize="10" FontWeight="Bold" DockPanel.Dock="Left"/>
+                            <DockPanel Margin="0,0,0,4">
+                                <TextBlock Text="2. GOOGLE GEMINI API KEY" Foreground="#4285F4" FontSize="10.5" FontWeight="Bold" DockPanel.Dock="Left"/>
                                 <Button Command="{Binding OpenGeminiConsoleCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" DockPanel.Dock="Right">
-                                    <TextBlock Text="🌐 aistudio.google.com" Foreground="#88FFFFFF" FontSize="9" TextDecorations="Underline"/>
+                                    <TextBlock Text="🌐 aistudio.google.com" Foreground="#99FFFFFF" FontSize="9.5" TextDecorations="Underline"/>
                                 </Button>
                             </DockPanel>
-                            <Border CornerRadius="6" Background="#20000000" BorderThickness="1" BorderBrush="#33FFFFFF" Padding="8,5" Margin="0,0,0,10">
-                                <TextBox Text="{Binding GeminiInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="10.5" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
+                            <Border CornerRadius="7" Background="#30000000" BorderThickness="1" BorderBrush="#35FFFFFF" Padding="10,6" Margin="0,0,0,12">
+                                <TextBox Text="{Binding GeminiInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
                             </Border>
 
                             <!-- Default API Provider Selector -->
-                            <DockPanel Margin="0,0,0,4">
-                                <TextBlock Text="PRIMARY API PROVIDER:" Foreground="#88FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock Text="PRIMARY API PROVIDER:" Foreground="#99FFFFFF" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                    <RadioButton Content="Groq" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,8,0" Foreground="#A0FFFFFF" FontSize="9.5"/>
-                                    <RadioButton Content="Gemini" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#A0FFFFFF" FontSize="9.5"/>
+                                    <RadioButton Content="Groq" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,10,0" Foreground="#CCFFFFFF" FontSize="10"/>
+                                    <RadioButton Content="Gemini" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#CCFFFFFF" FontSize="10"/>
                                 </StackPanel>
                             </DockPanel>
 
@@ -1990,7 +1988,7 @@
                         <!-- Actions -->
                         <StackPanel Grid.Row="2">
                             <!-- Loading Text -->
-                            <TextBlock Text="Verifying API Keys..." Foreground="#00D2FF" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,4">
+                            <TextBlock Text="Verifying API Keys..." Foreground="#00D2FF" FontSize="10.5" HorizontalAlignment="Center" Margin="0,0,0,6">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -2004,7 +2002,7 @@
                             </TextBlock>
 
                             <!-- Verify Button -->
-                            <Button Command="{Binding ValidateApiKeysCommand}" Content="VERIFY &amp; SAVE KEYS" Height="34" FontWeight="Bold" Cursor="Arrow" Foreground="#FFFFFF" FontSize="11">
+                            <Button Command="{Binding ValidateApiKeysCommand}" Content="VERIFY &amp; SAVE KEYS" Height="38" FontWeight="Bold" Cursor="Arrow" Foreground="#FFFFFF" FontSize="12">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#FF00D2FF"/>
@@ -2035,9 +2033,9 @@
             <!--            DASHBOARD OVERLAY               -->
             <!-- ========================================== -->
             <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="997" Background="#FF0B0F19" Visibility="{Binding IsDashboardOverlayVisible, Converter={StaticResource BoolToVis}}">
-                <Border Width="340" Height="420" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#30FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border Width="360" Height="430" CornerRadius="18" Background="#18FFFFFF" BorderThickness="1.2" BorderBrush="#35FFFFFF" Padding="22" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="25" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+                        <DropShadowEffect BlurRadius="28" ShadowDepth="0" Color="Black" Opacity="0.65"/>
                     </Border.Effect>
 
                     <Grid>
@@ -2048,43 +2046,43 @@
                         </Grid.RowDefinitions>
 
                         <!-- Header -->
-                        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,10">
-                            <Border Width="40" Height="40" CornerRadius="20" Background="#2000FFCC" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,12">
+                            <Border Width="46" Height="46" CornerRadius="23" Background="#2500FFCC" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                <TextBlock Text="⚡" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <TextBlock Text="SHADOW AI DASHBOARD" Foreground="#FFFFFF" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Next-Generation Invisible Productivity &amp; Exam Overlay" Foreground="#88FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            <TextBlock Text="SHADOW AI DASHBOARD" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Next-Generation Invisible Productivity &amp; Exam Overlay" Foreground="#AAFFFFFF" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                         </StackPanel>
 
                         <!-- Status Overview Cards -->
                         <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,4">
                             <!-- Groq Key Status -->
-                            <Border CornerRadius="8" Background="#18FFFFFF" BorderThickness="1" BorderBrush="#20FFFFFF" Padding="10" Margin="0,0,0,8">
+                            <Border CornerRadius="8" Background="#18FFFFFF" BorderThickness="1" BorderBrush="#25FFFFFF" Padding="12" Margin="0,0,0,10">
                                 <Grid>
                                     <StackPanel>
-                                        <TextBlock Text="Groq API Key Status" Foreground="#88FFFFFF" FontSize="9.5" FontWeight="Bold"/>
-                                        <TextBlock Text="Connected &amp; Verified ✅" Foreground="#00FFCC" FontSize="11" FontWeight="Bold" Margin="0,2,0,0"/>
+                                        <TextBlock Text="Groq API Key Status" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold"/>
+                                        <TextBlock Text="Connected &amp; Verified ✅" Foreground="#00FFCC" FontSize="11.5" FontWeight="Bold" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
                             <!-- Anti-Detection Status -->
-                            <Border CornerRadius="8" Background="#18FFFFFF" BorderThickness="1" BorderBrush="#20FFFFFF" Padding="10" Margin="0,0,0,8">
+                            <Border CornerRadius="8" Background="#18FFFFFF" BorderThickness="1" BorderBrush="#25FFFFFF" Padding="12" Margin="0,0,0,10">
                                 <Grid>
                                     <StackPanel>
-                                        <TextBlock Text="Anti-Detection Shield" Foreground="#88FFFFFF" FontSize="9.5" FontWeight="Bold"/>
-                                        <TextBlock Text="OS WS_EX_NOACTIVATE &amp; Tampermonkey Active ✅" Foreground="#00FFCC" FontSize="10.5" FontWeight="Bold" Margin="0,2,0,0"/>
+                                        <TextBlock Text="Anti-Detection Shield" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold"/>
+                                        <TextBlock Text="OS WS_EX_NOACTIVATE &amp; Tampermonkey Active ✅" Foreground="#00FFCC" FontSize="11" FontWeight="Bold" Margin="0,3,0,0"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
 
                             <!-- Gate Info -->
-                            <TextBlock Text="Core app features are currently locked until you start your trial." Foreground="#AAAAAA" FontSize="10" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock Text="Core app features are currently locked until you start your trial." Foreground="#B0B0B0" FontSize="10.5" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         </StackPanel>
 
                         <!-- Action Button -->
                         <StackPanel Grid.Row="2">
-                            <Button Command="{Binding StartFreeTrialCommand}" Content="🚀 START FREE TRIAL" Height="38" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11.5">
+                            <Button Command="{Binding StartFreeTrialCommand}" Content="🚀 START FREE TRIAL" Height="40" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="12">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="#FF00FFCC"/>
@@ -2114,8 +2112,8 @@
             <!-- First-Launch Onboarding Carousel Overlay -->
             <Grid Grid.Row="1" Grid.RowSpan="3" Panel.ZIndex="100" Visibility="{Binding IsFirstRun, Converter={StaticResource BoolToVis}}">
                 <!-- Solid dark glass background -->
-                <Border Background="#F90B0914" CornerRadius="0,0,12,12" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="0,1,0,0">
-                    <Grid Margin="20,16,20,16">
+                <Border Background="#F90B0E18" CornerRadius="0,0,14,14" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="0,1,0,0">
+                    <Grid Margin="20,18,20,16">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
@@ -2126,56 +2124,100 @@
                             <!-- SLIDE 0: Welcome -->
                             <Grid Visibility="{Binding IsSlide0Active, Converter={StaticResource BoolToVis}}">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5M2 12l10 5 10-5" 
-                                          Fill="{Binding Tag, ElementName=MainBorder}" Width="40" Height="40" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,14"/>
-                                    <TextBlock Text="Welcome to Shadow AI" Foreground="#FFFFFF" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                    <TextBlock Text="A transparent glassmorphic overlay for notes, system metrics, timers, and OCR." 
-                                               Foreground="#88FFFFFF" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="240" HorizontalAlignment="Center"/>
+                                    <Border Width="56" Height="56" CornerRadius="28" Background="#15FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1.2" HorizontalAlignment="Center" Margin="0,0,0,14">
+                                        <Path Data="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5M2 12l10 5 10-5" 
+                                              Fill="{Binding Tag, ElementName=MainBorder}" Width="26" Height="26" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Welcome to Shadow AI" Foreground="#FFFFFF" FontSize="17" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                    <Border Background="#18FFFFFF" CornerRadius="4" Padding="8,2" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                        <TextBlock Text="NEXT-GEN DESKTOP OVERLAY" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="9" FontWeight="Bold"/>
+                                    </Border>
+                                    <TextBlock Text="Ultra-fast glassmorphic HUD for live interview assistance, notes, system metrics, and screen OCR." 
+                                               Foreground="#9EABB8" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="250" HorizontalAlignment="Center" LineHeight="16"/>
                                 </StackPanel>
                             </Grid>
 
                             <!-- SLIDE 1: AI Screen Crop Scanner -->
                             <Grid Visibility="{Binding IsSlide1Active, Converter={StaticResource BoolToVis}}">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5M2 12l10 5 10-5" 
-                                          Fill="{Binding Tag, ElementName=MainBorder}" Width="36" Height="36" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                    <TextBlock Text="AI &amp; Performance Utilities" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                    <TextBlock Text="• Sub-second Groq Llama 3 AI responses" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Interactive screen crop OCR analysis" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Stream-safe coding interview overlays" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Real-time speech transcription (Whisper)" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Local database query transcript storage" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
+                                    <Border Width="46" Height="46" CornerRadius="23" Background="#15FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1.2" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                        <Path Data="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5M2 12l10 5 10-5" 
+                                              Fill="{Binding Tag, ElementName=MainBorder}" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="AI &amp; Performance Utilities" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                    
+                                    <StackPanel Width="250">
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="⚡ Sub-second Groq Llama 3 responses" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🎯 Interactive screen crop OCR analysis" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🛡️ Stream-safe coding interview overlays" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🎙️ Real-time speech transcription (Whisper)" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="💾 Local SQLite database session storage" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
 
                             <!-- SLIDE 2: Pinning, Mouse Click-Through & Hotkey -->
                             <Grid Visibility="{Binding IsSlide2Active, Converter={StaticResource BoolToVis}}">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
-                                          Fill="{Binding Tag, ElementName=MainBorder}" Width="36" Height="36" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                    <TextBlock Text="Security &amp; Stealth Protections" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                    <TextBlock Text="• Invisible on OBS &amp; Discord screen shares" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Invisible in Dock (no active taskbar icon)" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Invisible in Task Manager (masqueraded name)" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Invisible to Alt+Tab switcher menu" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="• Cursor Undetectability (Ctrl+Shift+C lock)" Foreground="#CCFFFFFF" FontSize="10" Margin="0,2" HorizontalAlignment="Left"/>
+                                    <Border Width="46" Height="46" CornerRadius="23" Background="#15FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1.2" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
+                                              Fill="{Binding Tag, ElementName=MainBorder}" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Security &amp; Stealth Protections" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                    
+                                    <StackPanel Width="250">
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🔒 Invisible on OBS &amp; Discord screen shares" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="👻 Invisible in Dock (no taskbar icon)" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🛡️ Invisible in Task Manager (masqueraded)" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🚫 Excluded from Alt+Tab switcher menu" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                        <Border Background="#10FFFFFF" CornerRadius="6" Padding="8,5" Margin="0,2">
+                                            <TextBlock Text="🖱️ Cursor Undetectability (Ctrl+Shift+C)" Foreground="#E0E6ED" FontSize="10.5"/>
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
                             </Grid>
 
                             <!-- SLIDE 3: Key Configuration and Finish -->
                             <Grid Visibility="{Binding IsSlide3Active, Converter={StaticResource BoolToVis}}">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Path Data="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" 
-                                          Fill="{Binding Tag, ElementName=MainBorder}" Width="40" Height="40" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                    <TextBlock Text="Configure Groq API Key" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                    <Border Width="48" Height="48" CornerRadius="24" Background="#15FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1.2" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                        <Path Data="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" 
+                                              Fill="{Binding Tag, ElementName=MainBorder}" Width="24" Height="24" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Configure Groq API Key" Foreground="#FFFFFF" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Enter your free API key for sub-second responses." Foreground="#8E9BAE" FontSize="10.5" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                                     
                                     <!-- Groq Key TextBox -->
-                                    <Grid Margin="0,4,0,8" Width="220">
+                                    <Grid Margin="0,4,0,12" Width="240">
                                         <TextBox x:Name="GroqOnboardingKeyBox" Text="{Binding GroqKey, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Background="#22000000" BorderBrush="#22FFFFFF" BorderThickness="1" 
-                                                 Foreground="#FFFFFF" Padding="6,4" FontSize="11"
-                                                 VerticalContentAlignment="Center" CaretBrush="#FFFFFF"/>
-                                        <TextBlock Text="Paste Groq API Key (Optional)..." Foreground="#55FFFFFF" FontSize="11" IsHitTestVisible="False" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                 Background="#18FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" 
+                                                 Foreground="#FFFFFF" Padding="10,6" FontSize="11"
+                                                 VerticalContentAlignment="Center" CaretBrush="#FFFFFF">
+                                            <TextBox.Resources>
+                                                <Style TargetType="{x:Type Border}">
+                                                    <Setter Property="CornerRadius" Value="8"/>
+                                                </Style>
+                                            </TextBox.Resources>
+                                        </TextBox>
+                                        <TextBlock Text="Paste Groq API Key (Optional)..." Foreground="#55FFFFFF" FontSize="11" IsHitTestVisible="False" VerticalAlignment="Center" Margin="12,0,0,0">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -2190,11 +2232,11 @@
                                     </Grid>
 
                                     <!-- Finish Button -->
-                                    <Button Command="{Binding FinishOnboardingCommand}" Cursor="Arrow" Width="140" Height="28">
+                                    <Button Command="{Binding FinishOnboardingCommand}" Cursor="Arrow" Width="150" Height="34">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="14" Background="{Binding Tag, ElementName=MainBorder}" Padding="8,4">
-                                                    <TextBlock Text="GET STARTED" Foreground="#000000" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                                <Border CornerRadius="8" Background="{Binding Tag, ElementName=MainBorder}" Padding="10,6">
+                                                    <TextBlock Text="GET STARTED" Foreground="#000000" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
                                             </ControlTemplate>
                                         </Button.Template>
@@ -2204,7 +2246,7 @@
                         </Grid>
 
                         <!-- Bottom Navigation Actions -->
-                        <Grid Grid.Row="1" Height="30">
+                        <Grid Grid.Row="1" Height="32">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
@@ -2212,7 +2254,7 @@
                             </Grid.ColumnDefinitions>
 
                             <!-- Back Button -->
-                            <Button Grid.Column="0" Command="{Binding BackOnboardingCommand}" Content="BACK" Foreground="#88FFFFFF" FontSize="10.5" FontWeight="Bold" Cursor="Arrow" VerticalAlignment="Center">
+                            <Button Grid.Column="0" Command="{Binding BackOnboardingCommand}" Content="← BACK" Foreground="#8E9BAE" FontSize="10.5" FontWeight="Bold" Cursor="Arrow" VerticalAlignment="Center" Padding="8,4">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="Transparent"/>
@@ -2220,11 +2262,17 @@
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="Button">
-                                                    <ContentPresenter/>
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter VerticalAlignment="Center"/>
+                                                    </Border>
                                                 </ControlTemplate>
                                             </Setter.Value>
                                         </Setter>
                                         <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#15FFFFFF"/>
+                                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                            </Trigger>
                                             <DataTrigger Binding="{Binding CurrentOnboardingSlide}" Value="0">
                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                             </DataTrigger>
@@ -2236,56 +2284,56 @@
                             <!-- Center Slide Indicators -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <!-- Dot 0 -->
-                                <Border Width="6" Height="6" CornerRadius="3" Margin="4,0">
+                                <Border Width="8" Height="6" CornerRadius="3" Margin="3,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                            <Setter Property="Background" Value="#25FFFFFF"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding CurrentOnboardingSlide}" Value="0">
                                                     <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                                    <Setter Property="Width" Value="12"/>
+                                                    <Setter Property="Width" Value="18"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
                                 </Border>
                                 <!-- Dot 1 -->
-                                <Border Width="6" Height="6" CornerRadius="3" Margin="4,0">
+                                <Border Width="8" Height="6" CornerRadius="3" Margin="3,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                            <Setter Property="Background" Value="#25FFFFFF"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding CurrentOnboardingSlide}" Value="1">
                                                     <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                                    <Setter Property="Width" Value="12"/>
+                                                    <Setter Property="Width" Value="18"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
                                 </Border>
                                 <!-- Dot 2 -->
-                                <Border Width="6" Height="6" CornerRadius="3" Margin="4,0">
+                                <Border Width="8" Height="6" CornerRadius="3" Margin="3,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                            <Setter Property="Background" Value="#25FFFFFF"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding CurrentOnboardingSlide}" Value="2">
                                                     <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                                    <Setter Property="Width" Value="12"/>
+                                                    <Setter Property="Width" Value="18"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
                                 </Border>
                                 <!-- Dot 3 -->
-                                <Border Width="6" Height="6" CornerRadius="3" Margin="4,0">
+                                <Border Width="8" Height="6" CornerRadius="3" Margin="3,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                            <Setter Property="Background" Value="#25FFFFFF"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding CurrentOnboardingSlide}" Value="3">
                                                     <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
-                                                    <Setter Property="Width" Value="12"/>
+                                                    <Setter Property="Width" Value="18"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -2296,19 +2344,24 @@
                             <!-- Next/Skip Buttons -->
                             <Grid Grid.Column="2" VerticalAlignment="Center">
                                 <!-- Next Button -->
-                                <Button Command="{Binding NextOnboardingCommand}" Content="NEXT" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="10.5" FontWeight="Bold" Cursor="Arrow">
+                                <Button Command="{Binding NextOnboardingCommand}" Content="NEXT →" Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="10.5" FontWeight="Bold" Cursor="Arrow" Padding="8,4">
                                     <Button.Style>
                                         <Style TargetType="Button">
-                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Background" Value="#15FFFFFF"/>
                                             <Setter Property="BorderThickness" Value="0"/>
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="Button">
-                                                        <ContentPresenter/>
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter VerticalAlignment="Center"/>
+                                                        </Border>
                                                     </ControlTemplate>
                                                 </Setter.Value>
                                             </Setter>
                                             <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#25FFFFFF"/>
+                                                </Trigger>
                                                 <DataTrigger Binding="{Binding CurrentOnboardingSlide}" Value="3">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                 </DataTrigger>
@@ -2325,7 +2378,7 @@
             <!-- ========================================== -->
             <!--            LOGIN / SIGNUP OVERLAY          -->
             <!-- ========================================== -->
-            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#FF0B0F19">
+            <Grid Grid.Row="0" Grid.RowSpan="4" Panel.ZIndex="999" Background="#F0080B14">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -2337,9 +2390,9 @@
                     </Style>
                 </Grid.Style>
 
-                <Border Width="300" MinHeight="330" Height="Auto" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border Width="310" MinHeight="340" Height="Auto" CornerRadius="18" Background="#F80F1424" BorderThickness="1.2" BorderBrush="#25FFFFFF" Padding="24,22" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5"/>
+                        <DropShadowEffect BlurRadius="28" ShadowDepth="2" Color="Black" Opacity="0.6"/>
                     </Border.Effect>
                     <Grid>
                         <Grid.RowDefinitions>
@@ -2352,28 +2405,32 @@
                         <!-- Header -->
                         <Grid Grid.Row="0" Margin="0,0,0,16">
                             <StackPanel HorizontalAlignment="Center" MouseLeftButtonDown="Header_MouseLeftButtonDown" Background="Transparent">
+                                <Border Width="40" Height="40" CornerRadius="20" Background="#14FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1.2" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                    <Path Data="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5M2 12l10 5 10-5" 
+                                          Fill="{Binding Tag, ElementName=MainBorder}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
                                 <TextBlock Text="SHADOW AI" Foreground="#FFFFFF" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock Text="Enter credentials to activate overlay" Foreground="#A0FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                <TextBlock Text="Enter credentials to activate overlay" Foreground="#8E9BAE" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
                             </StackPanel>
                         </Grid>
 
                         <!-- Form -->
                         <StackPanel Grid.Row="1">
-                            <TextBlock Text="Email Address" Foreground="#77FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
-                            <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4" Margin="0,0,0,12">
-                                <TextBox Text="{Binding LoginEmail, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
+                            <TextBlock Text="EMAIL ADDRESS" Foreground="#8E9BAE" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                            <Border CornerRadius="8" Background="#14FFFFFF" BorderThickness="1" BorderBrush="#22FFFFFF" Padding="10,6" Margin="0,0,0,12">
+                                <TextBox Text="{Binding LoginEmail, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11.5" CaretBrush="#FFFFFF"/>
                             </Border>
 
-                            <TextBlock Text="Password" Foreground="#77FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
-                            <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4" Margin="0,0,0,12">
-                                <TextBox Text="{Binding LoginPassword, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
+                            <TextBlock Text="PASSWORD" Foreground="#8E9BAE" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                            <Border CornerRadius="8" Background="#14FFFFFF" BorderThickness="1" BorderBrush="#22FFFFFF" Padding="10,6" Margin="0,0,0,12">
+                                <TextBox Text="{Binding LoginPassword, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11.5" CaretBrush="#FFFFFF"/>
                             </Border>
                         </StackPanel>
 
                         <!-- Error / Loading -->
-                        <StackPanel Grid.Row="2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding AuthErrorMessage}" Foreground="#FFFF3333" FontSize="11" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                            <TextBlock Text="Processing request..." Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="11" HorizontalAlignment="Center">
+                        <StackPanel Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,10">
+                            <TextBlock Text="{Binding AuthErrorMessage}" Foreground="#FFFF4444" FontSize="10.5" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <TextBlock Text="Processing request..." Foreground="{Binding Tag, ElementName=MainBorder}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -2394,15 +2451,15 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Button Command="{Binding LoginCommand}" Content="LOGIN" Margin="0,0,6,0" Height="32" FontWeight="Bold" Cursor="Arrow" Foreground="#FFFFFF" FontSize="11">
+                            <Button Command="{Binding LoginCommand}" Content="LOGIN" Margin="0,0,5,0" Height="34" FontWeight="Bold" Cursor="Arrow" Foreground="#FFFFFF" FontSize="11">
                                 <Button.Style>
                                     <Style TargetType="Button">
-                                        <Setter Property="Background" Value="#30FFFFFF"/>
+                                        <Setter Property="Background" Value="#25FFFFFF"/>
                                         <Setter Property="BorderThickness" Value="0"/>
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                    <Border CornerRadius="8" Background="{TemplateBinding Background}">
                                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                 </ControlTemplate>
@@ -2410,14 +2467,14 @@
                                         </Setter>
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#50FFFFFF"/>
+                                                <Setter Property="Background" Value="#40FFFFFF"/>
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Button.Style>
                             </Button>
 
-                            <Button Grid.Column="1" Command="{Binding SignupCommand}" Content="SIGN UP" Margin="6,0,0,0" Height="32" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
+                            <Button Grid.Column="1" Command="{Binding SignupCommand}" Content="SIGN UP" Margin="5,0,0,0" Height="34" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
                                 <Button.Style>
                                     <Style TargetType="Button">
                                         <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
@@ -2425,7 +2482,7 @@
                                         <Setter Property="Template">
                                             <Setter.Value>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                    <Border CornerRadius="8" Background="{TemplateBinding Background}">
                                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                 </ControlTemplate>
@@ -2447,7 +2504,7 @@
             <!-- ========================================== -->
             <!--           PAYMENT / STATUS OVERLAY         -->
             <!-- ========================================== -->
-            <Grid Grid.Row="2" Grid.RowSpan="1" Panel.ZIndex="998" Background="#FF0B0F19">
+            <Grid Grid.Row="2" Grid.RowSpan="1" Panel.ZIndex="998" Background="#F0080B14">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -2472,9 +2529,9 @@
 
                 <Grid>
                     <!-- Main Portal Card -->
-                    <Border Width="320" Height="390" CornerRadius="16" Background="#15FFFFFF" BorderThickness="1.2" BorderBrush="#20FFFFFF" Padding="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border Width="330" Height="400" CornerRadius="18" Background="#F80F1424" BorderThickness="1.2" BorderBrush="#25FFFFFF" Padding="22,20" VerticalAlignment="Center" HorizontalAlignment="Center">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5"/>
+                            <DropShadowEffect BlurRadius="28" ShadowDepth="2" Color="Black" Opacity="0.6"/>
                         </Border.Effect>
                         
                         <Grid>
@@ -2499,27 +2556,30 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Text="ACCESS LOCKED" Foreground="#FFFF3333" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                <TextBlock Grid.Row="1" Text="Your trial has ended. Pay 50 INR for 3 hours." Foreground="#A0FFFFFF" FontSize="10" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                <TextBlock Grid.Row="0" Text="ACCESS LOCKED" Foreground="#FFFF4444" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Row="1" Text="Your trial has ended. Pay ₹50 for 3 hours." Foreground="#8E9BAE" FontSize="10.5" HorizontalAlignment="Center" Margin="0,3,0,0"/>
 
                                 <!-- QR Code -->
-                                <Border Grid.Row="2" Background="#FFFFFF" Padding="6" CornerRadius="8" HorizontalAlignment="Center" Margin="0,10" Width="142" Height="142">
-                                    <Image Source="{Binding PaymentQrUrl}" Width="130" Height="130" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                <Border Grid.Row="2" Background="#FFFFFF" Padding="8" CornerRadius="12" HorizontalAlignment="Center" Margin="0,10" Width="144" Height="144">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Color="Black" Opacity="0.2"/>
+                                    </Border.Effect>
+                                    <Image Source="{Binding PaymentQrUrl}" Width="128" Height="128" RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                                 </Border>
 
-                                <TextBlock Grid.Row="3" Text="Scan QR to pay ₹50 via UPI" Foreground="#77FFFFFF" FontSize="9.5" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Row="3" Text="Scan QR to pay ₹50 via UPI" Foreground="#8E9BAE" FontSize="10" HorizontalAlignment="Center"/>
 
                                 <!-- UTR Entry Form -->
-                                <StackPanel Grid.Row="4" VerticalAlignment="Center" Margin="0,4">
-                                    <TextBlock Text="Enter 12-digit UPI Ref / UTR No." Foreground="#A0FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
-                                    <Border CornerRadius="6" Background="#15FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF" Padding="8,4">
-                                        <TextBox Text="{Binding PaymentUtr, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12" CaretBrush="#FFFFFF"/>
+                                <StackPanel Grid.Row="4" VerticalAlignment="Center" Margin="0,6">
+                                    <TextBlock Text="ENTER 12-DIGIT UPI REF / UTR NO." Foreground="#8E9BAE" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                                    <Border CornerRadius="8" Background="#14FFFFFF" BorderThickness="1" BorderBrush="#22FFFFFF" Padding="10,6">
+                                        <TextBox Text="{Binding PaymentUtr, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11.5" CaretBrush="#FFFFFF"/>
                                     </Border>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="5">
-                                    <TextBlock Text="{Binding PaymentErrorMessage}" Foreground="#FFFF3333" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,6" TextWrapping="Wrap"/>
-                                    <Button Command="{Binding SubmitPaymentCommand}" Content="VERIFY PAYMENT" Height="32" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
+                                    <TextBlock Text="{Binding PaymentErrorMessage}" Foreground="#FFFF4444" FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                    <Button Command="{Binding SubmitPaymentCommand}" Content="VERIFY PAYMENT" Height="34" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
                                         <Button.Style>
                                             <Style TargetType="Button">
                                                 <Setter Property="Background" Value="{Binding Tag, ElementName=MainBorder}"/>
@@ -2527,7 +2587,7 @@
                                                 <Setter Property="Template">
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="Button">
-                                                            <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
                                                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Border>
                                                         </ControlTemplate>
@@ -2562,13 +2622,15 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Text="PAYMENT VERIFIED" Foreground="#FF33FF33" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Text="PAYMENT VERIFIED" Foreground="#00E676" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
                                 
-                                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,20">
+                                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,16">
                                     <!-- Dynamic Checkmark SVG icon path -->
-                                    <Path Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 1,1 20,12A8,8 0 0,1 12,20M16.5,8.5L11,14L7.5,10.5L6,12L11,17L18,9.5L16.5,8.5Z" Fill="#FF33FF33" Width="48" Height="48" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="You have 1 active session credit." Foreground="#A0FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,12,0,0"/>
-                                    <TextBlock Text="Click below to start your 3-hour assessment." Foreground="#77FFFFFF" FontSize="9.5" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    <Border Width="52" Height="52" CornerRadius="26" Background="#1500E676" BorderBrush="#3300E676" BorderThickness="1.2" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                        <Path Data="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 1,1 20,12A8,8 0 0,1 12,20M16.5,8.5L11,14L7.5,10.5L6,12L11,17L18,9.5L16.5,8.5Z" Fill="#00E676" Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="You have 1 active session credit." Foreground="#E0E6ED" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Click below to start your 3-hour assessment." Foreground="#8E9BAE" FontSize="10" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                                 </StackPanel>
 
                                 <Button Grid.Row="2" Command="{Binding StartPaidSessionCommand}" Content="START ASSESSMENT (3 HOURS)" Height="36" FontWeight="Bold" Cursor="Arrow" Foreground="#000000" FontSize="11">
