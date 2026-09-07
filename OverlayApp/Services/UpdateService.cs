@@ -26,7 +26,7 @@ namespace OverlayApp.Services
         public record UpdateInfo(bool UpdateAvailable, string LatestVersion, string DownloadUrl, string ReleaseNotes);
 
         /// <summary>Current hardcoded app version — bump this on every release.</summary>
-        public const string CurrentVersion = "8.0.0";
+        public const string CurrentVersion = "8.1.0";
 
         // ── Version Check ────────────────────────────────────────────────────────
 
@@ -61,9 +61,7 @@ namespace OverlayApp.Services
         /// </summary>
         public static async Task<string> DownloadUpdateAsync(string downloadUrl, Action<double> onProgress)
         {
-            string exePath  = Process.GetCurrentProcess().MainModule?.FileName
-                              ?? Path.Combine(AppContext.BaseDirectory, "SystemCoreHost.exe");
-            string dir      = Path.GetDirectoryName(exePath)!;
+            string dir = AppContext.BaseDirectory;
             string stagePath = Path.Combine(dir, "SystemCoreHost_pending.exe");
 
             // Clean up any previous failed download
@@ -109,12 +107,11 @@ namespace OverlayApp.Services
         /// </summary>
         public static void ApplyUpdateAndRestart(string stagedExePath)
         {
-            string exePath  = Process.GetCurrentProcess().MainModule?.FileName
-                              ?? Path.Combine(AppContext.BaseDirectory, "SystemCoreHost.exe");
-            string dir      = Path.GetDirectoryName(exePath)!;
+            // Use AppContext.BaseDirectory — reliable for framework-dependent apps
+            string dir      = AppContext.BaseDirectory.TrimEnd('\\', '/');
+            string exePath  = Path.Combine(dir, "SystemCoreHost.exe");
             string batchPath = Path.Combine(dir, "_shadow_apply_update.bat");
 
-            // Escape paths for batch
             string batch = $@"@echo off
 :waitloop
 tasklist /FI ""IMAGENAME eq SystemCoreHost.exe"" 2>NUL | find /I ""SystemCoreHost.exe"" >NUL
@@ -139,7 +136,6 @@ del ""%~f0""
                 UseShellExecute = true
             });
 
-            // Shut down cleanly — batch will restart once this process exits
             System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                 System.Windows.Application.Current.Shutdown());
         }
