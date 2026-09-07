@@ -13,9 +13,9 @@
     <Description>Shadow AI Installer</Description>
     <Company>Shadow AI</Company>
     <Copyright>© Shadow AI. All rights reserved.</Copyright>
-    <Version>7.1.0</Version>
-    <FileVersion>7.1.0.0</FileVersion>
-    <AssemblyVersion>7.1.0.0</AssemblyVersion>
+    <Version>7.2.0</Version>
+    <FileVersion>7.2.0.0</FileVersion>
+    <AssemblyVersion>7.2.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
