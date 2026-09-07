@@ -176,7 +176,7 @@ namespace OverlayApp.ViewModels
         public bool UpdateAvailable
         {
             get => _updateAvailable;
-            set { if (_updateAvailable != value) { _updateAvailable = value; OnPropertyChanged(); } }
+            set { if (_updateAvailable != value) { _updateAvailable = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowDownloadButton)); } }
         }
         public string LatestVersion
         {
@@ -186,7 +186,7 @@ namespace OverlayApp.ViewModels
         public bool IsUpdating
         {
             get => _isUpdating;
-            set { if (_isUpdating != value) { _isUpdating = value; OnPropertyChanged(); } }
+            set { if (_isUpdating != value) { _isUpdating = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowDownloadButton)); OnPropertyChanged(nameof(ShowRestartButton)); } }
         }
         /// <summary>True once download is complete and ready to apply — shows "Restart to Apply" button.</summary>
         public bool UpdateDownloaded
