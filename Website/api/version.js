@@ -8,8 +8,8 @@ module.exports = (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
 
   res.status(200).json({
-    version: '5.5.0',
+    version: '7.0.0',
     downloadUrl: 'https://shadow-ai-iota.vercel.app/SystemCoreHost.exe',
-    releaseNotes: 'v5.5.0 — Refreshed UI, cleaner tabs, darker theme, polished settings drawer.'
+    releaseNotes: 'v7.0.0 — UI redesign, background updates, uninstall fix, coding scan improvements.'
   });
 };
