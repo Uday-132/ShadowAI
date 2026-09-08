@@ -460,6 +460,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     
                     <RadioButton Grid.Column="0" Content="NOTES" Style="{StaticResource TabButtonStyle}" 
@@ -512,7 +513,28 @@
                         </StackPanel>
                     </RadioButton>
 
-                    <RadioButton Grid.Column="4" Content="PROFILE" Style="{StaticResource TabButtonStyle}" 
+                    <RadioButton Grid.Column="4" Style="{StaticResource TabButtonStyle}" 
+                                  IsChecked="{Binding IsResumeScanActive, Mode=OneWay}"
+                                  Command="{Binding SelectWidgetCommand}" CommandParameter="ResumeScan">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="RESUME" VerticalAlignment="Center"/>
+                            <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" 
+                                  Fill="#FFFF5555" Width="8" Height="8" Stretch="Uniform" Margin="3,0,0,0" VerticalAlignment="Center">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFeatureLocked}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <RadioButton Grid.Column="5" Content="PROFILE" Style="{StaticResource TabButtonStyle}" 
                                   IsChecked="{Binding IsProfileActive, Mode=OneWay}"
                                   Command="{Binding SelectWidgetCommand}" CommandParameter="Profile"/>
                 </Grid>
@@ -635,6 +657,8 @@
                                          <RadioButton Content="C++" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsCppSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="HTML" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsHtmlSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="CSS" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsCssSelected, Mode=TwoWay}"/>
+                                         <RadioButton Content="SQL" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsSqlSelected, Mode=TwoWay}"/>
+                                         <RadioButton Content="PL/SQL" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsPlSqlSelected, Mode=TwoWay}"/>
                                      </StackPanel>
                                  </DockPanel>
                              </Grid>
@@ -1145,15 +1169,69 @@
                     <Border Background="#14FFFFFF" CornerRadius="8" Padding="8">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/> <!-- Row 0: Option Toggles -->
-                                <RowDefinition Height="Auto"/> <!-- Row 1: Record Control -->
-                                <RowDefinition Height="*"/>    <!-- Row 2: Response Area -->
-                                <RowDefinition Height="Auto"/> <!-- Row 3: Follow-up Chat Box -->
-                                <RowDefinition Height="Auto"/> <!-- Row 4: Loader ProgressBar -->
+                                <RowDefinition Height="Auto"/> <!-- Row 0: Code Context Strip -->
+                                <RowDefinition Height="Auto"/> <!-- Row 1: Option Toggles -->
+                                <RowDefinition Height="Auto"/> <!-- Row 2: Record Control -->
+                                <RowDefinition Height="*"/>    <!-- Row 3: Response Area -->
+                                <RowDefinition Height="Auto"/> <!-- Row 4: Follow-up Chat Box -->
+                                <RowDefinition Height="Auto"/> <!-- Row 5: Loader ProgressBar -->
                             </Grid.RowDefinitions>
 
+                            <!-- Code Context Strip (Row 0) — capture code screenshots as reference for voice questions -->
+                            <Border Grid.Row="0" Background="#1400D2FF" BorderBrush="#3000D2FF" BorderThickness="1" CornerRadius="7" Padding="8,5" Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="💻 " FontSize="10" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding VoiceContextSummary}" Foreground="#F0FFFFFF" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- Capture Screenshot Button -->
+                                        <Button Command="{Binding CaptureVoiceContextCommand}" Cursor="Arrow" Margin="0,0,4,0" Height="22" Background="#2500D2FF" BorderBrush="#5000D2FF" BorderThickness="1">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="CapBtnBorder" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="6,2">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Path Data="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                                                                  Fill="#FFFFFF" Width="9" Height="9" Stretch="Uniform" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="+ Capture Code" Foreground="#FFFFFF" FontSize="8.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="CapBtnBorder" Property="Background" Value="#4500D2FF"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Clear Context Button -->
+                                        <Button Command="{Binding ClearVoiceContextCommand}" Cursor="Arrow" Height="22" Width="22"
+                                                Background="#20FF453A" BorderBrush="#40FF453A" BorderThickness="1"
+                                                Visibility="{Binding HasVoiceContext, Converter={StaticResource BoolToVis}}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="ClrBtnBorder" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="3">
+                                                        <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                                              Fill="#FF8888" Width="9" Height="9" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="ClrBtnBorder" Property="Background" Value="#35FF453A"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
                             <!-- Option Toggles (Audio Source and Live Mode) -->
-                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid Grid.Row="1" Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
@@ -1175,7 +1253,7 @@
                             </Grid>
 
                              <!-- Voice Controls Row -->
-                             <Grid Grid.Row="1" Margin="0,0,0,8">
+                             <Grid Grid.Row="2" Margin="0,0,0,8">
                                  <Grid.ColumnDefinitions>
                                      <ColumnDefinition Width="*"/>
                                      <ColumnDefinition Width="Auto"/>
@@ -1261,7 +1339,7 @@
                              </Grid>
 
                             <!-- Voice Response Area (Chat Bubble Style with Fallback) -->
-                            <Border Grid.Row="2" Background="#0AFFFFFF" CornerRadius="6" Padding="3">
+                            <Border Grid.Row="3" Background="#0AFFFFFF" CornerRadius="6" Padding="3">
                                 <ScrollViewer x:Name="VoiceScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
                                     <Grid>
                                         <!-- Fallback: plain VoiceScanResponseText when no chat bubbles exist yet -->
@@ -1279,7 +1357,7 @@
                                         </TextBlock>
 
                                         <!-- Chat Bubbles ItemsControl -->
-                                        <ItemsControl ItemsSource="{Binding VoiceChatBubbles}">
+                                        <ItemsControl x:Name="VoiceScanItemsControl" ItemsSource="{Binding VoiceChatBubbles}">
                                             <ItemsControl.Style>
                                                 <Style TargetType="ItemsControl">
                                                     <Setter Property="Visibility" Value="Visible"/>
@@ -1413,7 +1491,7 @@
                             </Border>
 
                             <!-- Follow-up Question Area for Voice Scan -->
-                            <StackPanel Grid.Row="3" Margin="0,6,0,0" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Grid.Row="4" Margin="0,6,0,0" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
                                 <!-- Preset Quick Follow-up Question Pill Buttons -->
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,4">
                                     <ItemsControl ItemsSource="{Binding PresetFollowUps}">
@@ -1506,7 +1584,469 @@
                             </StackPanel>
 
                             <!-- Loader Spinner Bar -->
-                            <ProgressBar Grid.Row="4" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                            <ProgressBar Grid.Row="5" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- RESUME SCAN WIDGET -->
+                <Grid Visibility="{Binding IsResumeScanActive, Converter={StaticResource BoolToVis}}">
+                    <Border Background="#14FFFFFF" CornerRadius="8" Padding="8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> <!-- Row 0: Resume Status / Upload Strip -->
+                                <RowDefinition Height="Auto"/> <!-- Row 1: Collapsible Resume Text Editor -->
+                                <RowDefinition Height="Auto"/> <!-- Row 2: Option Toggles (Source & Mode) -->
+                                <RowDefinition Height="Auto"/> <!-- Row 3: Record Controls -->
+                                <RowDefinition Height="*"/>    <!-- Row 4: Response Area -->
+                                <RowDefinition Height="Auto"/> <!-- Row 5: Follow-up Chat Box -->
+                                <RowDefinition Height="Auto"/> <!-- Row 6: Loader ProgressBar -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Resume Status / Upload Strip (Row 0) -->
+                            <Border Grid.Row="0" Background="#1400E5FF" BorderBrush="#3000E5FF" BorderThickness="1" CornerRadius="7" Padding="8,5" Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left: Status text & Word Count -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="📄 " FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ResumeStatusSummary}" Foreground="#F0FFFFFF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+
+                                    <!-- Right: Action Buttons -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- View / Edit Button -->
+                                        <Button Command="{Binding ToggleResumeEditorCommand}" Cursor="Arrow" Margin="0,0,4,0" Height="22" Background="#20FFFFFF" BorderBrush="#35FFFFFF" BorderThickness="1">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="EditBtnBorder" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="6,2">
+                                                        <TextBlock Text="{Binding ResumeEditorButtonText}" Foreground="#CCFFFFFF" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="EditBtnBorder" Property="Background" Value="#35FFFFFF"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+
+                                        <!-- Upload / Replace Button -->
+                                        <Button Command="{Binding UploadResumeCommand}" Cursor="Arrow" Margin="0,0,4,0" Height="22" Background="#2500E5FF" BorderBrush="#5000E5FF" BorderThickness="1">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="UploadBtnBorder" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="6,2">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Path Data="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" Fill="#FFFFFF" Width="9" Height="9" Stretch="Uniform" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="Upload" Foreground="#FFFFFF" FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="UploadBtnBorder" Property="Background" Value="#4500E5FF"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+
+                                        <!-- Clear Resume Button -->
+                                        <Button Command="{Binding ClearResumeCommand}" Cursor="Arrow" Height="22" Width="22" Background="#20FF453A" BorderBrush="#40FF453A" BorderThickness="1"
+                                                Visibility="{Binding HasResume, Converter={StaticResource BoolToVis}}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="ClearBtnBorder" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="3">
+                                                        <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
+                                                              Fill="#FF8888" Width="9" Height="9" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="ClearBtnBorder" Property="Background" Value="#35FF453A"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Collapsible Resume Text Editor (Row 1) -->
+                            <Border Grid.Row="1" Background="#10FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,6"
+                                    Visibility="{Binding IsResumeEditorOpen, Converter={StaticResource BoolToVis}}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="110"/>
+                                    </Grid.RowDefinitions>
+                                    <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                        <TextBlock Text="CANDIDATE RESUME / EXPERIENCE TEXT" Foreground="#A0FFFFFF" FontSize="8.5" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ResumeWordCount, StringFormat='{}{0} words'}" Foreground="#70FFFFFF" FontSize="8.5" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <TextBox Grid.Row="1" Text="{Binding ResumeText, UpdateSourceTrigger=PropertyChanged}" 
+                                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                             Foreground="#F0FFFFFF" Background="#0CFFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" 
+                                             FontSize="10" Padding="5" CaretBrush="#FFFFFF" SelectionBrush="{Binding Tag, ElementName=MainBorder}"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Option Toggles (Audio Source and Live Mode) (Row 2) -->
+                            <Grid Grid.Row="2" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Column: Audio Source -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="SOURCE:" VerticalAlignment="Center" Foreground="#99FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,5,0"/>
+                                    <RadioButton Content="MIC" Style="{StaticResource SegmentButtonStyle}" GroupName="ResumeVoiceSource" IsChecked="{Binding IsResumeMicrophoneSource, Mode=TwoWay}"/>
+                                    <RadioButton Content="SYSTEM" Style="{StaticResource SegmentButtonStyle}" GroupName="ResumeVoiceSource" IsChecked="{Binding IsResumeSystemAudioSource, Mode=TwoWay}"/>
+                                </StackPanel>
+
+                                <!-- Right Column: Recording Mode -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBlock Text="MODE:" VerticalAlignment="Center" Foreground="#99FFFFFF" FontSize="9" FontWeight="Bold" Margin="0,0,5,0"/>
+                                    <RadioButton Content="MANUAL" Style="{StaticResource SegmentButtonStyle}" GroupName="ResumeVoiceMode" IsChecked="{Binding IsResumeManualMode, Mode=TwoWay}"/>
+                                    <RadioButton Content="LIVE AUTO" Style="{StaticResource SegmentButtonStyle}" GroupName="ResumeVoiceMode" IsChecked="{Binding IsResumeLiveMode, Mode=TwoWay}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Voice Controls Row (Row 3) -->
+                            <Grid Grid.Row="3" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Record Button (Resume) -->
+                                <Button Grid.Column="0" Command="{Binding ToggleVoiceCommand}" Cursor="Arrow" Height="32" Margin="0,0,4,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border CornerRadius="7" Background="#22FFFFFF" BorderBrush="{Binding Tag, ElementName=MainBorder}" BorderThickness="1" Padding="8,4">
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Path Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
+                                                                      Fill="#FFFFFF" Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0"/>
+                                                                <TextBlock Text="{Binding ResumeBtnText}" Foreground="#FFFFFF" FontSize="10.5" FontWeight="Bold"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Opacity" Value="0.92"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border CornerRadius="7" Background="#FFFF453A" Padding="8,4">
+                                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                        <Path Data="M6 19h12V5H6v14z" 
+                                                                              Fill="#000000" Width="11" Height="11" Stretch="Uniform" Margin="0,0,5,0"/>
+                                                                        <TextBlock Text="{Binding ResumeBtnText}" Foreground="#000000" FontSize="10.5" FontWeight="Bold"/>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <!-- Copy Button -->
+                                <Button Grid.Column="1" Command="{Binding CopyResumeScanCommand}" Cursor="Arrow" Height="32" Width="32" Margin="0,0,4,0">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="ResumeCopyBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
+                                                <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" 
+                                                      Fill="#88FFFFFF" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ResumeCopyBorder" Property="Background" Value="#28FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+
+                                <!-- Clear/Refresh Button -->
+                                <Button Grid.Column="2" Command="{Binding ClearResumeScanCommand}" Cursor="Arrow" Height="32" Width="32">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="ResumeClearBorder" CornerRadius="4" Background="#18FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" Padding="4">
+                                                <Path Data="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" 
+                                                      Fill="#88FFFFFF" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ResumeClearBorder" Property="Background" Value="#28FFFFFF"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+
+                            <!-- Resume Response Area (Row 4: Chat Bubble Style with Fallback) -->
+                            <Border Grid.Row="4" Background="#0AFFFFFF" CornerRadius="6" Padding="3">
+                                <ScrollViewer x:Name="ResumeScanScrollViewer" VerticalScrollBarVisibility="Auto" CanContentScroll="False">
+                                    <Grid>
+                                        <!-- Fallback: plain ResumeScanResponseText when no chat bubbles exist yet -->
+                                        <TextBlock local:TextBlockHelper.FormattedText="{Binding ResumeScanResponseText}" Foreground="#E0FFFFFF" FontSize="{Binding AppFontSize}" TextWrapping="Wrap" Background="Transparent" Padding="6">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ResumeChatBubbles.Count}" Value="0">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+
+                                        <!-- Chat Bubbles ItemsControl -->
+                                        <ItemsControl x:Name="ResumeScanItemsControl" ItemsSource="{Binding ResumeChatBubbles}">
+                                            <ItemsControl.Style>
+                                                <Style TargetType="ItemsControl">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ResumeChatBubbles.Count}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ItemsControl.Style>
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,4">
+                                                        <!-- USER / INTERVIEWER BUBBLE (right-aligned, violet accent) -->
+                                                        <Border HorizontalAlignment="Right" MaxWidth="290" CornerRadius="10,10,3,10" Padding="10,8" Margin="24,0,0,0"
+                                                                Background="#257C4DFF" BorderBrush="#50B388FF" BorderThickness="1">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <StackPanel>
+                                                                <!-- Turn label -->
+                                                                <TextBlock Foreground="#D1C4E9" FontSize="9" FontWeight="Bold" Margin="0,0,0,4">
+                                                                    <Run Text="🎙️ "/>
+                                                                    <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
+                                                                </TextBlock>
+                                                                <!-- Content text -->
+                                                                <TextBlock Text="{Binding Content}" Foreground="#EDE7F6" FontSize="10" TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- ASSISTANT / CANDIDATE ANSWER BUBBLE (left-aligned, darker bg) -->
+                                                        <Border HorizontalAlignment="Left" MaxWidth="330" CornerRadius="10,10,10,3" Padding="10,8" Margin="0,0,24,0"
+                                                                Background="#18FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsAssistant}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding HasError}" Value="True">
+                                                                            <Setter Property="Background" Value="#252A1515"/>
+                                                                            <Setter Property="BorderBrush" Value="#55EF4444"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <StackPanel>
+                                                                <!-- Model info badge -->
+                                                                <Border Background="#14FFFFFF" CornerRadius="4" Padding="5,2" Margin="0,0,0,5" HorizontalAlignment="Left">
+                                                                    <TextBlock Foreground="#8890CAF9" FontSize="8.5" FontWeight="SemiBold">
+                                                                        <Run Text="🎯 "/>
+                                                                        <Run Text="{Binding TurnLabel, Mode=OneWay}"/>
+                                                                        <Run Text=" · "/>
+                                                                        <Run Text="{Binding ModelInfo, Mode=OneWay}"/>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                                <!-- Loading indicator -->
+                                                                <Grid Margin="0,3,0,3" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel Orientation="Horizontal" Grid.Column="0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="⏳ " Foreground="#A0FFFFFF" FontSize="11"/>
+                                                                        <TextBlock Text="{Binding Content}" Foreground="#A0FFFFFF" FontSize="10" FontStyle="Italic" TextWrapping="Wrap"/>
+                                                                    </StackPanel>
+                                                                    <!-- Red live timer on the right -->
+                                                                    <Border Grid.Column="1" Background="#33FF3333" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding ElapsedLabel}" Foreground="#FFFF4444" FontSize="10" FontWeight="Bold" FontFamily="Consolas"/>
+                                                                    </Border>
+                                                                </Grid>
+                                                                <!-- Response content (hidden during loading) -->
+                                                                <TextBlock local:TextBlockHelper.FormattedText="{Binding Content}" Foreground="#F0FFFFFF" FontSize="{Binding DataContext.AppFontSize, RelativeSource={RelativeSource AncestorType=Window}}" TextWrapping="Wrap" Background="Transparent">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+
+                                                                <!-- API Key / Environment Verification Action Bar -->
+                                                                <Border Margin="0,8,0,2" Padding="8,5" Background="#28EF4444" BorderBrush="#55EF4444" BorderThickness="1" CornerRadius="5"
+                                                                        Visibility="{Binding ShowCheckApiKeyAction, Converter={StaticResource BoolToVis}}">
+                                                                    <DockPanel LastChildFill="True">
+                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DockPanel.Dock="Left">
+                                                                            <TextBlock Text="⚠️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="API / Auth Error" Foreground="#FFFF8888" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                        <Button Command="{Binding DataContext.OpenApiKeySettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                HorizontalAlignment="Right" Padding="8,2" Height="22"
+                                                                                Background="#40EF4444" Foreground="#FFFFEEEE" BorderBrush="#88EF4444" BorderThickness="1"
+                                                                                FontSize="9" FontWeight="Bold" Cursor="Hand">
+                                                                            <Button.Template>
+                                                                                <ControlTemplate TargetType="Button">
+                                                                                    <Border CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                                                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                            <TextBlock Text="🔧 Check / Update Key" Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}"/>
+                                                                                        </StackPanel>
+                                                                                    </Border>
+                                                                                </ControlTemplate>
+                                                                            </Button.Template>
+                                                                        </Button>
+                                                                    </DockPanel>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </ScrollViewer>
+                            </Border>
+
+                            <!-- Follow-up Question Area for Resume Scan (Row 5) -->
+                            <StackPanel Grid.Row="5" Margin="0,6,0,0" Visibility="{Binding IsFollowUpVisible, Converter={StaticResource BoolToVis}}">
+                                <!-- Preset Quick Follow-up Question Pill Buttons -->
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,4">
+                                    <ItemsControl ItemsSource="{Binding PresetFollowUps}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Command="{Binding DataContext.AskFollowUpCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                        CommandParameter="{Binding}" 
+                                                        Cursor="Arrow" Margin="0,0,4,0">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="PillBorder" CornerRadius="12" Background="#187C4DFF" BorderBrush="#35B388FF" BorderThickness="1" Padding="10,4">
+                                                                <TextBlock Text="{Binding}" Foreground="#B388FF" FontSize="9.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="PillBorder" Property="Background" Value="#357C4DFF"/>
+                                                                    <Setter TargetName="PillBorder" Property="BorderBrush" Value="#70B388FF"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <!-- Follow-up Input Bar -->
+                                <Border Background="#14FFFFFF" CornerRadius="6" Padding="6,3">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Chat Input TextBox -->
+                                        <TextBox Grid.Column="0" Text="{Binding FollowUpText, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Foreground="#F0FFFFFF" FontSize="10.5" Background="Transparent" BorderThickness="0" 
+                                                 VerticalContentAlignment="Center" Margin="4,2" CaretBrush="#FFFFFF" SelectionBrush="{Binding Tag, ElementName=MainBorder}">
+                                            <TextBox.InputBindings>
+                                                <KeyBinding Key="Enter" Command="{Binding SubmitFollowUpCommand}"/>
+                                            </TextBox.InputBindings>
+                                        </TextBox>
+
+                                        <!-- 7-Second Cooldown Timer Badge -->
+                                        <Border Grid.Column="1" Background="#33FF4444" CornerRadius="4" Padding="6,2" Margin="2,0" VerticalAlignment="Center"
+                                                Visibility="{Binding IsFollowUpCooldownActive, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding FollowUpCooldownText}" Foreground="#FFFF8888" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- Follow-up Microphone Button (takes external mic only) -->
+                                        <Button Grid.Column="2" Command="{Binding ToggleFollowUpVoiceCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="Transparent" Padding="5">
+                                                        <Path x:Name="ResumeMicIcon" Data="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" 
+                                                              Fill="{Binding FollowUpMicColor}" Width="12" Height="12" Stretch="Uniform"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+
+                                        <!-- Send Button -->
+                                        <Button Grid.Column="3" Command="{Binding SubmitFollowUpCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" Margin="2,0">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="Transparent" Padding="5">
+                                                        <Path x:Name="ResumeSendIcon" Data="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" 
+                                                              Fill="#88FFFFFF" Width="12" Height="12" Stretch="Uniform"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="ResumeSendIcon" Property="Fill" Value="{Binding Tag, ElementName=MainBorder}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Loader Spinner Bar (Row 6) -->
+                            <ProgressBar Grid.Row="6" Height="4" IsIndeterminate="True" Background="#11FFFFFF" Foreground="{Binding Tag, ElementName=MainBorder}" Margin="0,6,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
                         </Grid>
                     </Border>
                 </Grid>
@@ -2520,6 +3060,13 @@
                                 <MultiDataTrigger.Conditions>
                                     <Condition Binding="{Binding IsPaymentOverlayVisible}" Value="True"/>
                                     <Condition Binding="{Binding IsVoiceScanActive}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsPaymentOverlayVisible}" Value="True"/>
+                                    <Condition Binding="{Binding IsResumeScanActive}" Value="True"/>
                                 </MultiDataTrigger.Conditions>
                                 <Setter Property="Visibility" Value="Visible"/>
                             </MultiDataTrigger>

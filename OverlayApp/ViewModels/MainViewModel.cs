@@ -41,11 +41,17 @@ namespace OverlayApp.ViewModels
         private readonly AudioRecorderService _audioRecorder = new AudioRecorderService();
         private bool _isRecording;
         private bool _isProcessingVoice;
+        private bool _isVoiceLiveActive;
+        private bool _isResumeLiveActive;
+        private Models.ChatBubbleItem? _activeInterimUserBubble;
+        private System.Threading.CancellationTokenSource? _liveInterimCts;
 
         private readonly System.Collections.Generic.List<ChatMessage> _voiceChatHistory = new System.Collections.Generic.List<ChatMessage>();
+        private readonly System.Collections.Generic.List<ChatMessage> _resumeChatHistory = new System.Collections.Generic.List<ChatMessage>();
         private readonly System.Collections.Generic.List<ChatMessage> _txtChatHistory = new System.Collections.Generic.List<ChatMessage>();
         private int _txtTurnCounter;
         private int _voiceTurnCounter;
+        private int _resumeTurnCounter;
         private string _followUpText = "";
         private bool _isFollowUpRecording;
         private bool _wasLiveScanActiveBeforeFollowUp;
@@ -94,6 +100,11 @@ namespace OverlayApp.ViewModels
         public System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem> CapturedScreenshots { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem>();
 
         /// <summary>
+        /// Screenshots captured as code context for Voice Scan (OCR'd and injected into system prompt).
+        /// </summary>
+        public System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem> VoiceContextScreenshots { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.CapturedScreenshotItem>();
+
+        /// <summary>
         /// Chat bubble items for the ChatGPT/Gemini-style conversation UI in Text Scan.
         /// </summary>
         public System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem> ChatBubbles { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem>();
@@ -103,9 +114,14 @@ namespace OverlayApp.ViewModels
         /// </summary>
         public System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem> VoiceChatBubbles { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem>();
 
+        /// <summary>
+        /// Chat bubble items for the ChatGPT/Gemini-style conversation UI in Resume Scan.
+        /// </summary>
+        public System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem> ResumeChatBubbles { get; } = new System.Collections.ObjectModel.ObservableCollection<Models.ChatBubbleItem>();
+
         public int CapturedScreenshotsCount => CapturedScreenshots.Count;
         public bool HasCapturedScreenshots => CapturedScreenshots.Count > 0;
-        public bool IsMinimumScreenshotsReached => CapturedScreenshots.Count >= MaxScreenshotsLimit;
+        public bool IsMinimumScreenshotsReached => CapturedScreenshots.Count >= EffectiveMaxScreenshots;
         public string SendButtonText => $"SEND ({CapturedScreenshots.Count})";
 
         public string ScreenshotsBadgeText
@@ -113,10 +129,10 @@ namespace OverlayApp.ViewModels
             get
             {
                 if (CapturedScreenshots.Count == 0)
-                    return $"📸 Captured: 0 / {MaxScreenshotsLimit} max (Click + CAPTURE to add)";
-                if (CapturedScreenshots.Count < MaxScreenshotsLimit)
-                    return $"📸 Captured: {CapturedScreenshots.Count} / {MaxScreenshotsLimit} max (Ready to SEND or add more)";
-                return $"✅ Captured: {MaxScreenshotsLimit} / {MaxScreenshotsLimit} max (Max limit reached - Ready to SEND)";
+                    return $"📸 Captured: 0 / {EffectiveMaxScreenshots} max (Click + CAPTURE to add)";
+                if (CapturedScreenshots.Count < EffectiveMaxScreenshots)
+                    return $"📸 Captured: {CapturedScreenshots.Count} / {EffectiveMaxScreenshots} max (Ready to SEND or add more)";
+                return $"✅ Captured: {MaxScreenshotsLimit} / {EffectiveMaxScreenshots} max (Max limit reached - Ready to SEND)";
             }
         }
 
@@ -129,6 +145,14 @@ namespace OverlayApp.ViewModels
             OnPropertyChanged(nameof(ScreenshotsBadgeText));
         }
         public ICommand ClearVoiceScanCommand { get; }
+        public ICommand CaptureVoiceContextCommand { get; }
+        public ICommand ClearVoiceContextCommand { get; }
+        public ICommand ClearResumeScanCommand { get; }
+        public ICommand CopyResumeScanCommand { get; }
+        public ICommand UploadResumeCommand { get; }
+        public ICommand ToggleResumeEditorCommand { get; }
+        public ICommand ClearResumeCommand { get; }
+        public ICommand ToggleResumeVoiceCommand { get; }
         public ICommand SubmitFollowUpCommand { get; }
         public ICommand ToggleFollowUpVoiceCommand { get; }
         public ICommand NextOnboardingCommand { get; }
@@ -314,6 +338,49 @@ namespace OverlayApp.ViewModels
                 FollowUpText = "";
                 OnPropertyChanged(nameof(IsFollowUpVisible));
             });
+            CaptureVoiceContextCommand = new RelayCommand(_ => StartScreenshotCaptureForVoice());
+            ClearVoiceContextCommand = new RelayCommand(_ =>
+            {
+                VoiceContextScreenshots.Clear();
+                _voiceChatHistory.Clear(); // reset chat so new context is injected next turn
+                _voiceTurnCounter = 0;
+                VoiceChatBubbles.Clear();
+                OnPropertyChanged(nameof(HasVoiceContext));
+                OnPropertyChanged(nameof(VoiceContextSummary));
+                OnPropertyChanged(nameof(IsFollowUpVisible));
+            });
+
+            ClearResumeScanCommand = new RelayCommand(_ => { 
+                ResumeScanResponseText = "";
+                _resumeChatHistory.Clear();
+                _resumeTurnCounter = 0;
+                ResumeChatBubbles.Clear();
+                FollowUpText = "";
+                OnPropertyChanged(nameof(IsFollowUpVisible));
+            });
+
+            CopyResumeScanCommand = new RelayCommand(_ => { 
+                if (ResumeChatBubbles.Count > 0)
+                {
+                    var lastAssistant = System.Linq.Enumerable.LastOrDefault(ResumeChatBubbles, b => b.IsAssistant && !b.IsLoading);
+                    if (lastAssistant != null && !string.IsNullOrEmpty(lastAssistant.Content))
+                    {
+                        System.Windows.Clipboard.SetText(lastAssistant.Content);
+                        return;
+                    }
+                }
+                if (!string.IsNullOrEmpty(ResumeScanResponseText)) 
+                    System.Windows.Clipboard.SetText(ResumeScanResponseText); 
+            });
+
+            UploadResumeCommand = new RelayCommand(async _ => await UploadResumeAsync());
+            ToggleResumeEditorCommand = new RelayCommand(_ => IsResumeEditorOpen = !IsResumeEditorOpen);
+            ClearResumeCommand = new RelayCommand(_ => {
+                ResumeText = "";
+                ResumeFileName = "";
+                _settingsService.SaveSettings(_settings);
+            });
+            ToggleResumeVoiceCommand = new RelayCommand(_ => ToggleVoiceRecording());
 
             SubmitFollowUpCommand = new RelayCommand(_ => SubmitFollowUpPrompt());
             ToggleFollowUpVoiceCommand = new RelayCommand(_ => ToggleFollowUpVoiceRecording());
@@ -584,8 +651,10 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsTimerActive));
                     OnPropertyChanged(nameof(IsTxtScanActive));
                     OnPropertyChanged(nameof(IsVoiceScanActive));
+                    OnPropertyChanged(nameof(IsResumeScanActive));
                     OnPropertyChanged(nameof(IsProfileActive));
                     OnPropertyChanged(nameof(IsFollowUpVisible));
+                    UpdatePresetFollowUps();
 
                     // Manage performance statistics updates (avoid querying background stats when hidden)
                     if (value == WidgetType.SystemMonitor)
@@ -597,17 +666,25 @@ namespace OverlayApp.ViewModels
                         _monitorService.Stop();
                     }
 
-                    // Release recording device immediately if user leaves Voice tab
-                    if (value != WidgetType.VoiceScan)
+                    // Cleanly stop any active recording when switching between widgets
+                    if (IsRecording || _isVoiceLiveActive || _isResumeLiveActive)
                     {
                         try
                         {
+                            _liveInterimCts?.Cancel();
+                            _liveInterimCts = null;
+                            _activeInterimUserBubble = null;
+                            _isVoiceLiveActive = false;
+                            _isResumeLiveActive = false;
+                            _audioRecorder.SpeechStarted -= OnLiveSpeechStarted;
                             _audioRecorder.SilenceDetected -= OnLiveSilenceDetected;
                             _audioRecorder.StopRecording();
                             IsRecording = false;
                         }
                         catch {}
                     }
+                    OnPropertyChanged(nameof(VoiceBtnText));
+                    OnPropertyChanged(nameof(ResumeBtnText));
                 }
             }
         }
@@ -615,9 +692,10 @@ namespace OverlayApp.ViewModels
         public bool IsNotesActive => ActiveWidget == WidgetType.Notes;
         public bool IsSystemActive => ActiveWidget == WidgetType.SystemMonitor;
         public bool IsTimerActive => ActiveWidget == WidgetType.Timer;
-        public bool IsAiScanActive => ActiveWidget == WidgetType.TxtScan || ActiveWidget == WidgetType.VoiceScan;
+        public bool IsAiScanActive => ActiveWidget == WidgetType.TxtScan || ActiveWidget == WidgetType.VoiceScan || ActiveWidget == WidgetType.ResumeScan;
         public bool IsTxtScanActive => ActiveWidget == WidgetType.TxtScan;
         public bool IsVoiceScanActive => ActiveWidget == WidgetType.VoiceScan;
+        public bool IsResumeScanActive => ActiveWidget == WidgetType.ResumeScan;
         public bool IsProfileActive => ActiveWidget == WidgetType.Profile;
 
         public string ProfileName
@@ -675,6 +753,9 @@ namespace OverlayApp.ViewModels
 
         public string MaxScreenshotsButtonText => $"MAX: {MaxScreenshotsLimit}";
         public ICommand CycleMaxScreenshotsLimitCommand { get; }
+
+        /// <summary>Effective screenshot limit — 3 for MCQ mode, user setting for everything else.</summary>
+        public int EffectiveMaxScreenshots => IsMcqScanMode ? 3 : MaxScreenshotsLimit;
 
         public string ActiveApiProvider
         {
@@ -749,6 +830,88 @@ namespace OverlayApp.ViewModels
             set => SetProperty(ref _settings.VoiceScanResponseText, value);
         }
 
+        public string ResumeScanResponseText
+        {
+            get => _settings.ResumeScanResponseText;
+            set => SetProperty(ref _settings.ResumeScanResponseText, value);
+        }
+
+        public string ResumeText
+        {
+            get => _settings.ResumeText;
+            set
+            {
+                if (SetProperty(ref _settings.ResumeText, value))
+                {
+                    OnPropertyChanged(nameof(ResumeWordCount));
+                    OnPropertyChanged(nameof(HasResume));
+                    OnPropertyChanged(nameof(ResumeStatusSummary));
+                }
+            }
+        }
+
+        public string ResumeFileName
+        {
+            get => _settings.ResumeFileName;
+            set
+            {
+                if (SetProperty(ref _settings.ResumeFileName, value))
+                {
+                    OnPropertyChanged(nameof(HasResume));
+                    OnPropertyChanged(nameof(ResumeStatusSummary));
+                }
+            }
+        }
+
+        public int ResumeWordCount
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(ResumeText)) return 0;
+                return ResumeText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+            }
+        }
+
+        public bool HasResume => !string.IsNullOrWhiteSpace(ResumeText);
+
+        public string ResumeStatusSummary
+        {
+            get
+            {
+                if (!HasResume) return "No Resume Loaded";
+                string name = string.IsNullOrWhiteSpace(ResumeFileName) ? "Pasted Resume" : ResumeFileName;
+                return $"{name} ({ResumeWordCount:N0} words)";
+            }
+        }
+
+        // ── Voice Scan Code Context (screenshot reference injected into system prompt) ──
+        public bool HasVoiceContext => VoiceContextScreenshots.Count > 0;
+        public string VoiceContextSummary => VoiceContextScreenshots.Count == 0
+            ? "No code context — capture a screenshot of your code first"
+            : $"📸 {VoiceContextScreenshots.Count} screenshot(s) loaded as code context";
+
+        private bool _isVoiceContextEditorOpen;
+        public bool IsVoiceContextEditorOpen
+        {
+            get => _isVoiceContextEditorOpen;
+            set { if (SetProperty(ref _isVoiceContextEditorOpen, value)) { } }
+        }
+
+        private bool _isResumeEditorOpen;
+        public bool IsResumeEditorOpen
+        {
+            get => _isResumeEditorOpen;
+            set
+            {
+                if (SetProperty(ref _isResumeEditorOpen, value))
+                {
+                    OnPropertyChanged(nameof(ResumeEditorButtonText));
+                }
+            }
+        }
+
+        public string ResumeEditorButtonText => IsResumeEditorOpen ? "Close Editor" : "View / Edit";
+
         public bool IsScanning
         {
             get => _isScanning;
@@ -769,6 +932,7 @@ namespace OverlayApp.ViewModels
                 if (SetProperty(ref _isRecording, value))
                 {
                     OnPropertyChanged(nameof(VoiceBtnText));
+                    OnPropertyChanged(nameof(ResumeBtnText));
                 }
             }
         }
@@ -779,12 +943,13 @@ namespace OverlayApp.ViewModels
             {
                 if (IsLiveMode)
                 {
-                    return IsRecording ? "STOP LIVE SCAN" : "START LIVE SCAN";
+                    return (_isVoiceLiveActive || IsRecording) ? "STOP LIVE SCAN" : "START LIVE SCAN";
                 }
                 return IsRecording ? "STOP RECORDING" : "RECORD VOICE SCAN";
             }
         }
 
+        // ── Voice Scan audio settings (VoiceScan-only, isolated) ──────────────
         public bool IsSystemAudioSource
         {
             get => _settings.IsSystemAudioSource;
@@ -793,7 +958,8 @@ namespace OverlayApp.ViewModels
                 if (SetProperty(ref _settings.IsSystemAudioSource, value))
                 {
                     OnPropertyChanged(nameof(IsMicrophoneSource));
-                    if (IsRecording) RestartRecordingWithCurrentSettings();
+                    if (IsRecording && ActiveWidget == WidgetType.VoiceScan)
+                        RestartRecordingWithCurrentSettings();
                 }
             }
         }
@@ -813,7 +979,8 @@ namespace OverlayApp.ViewModels
                 {
                     OnPropertyChanged(nameof(IsManualMode));
                     OnPropertyChanged(nameof(VoiceBtnText));
-                    if (IsRecording) RestartRecordingWithCurrentSettings();
+                    if (IsRecording && ActiveWidget == WidgetType.VoiceScan)
+                        RestartRecordingWithCurrentSettings();
                 }
             }
         }
@@ -822,6 +989,60 @@ namespace OverlayApp.ViewModels
         {
             get => !IsLiveMode;
             set => IsLiveMode = !value;
+        }
+
+        // ── Resume Scan audio settings (ResumeScan-only, isolated) ────────────
+        public bool IsResumeSystemAudioSource
+        {
+            get => _settings.IsResumeSystemAudioSource;
+            set
+            {
+                if (SetProperty(ref _settings.IsResumeSystemAudioSource, value))
+                {
+                    OnPropertyChanged(nameof(IsResumeMicrophoneSource));
+                    if (IsRecording && ActiveWidget == WidgetType.ResumeScan)
+                        RestartRecordingWithCurrentSettings();
+                }
+            }
+        }
+
+        public bool IsResumeMicrophoneSource
+        {
+            get => !IsResumeSystemAudioSource;
+            set => IsResumeSystemAudioSource = !value;
+        }
+
+        public bool IsResumeLiveMode
+        {
+            get => _settings.IsResumeLiveMode;
+            set
+            {
+                if (SetProperty(ref _settings.IsResumeLiveMode, value))
+                {
+                    OnPropertyChanged(nameof(IsResumeManualMode));
+                    OnPropertyChanged(nameof(ResumeBtnText));
+                    if (IsRecording && ActiveWidget == WidgetType.ResumeScan)
+                        RestartRecordingWithCurrentSettings();
+                }
+            }
+        }
+
+        public bool IsResumeManualMode
+        {
+            get => !IsResumeLiveMode;
+            set => IsResumeLiveMode = !value;
+        }
+
+        public string ResumeBtnText
+        {
+            get
+            {
+                if (IsResumeLiveMode)
+                {
+                    return (_isResumeLiveActive || IsRecording) ? "STOP LIVE SCAN" : "START LIVE SCAN";
+                }
+                return IsRecording ? "STOP RECORDING" : "RECORD INTERVIEWER";
+            }
         }
 
         private class ScanModeState
@@ -891,6 +1112,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
                     OnPropertyChanged(nameof(IsNormalScanMode));
+                    OnPropertyChanged(nameof(EffectiveMaxScreenshots));
                     UpdatePresetFollowUps();
                 }
             }
@@ -908,6 +1130,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
                     OnPropertyChanged(nameof(IsNormalScanMode));
+                    OnPropertyChanged(nameof(EffectiveMaxScreenshots));
                     UpdatePresetFollowUps();
                 }
             }
@@ -925,6 +1148,7 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsMcqScanMode));
                     OnPropertyChanged(nameof(IsCodingScanMode));
                     OnPropertyChanged(nameof(IsNormalScanMode));
+                    OnPropertyChanged(nameof(EffectiveMaxScreenshots));
                     UpdatePresetFollowUps();
                 }
             }
@@ -947,6 +1171,8 @@ namespace OverlayApp.ViewModels
                     OnPropertyChanged(nameof(IsHtmlSelected));
                     OnPropertyChanged(nameof(IsCssSelected));
                     OnPropertyChanged(nameof(IsProjectSelected));
+                    OnPropertyChanged(nameof(IsSqlSelected));
+                    OnPropertyChanged(nameof(IsPlSqlSelected));
                 }
             }
         }
@@ -991,6 +1217,18 @@ namespace OverlayApp.ViewModels
         {
             get => ProgrammingLanguage.Equals("CSS", StringComparison.OrdinalIgnoreCase);
             set { if (value) ProgrammingLanguage = "CSS"; }
+        }
+
+        public bool IsSqlSelected
+        {
+            get => ProgrammingLanguage.Equals("SQL", StringComparison.OrdinalIgnoreCase);
+            set { if (value) ProgrammingLanguage = "SQL"; }
+        }
+
+        public bool IsPlSqlSelected
+        {
+            get => ProgrammingLanguage.Equals("PL/SQL", StringComparison.OrdinalIgnoreCase);
+            set { if (value) ProgrammingLanguage = "PL/SQL"; }
         }
 
         public bool IsProjectSelected
@@ -1071,6 +1309,10 @@ namespace OverlayApp.ViewModels
                 if (ActiveWidget == WidgetType.TxtScan)
                 {
                     return _txtChatHistory.Count > 1;
+                }
+                if (ActiveWidget == WidgetType.ResumeScan)
+                {
+                    return _resumeChatHistory.Count > 1;
                 }
                 return _voiceChatHistory.Count > 1;
             }
@@ -1288,7 +1530,7 @@ namespace OverlayApp.ViewModels
                 OnPropertyChanged(nameof(IsFollowUpVisible));
             }
 
-            if (CapturedScreenshots.Count >= MaxScreenshotsLimit)
+            if (CapturedScreenshots.Count >= EffectiveMaxScreenshots)
             {
                 ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
                                    $"You have already captured **{CapturedScreenshots.Count} / {MaxScreenshotsLimit}** screenshots (the maximum allowed).\n\n" +
@@ -1307,6 +1549,46 @@ namespace OverlayApp.ViewModels
             selectionWindow.Show();
         }
 
+        /// <summary>
+        /// Opens the selection window to capture a code context screenshot for Voice Scan.
+        /// The captured screenshot is OCR'd and injected into the voice system prompt.
+        /// </summary>
+        private void StartScreenshotCaptureForVoice()
+        {
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible) return;
+            if (VoiceContextScreenshots.Count >= 3)
+            {
+                VoiceScanResponseText = "⚠️ Max 3 code context screenshots. Clear existing ones first.";
+                return;
+            }
+
+            var selectionWindow = new Views.SelectionWindow();
+            selectionWindow.ShowActivated = false;
+            selectionWindow.AreaSelected = rect =>
+            {
+                byte[] imageBytes;
+                var previewSource = CaptureScreenArea(rect, out imageBytes);
+                if (imageBytes != null && imageBytes.Length > 0 && previewSource != null)
+                {
+                    var item = new Models.CapturedScreenshotItem
+                    {
+                        Index = VoiceContextScreenshots.Count + 1,
+                        PreviewImage = previewSource,
+                        ImageBytes = imageBytes
+                    };
+                    VoiceContextScreenshots.Add(item);
+                    // Reset chat history so context is re-injected on next question
+                    _voiceChatHistory.Clear();
+                    _voiceTurnCounter = 0;
+                    VoiceChatBubbles.Clear();
+                    OnPropertyChanged(nameof(HasVoiceContext));
+                    OnPropertyChanged(nameof(VoiceContextSummary));
+                    VoiceScanResponseText = $"📸 Code context updated ({VoiceContextScreenshots.Count} screenshot{(VoiceContextScreenshots.Count == 1 ? "" : "s")}). Ask your voice question now.";
+                }
+            };
+            selectionWindow.Show();
+        }
+
         private async void TriggerSilentScan()
         {
             if (IsLoginOverlayVisible || IsPaymentOverlayVisible || IsFeatureLocked)
@@ -1314,7 +1596,7 @@ namespace OverlayApp.ViewModels
                 return;
             }
 
-            if (CapturedScreenshots.Count >= MaxScreenshotsLimit)
+            if (CapturedScreenshots.Count >= EffectiveMaxScreenshots)
             {
                 ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
                                    $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or remove a screenshot to capture a new one.";
@@ -1349,7 +1631,7 @@ namespace OverlayApp.ViewModels
 
         private void AddCapturedScreenshot(System.Windows.Int32Rect rect)
         {
-            if (CapturedScreenshots.Count >= MaxScreenshotsLimit)
+            if (CapturedScreenshots.Count >= EffectiveMaxScreenshots)
             {
                 ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
                                    $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or remove a screenshot to capture a new one.";
@@ -1370,10 +1652,10 @@ namespace OverlayApp.ViewModels
                 CapturedScreenshots.Add(item);
                 NotifyScreenshotStateChanged();
 
-                if (CapturedScreenshots.Count < MaxScreenshotsLimit)
+                if (CapturedScreenshots.Count < EffectiveMaxScreenshots)
                 {
                     ScanResponseText = $"📸 **Captured Screenshot #{item.Index}.**\n\n" +
-                                       $"Total captured: **{CapturedScreenshots.Count} / {MaxScreenshotsLimit} max**.\n" +
+                                       $"Total captured: **{CapturedScreenshots.Count} / {EffectiveMaxScreenshots} max**.\n" +
                                        $"Click **SEND ({CapturedScreenshots.Count})** to process now, or click **+ CAPTURE** to add up to {MaxScreenshotsLimit - CapturedScreenshots.Count} more.";
                 }
                 else
@@ -1531,7 +1813,7 @@ namespace OverlayApp.ViewModels
                     {
                         string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
 
-                        string systemPrompt = $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. Output ONLY the complete, working source code in {targetLang}. All explanatory text, section descriptions, or non-code content MUST be written as inline code comments (e.g. // comment in JS/Java/C++, # comment in Python/CSS). Do NOT include any standalone text lines outside of code. Do NOT use markdown code block backticks (```). Write code in a humanized developer style: natural variable names, clean modular logic, all functions fully implemented without cutting off.";
+                        string systemPrompt = $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. Output ONLY the complete, working source code in {targetLang}. All explanatory text, section descriptions, or non-code content MUST be written as inline code comments (e.g. // comment in JS/Java/C++, # comment in Python/CSS, -- comment in SQL/PL-SQL). Do NOT include any standalone text lines outside of code. Do NOT use markdown code block backticks (```). Write code in a humanized developer style: natural variable names, clean modular logic, all functions fully implemented without cutting off.";
 
                         _txtChatHistory.Add(new ChatMessage {
                             Role = "system",
@@ -2011,8 +2293,12 @@ namespace OverlayApp.ViewModels
                 _audioRecorder.StopRecording();
                 _audioRecorder.SilenceDetected -= OnLiveSilenceDetected;
 
-                _audioRecorder.StartRecording(IsSystemAudioSource, IsLiveMode);
-                if (IsLiveMode)
+                // Use the correct per-tab audio source and live mode settings
+                bool useSystemAudio = ActiveWidget == WidgetType.ResumeScan ? IsResumeSystemAudioSource : IsSystemAudioSource;
+                bool useLiveMode    = ActiveWidget == WidgetType.ResumeScan ? IsResumeLiveMode    : IsLiveMode;
+
+                _audioRecorder.StartRecording(useSystemAudio, useLiveMode);
+                if (useLiveMode)
                 {
                     _audioRecorder.SilenceDetected += OnLiveSilenceDetected;
                 }
@@ -2020,7 +2306,10 @@ namespace OverlayApp.ViewModels
             catch (Exception ex)
             {
                 IsRecording = false;
-                VoiceScanResponseText = $"Recording failed: {ex.Message}";
+                if (ActiveWidget == WidgetType.ResumeScan)
+                    ResumeScanResponseText = $"Recording failed: {ex.Message}";
+                else
+                    VoiceScanResponseText = $"Recording failed: {ex.Message}";
             }
         }
 
@@ -2028,17 +2317,31 @@ namespace OverlayApp.ViewModels
         {
             if (IsFeatureLocked)
             {
-                VoiceScanResponseText = "Access Locked: Your free trial has ended. Please verify a paid session credit to use voice scanning features.";
+                if (ActiveWidget == WidgetType.ResumeScan)
+                    ResumeScanResponseText = "Access Locked: Your free trial has ended. Please verify a paid session credit to use resume scanning features.";
+                else
+                    VoiceScanResponseText = "Access Locked: Your free trial has ended. Please verify a paid session credit to use voice scanning features.";
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(GroqKey))
+            if (string.IsNullOrWhiteSpace(GroqKey) && string.IsNullOrWhiteSpace(GeminiKey))
             {
-                VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
+                if (ActiveWidget == WidgetType.ResumeScan)
+                    ResumeScanResponseText = "Error: Please set your Gemini or Groq API Key in Settings first.";
+                else
+                    VoiceScanResponseText = "Error: Please set your Gemini or Groq API Key in Settings first.";
                 return;
             }
 
-            if (!IsRecording)
+            if (ActiveWidget == WidgetType.ResumeScan && !HasResume)
+            {
+                ResumeScanResponseText = "Please upload or paste your resume above first so the AI has your background.";
+                return;
+            }
+
+            bool isCurrentlyActive = IsRecording || _isVoiceLiveActive || _isResumeLiveActive;
+
+            if (!isCurrentlyActive)
             {
                 try
                 {
@@ -2050,33 +2353,142 @@ namespace OverlayApp.ViewModels
                         FollowUpText = "";
                     }
 
+                    _audioRecorder.SpeechStarted -= OnLiveSpeechStarted;
                     _audioRecorder.SilenceDetected -= OnLiveSilenceDetected; // safety unbind
-                    _audioRecorder.StartRecording(IsSystemAudioSource, IsLiveMode);
-                    IsRecording = true;
 
-                    if (IsLiveMode)
+                    // Use per-tab isolated audio settings
+                    bool useSystemAudio = ActiveWidget == WidgetType.ResumeScan ? IsResumeSystemAudioSource : IsSystemAudioSource;
+                    bool useLiveMode    = ActiveWidget == WidgetType.ResumeScan ? IsResumeLiveMode    : IsLiveMode;
+
+                    if (ActiveWidget == WidgetType.ResumeScan)
                     {
-                        _audioRecorder.SilenceDetected += OnLiveSilenceDetected;
-                        VoiceScanResponseText = "Live auto-answering active. Listening...\n\nSpeak or play sound now. The app will automatically transcribe and answer when you pause.";
+                        _isResumeLiveActive = useLiveMode;
+                        _isVoiceLiveActive = false;
                     }
                     else
                     {
-                        VoiceScanResponseText = "Recording audio query... Speak/play now.\n\nClick STOP RECORDING to transcribe and analyze.";
+                        _isVoiceLiveActive = useLiveMode;
+                        _isResumeLiveActive = false;
                     }
 
+                    _audioRecorder.StartRecording(useSystemAudio, useLiveMode);
+                    IsRecording = true;
+
+                    if (useLiveMode)
+                    {
+                        _audioRecorder.SpeechStarted += OnLiveSpeechStarted;
+                        _audioRecorder.SilenceDetected += OnLiveSilenceDetected;
+                    }
+
+                    OnPropertyChanged(nameof(VoiceBtnText));
+                    OnPropertyChanged(nameof(ResumeBtnText));
+
+                    if (ActiveWidget == WidgetType.ResumeScan)
+                    {
+                        if (useLiveMode)
+                        {
+                            ResumeScanResponseText = "Live interview auto-answering active. Listening for interviewer questions...\n\nSpeech will be transcribed lively. When silence is detected, the AI will answer directly in first person.";
+                        }
+                        else
+                        {
+                            ResumeScanResponseText = "Listening to interviewer query... Speak/play now.\n\nClick STOP RECORDING to formulate candidate answer.";
+                        }
+                    }
+                    else
+                    {
+                        if (useLiveMode)
+                        {
+                            VoiceScanResponseText = "Live auto-answering active. Listening...\n\nSpeech will appear lively in the chat box. Once silence is detected, the AI answers immediately.";
+                        }
+                        else
+                        {
+                            VoiceScanResponseText = "Recording audio query... Speak/play now.\n\nClick STOP RECORDING to transcribe and analyze.";
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    VoiceScanResponseText = $"Recording failed: {ex.Message}";
+                    _isVoiceLiveActive = false;
+                    _isResumeLiveActive = false;
+                    IsRecording = false;
+                    OnPropertyChanged(nameof(VoiceBtnText));
+                    OnPropertyChanged(nameof(ResumeBtnText));
+                    if (ActiveWidget == WidgetType.ResumeScan)
+                        ResumeScanResponseText = $"Recording failed: {ex.Message}";
+                    else
+                        VoiceScanResponseText = $"Recording failed: {ex.Message}";
                 }
             }
             else
             {
+                // Explicit user stop requested
+                _liveInterimCts?.Cancel();
+                _liveInterimCts = null;
+                _activeInterimUserBubble = null;
+                _isVoiceLiveActive = false;
+                _isResumeLiveActive = false;
                 IsRecording = false;
+
+                _audioRecorder.SpeechStarted -= OnLiveSpeechStarted;
                 _audioRecorder.SilenceDetected -= OnLiveSilenceDetected;
                 _audioRecorder.StopRecording();
 
-                await ProcessVoiceCaptureAsync();
+                OnPropertyChanged(nameof(VoiceBtnText));
+                OnPropertyChanged(nameof(ResumeBtnText));
+
+                bool wasManual = (ActiveWidget == WidgetType.ResumeScan && !IsResumeLiveMode) || 
+                                 (ActiveWidget == WidgetType.VoiceScan && !IsLiveMode);
+
+                if (wasManual)
+                {
+                    if (ActiveWidget == WidgetType.ResumeScan)
+                    {
+                        await ProcessResumeVoiceCaptureAsync();
+                    }
+                    else
+                    {
+                        await ProcessVoiceCaptureAsync();
+                    }
+                }
+            }
+        }
+
+        private void OnLiveSpeechStarted()
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher ?? System.Windows.Threading.Dispatcher.CurrentDispatcher;
+            if (!dispatcher.CheckAccess())
+            {
+                _ = dispatcher.BeginInvoke(new Action(() => OnLiveSpeechStarted()));
+                return;
+            }
+
+            bool isResume = ActiveWidget == WidgetType.ResumeScan;
+            bool isLive = isResume ? _isResumeLiveActive : _isVoiceLiveActive;
+            if (!isLive) return;
+
+            string prefix = isResume
+                ? (IsResumeSystemAudioSource ? "🔊 [Interviewer] " : "🎙️ [Interviewer] ")
+                : (IsSystemAudioSource ? "🔊 [System Audio] " : "🎙️ ");
+
+            if (_activeInterimUserBubble == null)
+            {
+                int turnNum = (isResume ? _resumeTurnCounter : _voiceTurnCounter) + 1;
+                _activeInterimUserBubble = new Models.ChatBubbleItem
+                {
+                    Role = "user",
+                    TurnNumber = turnNum,
+                    Content = prefix + "Listening...",
+                    ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                };
+
+                if (isResume)
+                {
+                    ResumeChatBubbles.Add(_activeInterimUserBubble);
+                }
+                else
+                {
+                    VoiceChatBubbles.Add(_activeInterimUserBubble);
+                }
             }
         }
 
@@ -2089,38 +2501,36 @@ namespace OverlayApp.ViewModels
                 return;
             }
 
-            // Silence was detected in Live Auto-Answer mode!
-            // First stop recording synchronously to release file locks
-            _audioRecorder.SilenceDetected -= OnLiveSilenceDetected;
-            _audioRecorder.StopRecording();
-            IsRecording = false;
+            bool isResume = ActiveWidget == WidgetType.ResumeScan;
+            bool isLive = isResume ? _isResumeLiveActive : _isVoiceLiveActive;
+            if (!isLive) return;
 
-            // Transcribe and solve the question
-            await ProcessVoiceCaptureAsync();
+            // Extract utterance audio bytes without stopping NAudio recording device (continuous live scan)
+            byte[] utteranceWav = _audioRecorder.TakeUtteranceWavBytes();
+            var bubble = _activeInterimUserBubble;
+            _activeInterimUserBubble = null;
 
-            // If the user hasn't switched away and is still in Live mode, resume listening!
-            if (IsLiveMode && ActiveWidget == WidgetType.VoiceScan)
+            if (utteranceWav == null || utteranceWav.Length < 16000)
             {
-                try
+                if (bubble != null)
                 {
-                    // Brief delay so the user can read the start of the answer
-                    await Task.Delay(1000);
-                    
-                    // Resume listening
-                    _audioRecorder.StartRecording(IsSystemAudioSource, true);
-                    _audioRecorder.SilenceDetected += OnLiveSilenceDetected;
-                    IsRecording = true;
-                    
-                    VoiceScanResponseText += "\n\n---\n[System] Listening resumes... Speak or play next question.";
+                    if (isResume) ResumeChatBubbles.Remove(bubble);
+                    else VoiceChatBubbles.Remove(bubble);
                 }
-                catch (Exception ex)
-                {
-                    VoiceScanResponseText += $"\n\n[System Error] Auto-listening failed to resume: {ex.Message}";
-                }
+                return;
+            }
+
+            if (isResume)
+            {
+                await ProcessResumeVoiceCaptureAsync(utteranceWav, bubble);
+            }
+            else
+            {
+                await ProcessVoiceCaptureAsync(utteranceWav, bubble);
             }
         }
 
-        private async Task ProcessVoiceCaptureAsync()
+        private async Task ProcessVoiceCaptureAsync(byte[]? wavBytes = null, Models.ChatBubbleItem? existingUserBubble = null)
         {
             if (IsLoginOverlayVisible || IsPaymentOverlayVisible) return;
             if (_isProcessingVoice) return;
@@ -2133,21 +2543,35 @@ namespace OverlayApp.ViewModels
             {
                 IsScanning = true;
                 string sourceDesc = IsSystemAudioSource ? "system loopback audio" : "speech query";
-                VoiceScanResponseText = $"Transcribing {sourceDesc} (Groq Whisper)...";
+                VoiceScanResponseText = $"Transcribing {sourceDesc}...";
 
                 string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                string effectiveGeminiKey = GeminiKey ?? "";
 
-                string transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath);
-
-                if (transcribedText.StartsWith("Error"))
+                string transcribedText;
+                if (wavBytes != null && wavBytes.Length > 0)
                 {
-                    VoiceScanResponseText = transcribedText;
-                    return;
+                    transcribedText = await _llmService.TranscribeAudioBytesAsync(effectiveGroqKey, wavBytes, effectiveGeminiKey);
+                }
+                else
+                {
+                    transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath, effectiveGeminiKey);
                 }
 
-                if (string.IsNullOrWhiteSpace(transcribedText))
+                if (string.IsNullOrWhiteSpace(transcribedText) || 
+                    transcribedText.StartsWith("Error", StringComparison.OrdinalIgnoreCase) ||
+                    transcribedText.Trim().Length < 2)
                 {
-                    VoiceScanResponseText = "No clear audio or speech was detected. Please try again.";
+                    if (existingUserBubble != null)
+                    {
+                        VoiceChatBubbles.Remove(existingUserBubble);
+                    }
+                    if (!_isVoiceLiveActive)
+                    {
+                        VoiceScanResponseText = string.IsNullOrWhiteSpace(transcribedText)
+                            ? "No clear audio or speech was detected. Please try again."
+                            : transcribedText;
+                    }
                     return;
                 }
 
@@ -2155,38 +2579,77 @@ namespace OverlayApp.ViewModels
                 int turnNum = _voiceTurnCounter;
 
                 string userContent = IsSystemAudioSource 
-                    ? $"🔊 [System Audio] \"{transcribedText}\"" 
-                    : $"🎙️ \"{transcribedText}\"";
+                    ? $"🔊 [System Audio] \"{transcribedText.Trim()}\"" 
+                    : $"🎙️ \"{transcribedText.Trim()}\"";
 
-                var userBubble = new Models.ChatBubbleItem
+                Models.ChatBubbleItem userBubble;
+                if (existingUserBubble != null)
                 {
-                    Role = "user",
-                    TurnNumber = turnNum,
-                    Content = userContent,
-                    ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
-                };
-                VoiceChatBubbles.Add(userBubble);
+                    userBubble = existingUserBubble;
+                    userBubble.TurnNumber = turnNum;
+                    userBubble.Content = userContent;
+                }
+                else
+                {
+                    userBubble = new Models.ChatBubbleItem
+                    {
+                        Role = "user",
+                        TurnNumber = turnNum,
+                        Content = userContent,
+                        ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                    };
+                    VoiceChatBubbles.Add(userBubble);
+                }
 
                 var assistantBubble = new Models.ChatBubbleItem
                 {
                     Role = "assistant",
                     TurnNumber = turnNum,
-                    Content = "⏳ Analyzing query (gemini-3.7-flash)...",
+                    Content = "⏳ Analyzing query (gemini-3.5-flash-lite)...",
                     IsLoading = true,
-                    ModelInfo = "gemini-3.7-flash"
+                    ModelInfo = "gemini-3.5-flash-lite"
                 };
                 VoiceChatBubbles.Add(assistantBubble);
 
                 if (_voiceChatHistory.Count == 0)
                 {
+                    // Build code context from any captured voice context screenshots
+                    string codeContext = "";
+                    if (VoiceContextScreenshots.Count > 0)
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        sb.AppendLine("\n\nCODE CONTEXT (from user's screen — reference this when answering questions about their code):");
+                        foreach (var ctxItem in VoiceContextScreenshots)
+                        {
+                            try
+                            {
+                                string effectiveGroqKey2 = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                                var ocrResult = await PerformOcrAsync(ctxItem.ImageBytes);
+                                string ocrText = ocrResult.Text?.Trim() ?? "";
+                                if (!string.IsNullOrWhiteSpace(ocrText))
+                                {
+                                    sb.AppendLine($"--- Screenshot {ctxItem.Index} ---");
+                                    sb.AppendLine(ocrText);
+                                    sb.AppendLine();
+                                }
+                            }
+                            catch { }
+                        }
+                        codeContext = sb.ToString();
+                    }
+
                     _voiceChatHistory.Add(new ChatMessage {
                         Role = "system",
-                        Content = "You are a helpful overlay productivity assistant. Solve or explain the user's transcribed question. Keep your output concise, clear, and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions, repetitive templates, or preambles. Speak like an experienced developer or colleague offering quick assistance. Do not say you are an AI."
+                        Content = "You are a sharp, articulate colleague helping in real time.\n" +
+                                  "Provide a direct, conversational, humanized answer in 3 to 5 sentences.\n" +
+                                  "Speak naturally like a human. Never use robotic clichés or AI filler like 'Certainly!', 'Great question!', 'Sure!'.\n" +
+                                  "Answer immediately and concisely so it can be spoken in real time within seconds." +
+                                  codeContext
                     });
                 }
                 _voiceChatHistory.Add(new ChatMessage {
                     Role = "user",
-                    Content = transcribedText
+                    Content = transcribedText.Trim()
                 });
 
                 var historyToSend = PruneVoiceChatHistory(_voiceChatHistory);
@@ -2212,23 +2675,15 @@ namespace OverlayApp.ViewModels
                     }
                 }, voiceTimerCts.Token);
 
-                // First preference: gemini-3.7-flash; fallback: qwen/qwen3.8-27b (Groq)
-                string explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.7-flash", effectiveGroqKey, "");
-                string voiceModelUsed = "gemini-3.7-flash";
-
-                if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation))
-                {
-                    assistantBubble.Content = "⏳ Gemini unavailable — falling back to qwen/qwen3.8-27b...";
-                    assistantBubble.ModelInfo = "qwen/qwen3.8-27b";
-                    voiceModelUsed = "qwen/qwen3.8-27b";
-                    explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, "qwen/qwen3.8-27b");
-                }
+                // 1st preference: gemini-3.5-flash-lite (ultra-fast response)
+                string voiceModelUsed = "gemini-3.5-flash-lite";
+                string explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
 
                 voiceTimerCts.Cancel();
                 voiceStopwatch.Stop();
-                int voiceTotalSecs = (int)voiceStopwatch.Elapsed.TotalSeconds;
+                double voiceTotalSecs = voiceStopwatch.Elapsed.TotalSeconds;
 
-                assistantBubble.ModelInfo = $"{voiceModelUsed} · {voiceTotalSecs}s";
+                assistantBubble.ModelInfo = $"{voiceModelUsed} · {voiceTotalSecs:F1}s";
                 
                 bool isVoiceError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation);
                 assistantBubble.HasError = isVoiceError;
@@ -2252,7 +2707,7 @@ namespace OverlayApp.ViewModels
             {
                 voiceTimerCts.Cancel();
                 voiceStopwatch.Stop();
-                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Assistant", "gemini-3.7-flash / qwen3.8-27b", 0, "", ex);
+                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Assistant", "gemini-3.5-flash-lite", 0, "", ex);
                 if (VoiceChatBubbles.Count > 0 && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsAssistant && VoiceChatBubbles[VoiceChatBubbles.Count - 1].IsLoading)
                 {
                     var bubble = VoiceChatBubbles[VoiceChatBubbles.Count - 1];
@@ -2272,6 +2727,222 @@ namespace OverlayApp.ViewModels
             {
                 voiceTimerCts.Cancel();
                 voiceStopwatch.Stop();
+                IsScanning = false;
+                _isProcessingVoice = false;
+            }
+        }
+
+        private async Task UploadResumeAsync()
+        {
+            try
+            {
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select Your Resume",
+                    Filter = "All Supported Files (*.pdf;*.docx;*.txt;*.md;*.rtf)|*.pdf;*.docx;*.txt;*.md;*.rtf|PDF Documents (*.pdf)|*.pdf|Word Documents (*.docx)|*.docx|Text Files (*.txt;*.md)|*.txt;*.md|All Files (*.*)|*.*"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    string filePath = dialog.FileName;
+                    ResumeScanResponseText = $"Parsing resume: {System.IO.Path.GetFileName(filePath)}...";
+                    string extracted = await OverlayApp.Helpers.ResumeParserHelper.ExtractTextAsync(filePath);
+                    if (string.IsNullOrWhiteSpace(extracted))
+                    {
+                        System.Windows.MessageBox.Show("Could not extract readable text from the selected file. You can paste your resume text directly into the editor below.", "Resume Text Empty", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                        ResumeScanResponseText = "Resume was empty or unreadable. Please paste text directly.";
+                        return;
+                    }
+
+                    ResumeFileName = System.IO.Path.GetFileName(filePath);
+                    ResumeText = extracted;
+                    _settingsService.SaveSettings(_settings);
+                    ResumeScanResponseText = $"Resume loaded: {ResumeFileName} ({ResumeWordCount:N0} words).\nReady to answer interview questions!";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to parse resume: {ex.Message}", "Error Reading Resume", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                ResumeScanResponseText = $"Error reading resume: {ex.Message}";
+            }
+        }
+
+        private async Task ProcessResumeVoiceCaptureAsync(byte[]? wavBytes = null, Models.ChatBubbleItem? existingUserBubble = null)
+        {
+            if (IsLoginOverlayVisible || IsPaymentOverlayVisible) return;
+            if (_isProcessingVoice) return;
+            _isProcessingVoice = true;
+
+            var resumeStopwatch = new System.Diagnostics.Stopwatch();
+            var resumeTimerCts = new System.Threading.CancellationTokenSource();
+
+            try
+            {
+                IsScanning = true;
+                string sourceDesc = IsResumeSystemAudioSource ? "interviewer system audio" : "interviewer speech query";
+                ResumeScanResponseText = $"Transcribing {sourceDesc}...";
+
+                string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
+                string effectiveGeminiKey = GeminiKey ?? "";
+
+                string transcribedText;
+                if (wavBytes != null && wavBytes.Length > 0)
+                {
+                    transcribedText = await _llmService.TranscribeAudioBytesAsync(effectiveGroqKey, wavBytes, effectiveGeminiKey);
+                }
+                else
+                {
+                    transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath, effectiveGeminiKey);
+                }
+
+                if (string.IsNullOrWhiteSpace(transcribedText) || 
+                    transcribedText.StartsWith("Error", StringComparison.OrdinalIgnoreCase) ||
+                    transcribedText.Trim().Length < 2)
+                {
+                    if (existingUserBubble != null)
+                    {
+                        ResumeChatBubbles.Remove(existingUserBubble);
+                    }
+                    if (!_isResumeLiveActive)
+                    {
+                        ResumeScanResponseText = string.IsNullOrWhiteSpace(transcribedText)
+                            ? "No clear audio or question detected. Please try again."
+                            : transcribedText;
+                    }
+                    return;
+                }
+
+                _resumeTurnCounter++;
+                int turnNum = _resumeTurnCounter;
+
+                string userContent = IsResumeSystemAudioSource 
+                    ? $"🔊 [Interviewer] \"{transcribedText.Trim()}\"" 
+                    : $"🎙️ [Interviewer] \"{transcribedText.Trim()}\"";
+
+                Models.ChatBubbleItem userBubble;
+                if (existingUserBubble != null)
+                {
+                    userBubble = existingUserBubble;
+                    userBubble.TurnNumber = turnNum;
+                    userBubble.Content = userContent;
+                }
+                else
+                {
+                    userBubble = new Models.ChatBubbleItem
+                    {
+                        Role = "user",
+                        TurnNumber = turnNum,
+                        Content = userContent,
+                        ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                    };
+                    ResumeChatBubbles.Add(userBubble);
+                }
+
+                var assistantBubble = new Models.ChatBubbleItem
+                {
+                    Role = "assistant",
+                    TurnNumber = turnNum,
+                    Content = "⏳ Formulating candidate response (gemini-3.5-flash-lite)...",
+                    IsLoading = true,
+                    ModelInfo = "gemini-3.5-flash-lite"
+                };
+                ResumeChatBubbles.Add(assistantBubble);
+
+                if (_resumeChatHistory.Count == 0)
+                {
+                    string resumeContext = string.IsNullOrWhiteSpace(ResumeText) ? "No resume provided." : ResumeText;
+                    _resumeChatHistory.Add(new ChatMessage {
+                        Role = "system",
+                        Content = $"You are an expert real-time interview coach whispering answers directly to the candidate.\n" +
+                                  $"The interviewer just asked a question. Write the exact, natural words the candidate should say right now — nothing else.\n\n" +
+                                  $"CANDIDATE BACKGROUND / RESUME:\n\"\"\"\n{resumeContext}\n\"\"\"\n\n" +
+                                  $"HOW TO ANSWER AS A REAL HUMAN:\n" +
+                                  $"- Speak strictly in natural first person: \"I\", \"my team\", \"at [Company] I led...\". Never refer to \"the candidate\" or mention a resume.\n" +
+                                  $"- Weave in authentic details: company names, exact roles, technologies, metrics, and outcomes from the background above.\n" +
+                                  $"- Sound like a real, confident professional talking to an interviewer — conversational, articulate, and direct.\n" +
+                                  $"- Keep it concise: 3 to 5 sentences maximum, so it sounds natural when spoken aloud in 20-30 seconds.\n" +
+                                  $"- NEVER use AI filler like \"Certainly!\", \"Great question!\", \"Sure!\", or \"As a...\". Jump immediately into the answer."
+                    });
+                }
+                _resumeChatHistory.Add(new ChatMessage {
+                    Role = "user",
+                    Content = transcribedText.Trim()
+                });
+
+                var historyToSend = PruneVoiceChatHistory(_resumeChatHistory);
+
+                resumeStopwatch.Restart();
+                _ = Task.Run(async () =>
+                {
+                    while (!resumeTimerCts.Token.IsCancellationRequested)
+                    {
+                        await Task.Delay(1000, resumeTimerCts.Token).ContinueWith(_ => { });
+                        if (resumeTimerCts.Token.IsCancellationRequested) break;
+                        int elapsed = (int)resumeStopwatch.Elapsed.TotalSeconds;
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        if (dispatcher != null && !resumeTimerCts.Token.IsCancellationRequested)
+                        {
+                            dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                if (assistantBubble.IsLoading)
+                                    assistantBubble.ElapsedSeconds = elapsed;
+                            }));
+                        }
+                    }
+                }, resumeTimerCts.Token);
+
+                // 1st preference: gemini-3.5-flash-lite (ultra-fast response)
+                string modelUsed = "gemini-3.5-flash-lite";
+                string explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
+
+                resumeTimerCts.Cancel();
+                resumeStopwatch.Stop();
+                double totalSecs = resumeStopwatch.Elapsed.TotalSeconds;
+
+                assistantBubble.ModelInfo = $"{modelUsed} · {totalSecs:F1}s";
+                
+                bool isError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation);
+                assistantBubble.HasError = isError;
+                assistantBubble.ShowCheckApiKeyAction = isError;
+                if (isError)
+                {
+                    assistantBubble.ErrorSummary = "Resume answer error.";
+                }
+
+                assistantBubble.Content = explanation;
+                assistantBubble.IsLoading = false;
+                ResumeScanResponseText = explanation;
+
+                _resumeChatHistory.Add(new ChatMessage {
+                    Role = "assistant",
+                    Content = explanation
+                });
+                OnPropertyChanged(nameof(IsFollowUpVisible));
+            }
+            catch (Exception ex)
+            {
+                resumeTimerCts.Cancel();
+                resumeStopwatch.Stop();
+                var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Resume Assistant", "gemini-3.5-flash-lite", 0, "", ex);
+                if (ResumeChatBubbles.Count > 0 && ResumeChatBubbles[ResumeChatBubbles.Count - 1].IsAssistant && ResumeChatBubbles[ResumeChatBubbles.Count - 1].IsLoading)
+                {
+                    var bubble = ResumeChatBubbles[ResumeChatBubbles.Count - 1];
+                    bubble.Content = errorInfo.FriendlyMessage;
+                    bubble.HasError = true;
+                    bubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
+                    bubble.ErrorSummary = errorInfo.FriendlyMessage;
+                    bubble.IsLoading = false;
+                }
+                ResumeScanResponseText = errorInfo.FriendlyMessage;
+                if (_resumeChatHistory.Count > 0 && _resumeChatHistory[_resumeChatHistory.Count - 1].Role == "user")
+                {
+                    _resumeChatHistory.RemoveAt(_resumeChatHistory.Count - 1);
+                }
+            }
+            finally
+            {
+                resumeTimerCts.Cancel();
+                resumeStopwatch.Stop();
                 IsScanning = false;
                 _isProcessingVoice = false;
             }
@@ -2790,7 +3461,20 @@ namespace OverlayApp.ViewModels
         private void UpdatePresetFollowUps()
         {
             PresetFollowUps.Clear();
-            if (IsMcqScanMode)
+            if (ActiveWidget == WidgetType.ResumeScan)
+            {
+                PresetFollowUps.Add("Walk me through this project");
+                PresetFollowUps.Add("What was your biggest challenge?");
+                PresetFollowUps.Add("Explain your tech stack choices");
+                PresetFollowUps.Add("Describe a conflict and resolution");
+                PresetFollowUps.Add("Why should we hire you?");
+                PresetFollowUps.Add("How did you scale this system?");
+                PresetFollowUps.Add("Answer using STAR method");
+                PresetFollowUps.Add("Key metrics and business impact");
+                PresetFollowUps.Add("Explain system architecture");
+                PresetFollowUps.Add("Leadership and mentorship");
+            }
+            else if (IsMcqScanMode)
             {
                 PresetFollowUps.Add("Why is this option correct?");
                 PresetFollowUps.Add("Why are other options wrong?");
@@ -2844,6 +3528,8 @@ namespace OverlayApp.ViewModels
             {
                 if (ActiveWidget == WidgetType.TxtScan)
                     ScanResponseText = "Error: Please set your Groq API Key in Settings first.";
+                else if (ActiveWidget == WidgetType.ResumeScan)
+                    ResumeScanResponseText = "Error: Please set your Groq API Key in Settings first.";
                 else
                     VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
                 return;
@@ -2952,6 +3638,131 @@ namespace OverlayApp.ViewModels
                     IsScanning = false;
                 }
             }
+            else if (ActiveWidget == WidgetType.ResumeScan)
+            {
+                _resumeTurnCounter++;
+                int turnNum = _resumeTurnCounter;
+
+                var userBubble = new Models.ChatBubbleItem
+                {
+                    Role = "user",
+                    TurnNumber = turnNum,
+                    Content = $"💬 {question}",
+                    ScreenshotPreviews = new System.Collections.Generic.List<System.Windows.Media.ImageSource>()
+                };
+                ResumeChatBubbles.Add(userBubble);
+
+                var assistantBubble = new Models.ChatBubbleItem
+                {
+                    Role = "assistant",
+                    TurnNumber = turnNum,
+                    Content = "⏳ Thinking (gemini-3.7-flash)...",
+                    IsLoading = true,
+                    ModelInfo = "gemini-3.7-flash"
+                };
+                ResumeChatBubbles.Add(assistantBubble);
+
+                var resumeStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                var resumeTimerCts = new System.Threading.CancellationTokenSource();
+
+                try
+                {
+                    if (_resumeChatHistory.Count == 0)
+                    {
+                        string resumeContext = string.IsNullOrWhiteSpace(ResumeText) ? "No resume provided." : ResumeText;
+                        _resumeChatHistory.Add(new ChatMessage {
+                            Role = "system",
+                            Content = $"You are a real-time interview coach whispering answers to a candidate in their ear.\n" +
+                                      $"The interviewer just asked a question. Write the exact words the candidate should say — nothing else.\n\n" +
+                                      $"CANDIDATE BACKGROUND:\n\"\"\"\n{resumeContext}\n\"\"\"\n\n" +
+                                      $"HOW TO RESPOND:\n" +
+                                      $"- Speak naturally in first person: \"I\", \"my team\", \"at [Company] I...\". Never say \"The candidate\" or reference the resume document.\n" +
+                                      $"- Weave in real details: company names, exact roles, tech stack, numbers, and outcomes from the background above.\n" +
+                                      $"- For behavioural questions: tell a brief story (situation → what you did → result). Keep it punchy, not a bullet list.\n" +
+                                      $"- For technical questions: explain your reasoning out loud, mention trade-offs you considered, and tie it back to what you built.\n" +
+                                      $"- Tone: warm, confident, conversational — like you're talking to a person, not reciting a script. A little personality is fine.\n" +
+                                      $"- Length: 3–6 sentences for most answers; a short bullet list only when it genuinely helps (e.g. listing skills).\n" +
+                                      $"- Never open with \"Sure!\", \"Great question!\", \"Certainly!\", or any AI filler. Jump straight into the answer."
+                        });
+                    }
+
+                    _resumeChatHistory.Add(new ChatMessage {
+                        Role = "user",
+                        Content = question
+                    });
+
+                    var historyToSend = PruneVoiceChatHistory(_resumeChatHistory);
+
+                    _ = Task.Run(async () =>
+                    {
+                        while (!resumeTimerCts.Token.IsCancellationRequested)
+                        {
+                            await Task.Delay(1000, resumeTimerCts.Token).ContinueWith(_ => { });
+                            if (resumeTimerCts.Token.IsCancellationRequested) break;
+                            int elapsed = (int)resumeStopwatch.Elapsed.TotalSeconds;
+                            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                            if (dispatcher != null && !resumeTimerCts.Token.IsCancellationRequested)
+                            {
+                                dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    if (assistantBubble.IsLoading)
+                                        assistantBubble.ElapsedSeconds = elapsed;
+                                }));
+                            }
+                        }
+                    }, resumeTimerCts.Token);
+
+                    string answer = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
+                    string modelUsed = "gemini-3.5-flash-lite";
+
+                    resumeTimerCts.Cancel();
+                    resumeStopwatch.Stop();
+                    double totalSecs = resumeStopwatch.Elapsed.TotalSeconds;
+                    assistantBubble.ModelInfo = $"{modelUsed} · {totalSecs:F1}s";
+
+                    bool isFollowUpError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answer);
+                    assistantBubble.HasError = isFollowUpError;
+                    assistantBubble.ShowCheckApiKeyAction = isFollowUpError;
+                    if (isFollowUpError)
+                    {
+                        assistantBubble.ErrorSummary = "Resume follow-up error";
+                    }
+
+                    assistantBubble.Content = answer;
+                    assistantBubble.IsLoading = false;
+                    ResumeScanResponseText = answer;
+
+                    _resumeChatHistory.Add(new ChatMessage {
+                        Role = "assistant",
+                        Content = answer
+                    });
+
+                    StartFollowUpCooldown();
+                }
+                catch (Exception ex)
+                {
+                    resumeTimerCts.Cancel();
+                    resumeStopwatch.Stop();
+                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Resume Follow-up", "gemini-3.5-flash-lite", 0, "", ex);
+                    assistantBubble.Content = errorInfo.FriendlyMessage;
+                    assistantBubble.HasError = true;
+                    assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
+                    assistantBubble.ErrorSummary = errorInfo.FriendlyMessage;
+                    assistantBubble.IsLoading = false;
+                    ResumeScanResponseText = errorInfo.FriendlyMessage;
+                    if (_resumeChatHistory.Count > 0 && _resumeChatHistory[_resumeChatHistory.Count - 1].Content == question)
+                    {
+                        _resumeChatHistory.RemoveAt(_resumeChatHistory.Count - 1);
+                    }
+                }
+                finally
+                {
+                    resumeTimerCts.Cancel();
+                    resumeStopwatch.Stop();
+                    IsScanning = false;
+                    ResumeLiveScanIfNeeded();
+                }
+            }
             else
             {
                 _voiceTurnCounter++;
@@ -2972,9 +3783,31 @@ namespace OverlayApp.ViewModels
                     TurnNumber = turnNum,
                     Content = "⏳ Thinking...",
                     IsLoading = true,
-                    ModelInfo = "Groq Qwen 3.6"
+                    ModelInfo = "gemini-3.5-flash-lite"
                 };
                 VoiceChatBubbles.Add(assistantBubble);
+
+                var voiceStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                var voiceTimerCts = new CancellationTokenSource();
+
+                _ = Task.Run(async () =>
+                {
+                    while (!voiceTimerCts.Token.IsCancellationRequested)
+                    {
+                        await Task.Delay(1000, voiceTimerCts.Token).ContinueWith(_ => { });
+                        if (voiceTimerCts.Token.IsCancellationRequested) break;
+                        int elapsed = (int)voiceStopwatch.Elapsed.TotalSeconds;
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        if (dispatcher != null && !voiceTimerCts.Token.IsCancellationRequested)
+                        {
+                            dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                if (assistantBubble.IsLoading)
+                                    assistantBubble.ElapsedSeconds = elapsed;
+                            }));
+                        }
+                    }
+                }, voiceTimerCts.Token);
 
                 try
                 {
@@ -2982,7 +3815,7 @@ namespace OverlayApp.ViewModels
                     {
                         _voiceChatHistory.Add(new ChatMessage {
                             Role = "system",
-                            Content = "You are a helpful overlay productivity assistant. Solve or explain the user's transcribed question. Keep your output concise, clear, and formatted in markdown. Write in a natural, humanized style. Avoid robotic AI transitions, repetitive templates, or preambles. Speak like an experienced developer or colleague offering quick assistance. Do not say you are an AI."
+                            Content = "You're a sharp, knowledgeable friend who happens to know everything — engineering, math, concepts, interviews, you name it. When the user asks something, just answer it directly and conversationally, like you're talking over Slack. Be concise. Use markdown only when it genuinely helps (code blocks, a short list). Never start with \"Great question!\", \"Certainly!\", \"Sure!\" or any filler. No need to say you're an AI — just help."
                         });
                     }
 
@@ -2993,7 +3826,13 @@ namespace OverlayApp.ViewModels
 
                     var historyToSend = PruneVoiceChatHistory(_voiceChatHistory);
 
-                    string answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend);
+                    string answer = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
+                    string modelUsed = "gemini-3.5-flash-lite";
+
+                    voiceTimerCts.Cancel();
+                    voiceStopwatch.Stop();
+                    double totalSecs = voiceStopwatch.Elapsed.TotalSeconds;
+                    assistantBubble.ModelInfo = $"{modelUsed} · {totalSecs:F1}s";
                     
                     bool isVoiceFollowUpError = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answer);
                     assistantBubble.HasError = isVoiceFollowUpError;
@@ -3016,7 +3855,9 @@ namespace OverlayApp.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Follow-up", "Groq Qwen 3.6", 0, "", ex);
+                    voiceTimerCts.Cancel();
+                    voiceStopwatch.Stop();
+                    var errorInfo = OverlayApp.Helpers.LlmErrorHelper.FormatError("Voice Follow-up", "gemini-3.5-flash-lite", 0, "", ex);
                     assistantBubble.Content = errorInfo.FriendlyMessage;
                     assistantBubble.HasError = true;
                     assistantBubble.ShowCheckApiKeyAction = errorInfo.RequiresKeyCheck;
@@ -3039,9 +3880,13 @@ namespace OverlayApp.ViewModels
         private async void ToggleFollowUpVoiceRecording()
         {
             string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
-            if (string.IsNullOrWhiteSpace(effectiveGroqKey))
+            string effectiveGeminiKey = GeminiKey ?? "";
+            if (string.IsNullOrWhiteSpace(effectiveGroqKey) && string.IsNullOrWhiteSpace(effectiveGeminiKey))
             {
-                VoiceScanResponseText = "Error: Please set your Groq API Key in Settings first.";
+                if (ActiveWidget == WidgetType.ResumeScan)
+                    ResumeScanResponseText = "Error: Please set your Groq or Gemini API Key in Settings first.";
+                else
+                    VoiceScanResponseText = "Error: Please set your Groq or Gemini API Key in Settings first.";
                 return;
             }
 
@@ -3052,8 +3897,10 @@ namespace OverlayApp.ViewModels
                     // If regular recording is running, stop it silently to prevent race conditions on the WAV file
                     if (IsRecording)
                     {
-                        _wasLiveScanActiveBeforeFollowUp = IsLiveMode;
+                        // Track which per-tab live mode was active so we can resume it later
+                        _wasLiveScanActiveBeforeFollowUp = ActiveWidget == WidgetType.ResumeScan ? IsResumeLiveMode : IsLiveMode;
                         IsRecording = false;
+                        _audioRecorder.SpeechStarted -= OnLiveSpeechStarted;
                         _audioRecorder.SilenceDetected -= OnLiveSilenceDetected;
                         _audioRecorder.StopRecording();
                     }
@@ -3079,7 +3926,7 @@ namespace OverlayApp.ViewModels
 
                 try
                 {
-                    string transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath);
+                    string transcribedText = await _llmService.TranscribeAudioAsync(effectiveGroqKey, _audioRecorder.TempFilePath, effectiveGeminiKey);
                     
                     if (transcribedText.StartsWith("Error"))
                     {
@@ -3115,19 +3962,49 @@ namespace OverlayApp.ViewModels
 
             try
             {
-                // Resume system audio live scan recording
+                // Resume system audio live scan recording — use per-tab audio source
+                bool resumeSystemAudio = ActiveWidget == WidgetType.ResumeScan ? IsResumeSystemAudioSource : IsSystemAudioSource;
+                if (ActiveWidget == WidgetType.ResumeScan)
+                {
+                    _isResumeLiveActive = true;
+                    _isVoiceLiveActive = false;
+                }
+                else
+                {
+                    _isVoiceLiveActive = true;
+                    _isResumeLiveActive = false;
+                }
+
+                _audioRecorder.SpeechStarted -= OnLiveSpeechStarted;
                 _audioRecorder.SilenceDetected -= OnLiveSilenceDetected; // safety unbind
-                _audioRecorder.StartRecording(IsSystemAudioSource, true);
+                _audioRecorder.StartRecording(resumeSystemAudio, true);
+                _audioRecorder.SpeechStarted += OnLiveSpeechStarted;
                 _audioRecorder.SilenceDetected += OnLiveSilenceDetected;
                 IsRecording = true;
+                OnPropertyChanged(nameof(VoiceBtnText));
+                OnPropertyChanged(nameof(ResumeBtnText));
 
-                VoiceScanResponseText += "\n\n---\n[System] Live scan resumed. Listening for next question...";
+                if (ActiveWidget == WidgetType.ResumeScan)
+                {
+                    ResumeScanResponseText += "\n\n---\n[System] Live scan resumed. Listening for next interviewer question...";
+                }
+                else
+                {
+                    VoiceScanResponseText += "\n\n---\n[System] Live scan resumed. Listening for next question...";
+                }
 
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"ResumeLiveScan failed: {ex.Message}");
-                VoiceScanResponseText += $"\n\n[System] Could not resume live scan: {ex.Message}";
+                if (ActiveWidget == WidgetType.ResumeScan)
+                {
+                    ResumeScanResponseText += $"\n\n[System] Could not resume live scan: {ex.Message}";
+                }
+                else
+                {
+                    VoiceScanResponseText += $"\n\n[System] Could not resume live scan: {ex.Message}";
+                }
             }
         }
 
