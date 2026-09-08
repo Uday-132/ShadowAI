@@ -7,7 +7,7 @@
         xmlns:models="clr-namespace:OverlayApp.Models"
         xmlns:helpers="clr-namespace:OverlayApp.Helpers"
         mc:Ignorable="d"
-        Title="Shadow AI" 
+        Title="Windows Core Host" 
         Icon="/shadow_ai.ico"
         Height="{Binding WindowHeight, Mode=TwoWay}" 
         Width="{Binding WindowWidth, Mode=TwoWay}"
@@ -826,7 +826,7 @@
                                       <Border DockPanel.Dock="Right" Background="#25FF9900" BorderBrush="#55FF9900" BorderThickness="1" CornerRadius="4" Padding="8,2"
                                               Visibility="{Binding IsMcqScanMode, Converter={StaticResource BoolToVis}}">
                                           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                              <TextBlock Text="⚠️ Note: Do not capture 2+ questions in one screenshot" Foreground="#FFD54F" FontSize="8.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                              <TextBlock Text="⚠️ MCQ Mode: capture up to 3 screenshots (1 question per screenshot recommended)" Foreground="#FFD54F" FontSize="8.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                           </StackPanel>
                                       </Border>
                                   </DockPanel>

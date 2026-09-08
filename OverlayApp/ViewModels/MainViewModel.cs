@@ -132,7 +132,7 @@ namespace OverlayApp.ViewModels
                     return $"📸 Captured: 0 / {EffectiveMaxScreenshots} max (Click + CAPTURE to add)";
                 if (CapturedScreenshots.Count < EffectiveMaxScreenshots)
                     return $"📸 Captured: {CapturedScreenshots.Count} / {EffectiveMaxScreenshots} max (Ready to SEND or add more)";
-                return $"✅ Captured: {MaxScreenshotsLimit} / {EffectiveMaxScreenshots} max (Max limit reached - Ready to SEND)";
+                return $"✅ Captured: {EffectiveMaxScreenshots} / {EffectiveMaxScreenshots} max (Max limit reached - Ready to SEND)";
             }
         }
 
@@ -744,8 +744,10 @@ namespace OverlayApp.ViewModels
                 {
                     _settings.MaxScreenshotsLimit = value;
                     OnPropertyChanged(nameof(MaxScreenshotsLimit));
+                    OnPropertyChanged(nameof(EffectiveMaxScreenshots));
                     OnPropertyChanged(nameof(MaxScreenshotsButtonText));
                     OnPropertyChanged(nameof(IsMinimumScreenshotsReached));
+                    OnPropertyChanged(nameof(ScreenshotsBadgeText));
                     NotifyScreenshotStateChanged();
                 }
             }
@@ -1532,8 +1534,8 @@ namespace OverlayApp.ViewModels
 
             if (CapturedScreenshots.Count >= EffectiveMaxScreenshots)
             {
-                ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
-                                   $"You have already captured **{CapturedScreenshots.Count} / {MaxScreenshotsLimit}** screenshots (the maximum allowed).\n\n" +
+                ScanResponseText = $"⚠️ **Maximum limit of {EffectiveMaxScreenshots} screenshot(s) reached.**\n\n" +
+                                   $"You have already captured **{CapturedScreenshots.Count} / {EffectiveMaxScreenshots}** screenshots (the maximum allowed).\n\n" +
                                    $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or click **✕** on a thumbnail to remove a screenshot.";
                 return;
             }
@@ -1598,7 +1600,7 @@ namespace OverlayApp.ViewModels
 
             if (CapturedScreenshots.Count >= EffectiveMaxScreenshots)
             {
-                ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
+                ScanResponseText = $"⚠️ **Maximum limit of {EffectiveMaxScreenshots} screenshot(s) reached.**\n\n" +
                                    $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or remove a screenshot to capture a new one.";
                 return;
             }
@@ -1633,7 +1635,7 @@ namespace OverlayApp.ViewModels
         {
             if (CapturedScreenshots.Count >= EffectiveMaxScreenshots)
             {
-                ScanResponseText = $"⚠️ **Maximum limit of {MaxScreenshotsLimit} screenshot(s) reached.**\n\n" +
+                ScanResponseText = $"⚠️ **Maximum limit of {EffectiveMaxScreenshots} screenshot(s) reached.**\n\n" +
                                    $"Click **SEND ({CapturedScreenshots.Count})** to process your screenshots, or remove a screenshot to capture a new one.";
                 return;
             }
@@ -1656,13 +1658,13 @@ namespace OverlayApp.ViewModels
                 {
                     ScanResponseText = $"📸 **Captured Screenshot #{item.Index}.**\n\n" +
                                        $"Total captured: **{CapturedScreenshots.Count} / {EffectiveMaxScreenshots} max**.\n" +
-                                       $"Click **SEND ({CapturedScreenshots.Count})** to process now, or click **+ CAPTURE** to add up to {MaxScreenshotsLimit - CapturedScreenshots.Count} more.";
+                                       $"Click **SEND ({CapturedScreenshots.Count})** to process now, or click **+ CAPTURE** to add up to {EffectiveMaxScreenshots - CapturedScreenshots.Count} more.";
                 }
                 else
                 {
                     ScanResponseText = $"✅ **Captured Screenshot #{item.Index}.**\n\n" +
-                                       $"Maximum limit reached (**{MaxScreenshotsLimit} / {MaxScreenshotsLimit}** screenshots).\n" +
-                                       $"Click **SEND ({MaxScreenshotsLimit})** to process all screenshots with AI!";
+                                       $"Maximum limit reached (**{EffectiveMaxScreenshots} / {EffectiveMaxScreenshots}** screenshots).\n" +
+                                       $"Click **SEND ({EffectiveMaxScreenshots})** to process all screenshots with AI!";
                 }
             }
         }
@@ -1693,7 +1695,7 @@ namespace OverlayApp.ViewModels
         {
             if (CapturedScreenshots.Count == 0)
             {
-                ScanResponseText = $"⚠️ **No screenshots captured.**\n\nPlease click **+ CAPTURE** to capture at least 1 screenshot (up to {MaxScreenshotsLimit} max) before clicking **SEND**.";
+                ScanResponseText = $"⚠️ **No screenshots captured.**\n\nPlease click **+ CAPTURE** to capture at least 1 screenshot (up to {EffectiveMaxScreenshots} max) before clicking **SEND**.";
                 return;
             }
 
@@ -4759,3 +4761,4 @@ namespace OverlayApp.ViewModels
         #endregion
     }
 }
+

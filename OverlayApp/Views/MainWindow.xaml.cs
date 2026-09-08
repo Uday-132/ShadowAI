@@ -127,6 +127,9 @@ namespace OverlayApp.Views
                 // Hook into the window message pump to intercept WM_MOUSEACTIVATE
                 HwndSource source = HwndSource.FromHwnd(_hwnd);
                 source?.AddHook(WndProc);
+
+                // Clear the window title so exam browsers can't detect it by name
+                Win32.SetWindowText(_hwnd, "");
             }
             
             // Pass this Window instance to the view-model services to complete initialization
@@ -373,6 +376,21 @@ namespace OverlayApp.Views
                     // Since WindowStyle=None, there's no visible non-client area anyway.
                     handled = true;
                     return new IntPtr(1);
+
+                case Win32.WM_SYSCOMMAND:
+                    // Block SC_MINIMIZE (0xF020) and SC_MAXIMIZE (0xF030) from external callers
+                    int sysCmd = wParam.ToInt32() & 0xFFF0;
+                    if (sysCmd == Win32.SC_SIZE || sysCmd == Win32.SC_MOVE)
+                    {
+                        // Allow user-initiated size/move but block external attempts
+                        break;
+                    }
+                    if (sysCmd == 0xF020 /* SC_MINIMIZE */ || sysCmd == 0xF030 /* SC_MAXIMIZE */)
+                    {
+                        handled = true;
+                        return IntPtr.Zero;
+                    }
+                    break;
             }
             return IntPtr.Zero;
         }
@@ -386,7 +404,7 @@ namespace OverlayApp.Views
         private void StartTopmostTimer()
         {
             _topmostTimer = new DispatcherTimer();
-            _topmostTimer.Interval = TimeSpan.FromMilliseconds(1500);
+            _topmostTimer.Interval = TimeSpan.FromMilliseconds(800);
             _topmostTimer.Tick += (s, e) =>
             {
                 if (_hwnd != IntPtr.Zero && Topmost)
