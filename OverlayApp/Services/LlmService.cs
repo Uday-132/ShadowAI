@@ -320,60 +320,136 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
-        /// Transcribes recorded speech WAV audio using Groq's Whisper API.
+        /// Transcribes recorded speech WAV audio bytes.
+        /// Primary: Google Gemini gemini-3-flash-live (with fallback cascade to gemini-3.5-transcribe-live, gemini-3.5-transcribe, gemini-2.0-flash, gemini-1.5-flash).
+        /// Fallback: Groq whisper-large-v3 (if Gemini key missing or transcription fails).
         /// </summary>
-        public async Task<string> TranscribeAudioAsync(string groqKey, string audioFilePath)
+        public async Task<string> TranscribeAudioBytesAsync(string groqKey, byte[] fileBytes, string geminiKey = "")
         {
-            if (string.IsNullOrWhiteSpace(groqKey))
+            if (string.IsNullOrWhiteSpace(groqKey) && string.IsNullOrWhiteSpace(geminiKey))
             {
-                return "Error: Groq API Key is not configured.";
+                return "Error: No API Key configured (Groq or Gemini required for transcription).";
             }
 
-            if (!System.IO.File.Exists(audioFilePath))
+            if (fileBytes == null || fileBytes.Length < 3200)
             {
-                return "Error: Recorded audio file was not found.";
+                return "";
+            }
+
+            // ─────────────────────────────────────────────────────────────────────────
+            // PRIMARY: Google Gemini gemini-3-flash-live (inline base64 audio)
+            // ─────────────────────────────────────────────────────────────────────────
+            string effectiveGeminiKey = string.IsNullOrWhiteSpace(geminiKey) ? "" : geminiKey.Trim();
+            if (!string.IsNullOrWhiteSpace(effectiveGeminiKey) && !effectiveGeminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
+            {
+                string base64Audio = Convert.ToBase64String(fileBytes);
+                string[] geminiModels = new[] { "gemini-3-flash-live", "gemini-3.5-transcribe-live", "gemini-3.5-transcribe", "gemini-2.0-flash", "gemini-1.5-flash" };
+
+                foreach (var model in geminiModels)
+                {
+                    try
+                    {
+                        string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={effectiveGeminiKey}";
+
+                        var geminiPayload = new
+                        {
+                            contents = new[]
+                            {
+                                new
+                                {
+                                    parts = new object[]
+                                    {
+                                        new
+                                        {
+                                            inline_data = new
+                                            {
+                                                mime_type = "audio/wav",
+                                                data = base64Audio
+                                            }
+                                        },
+                                        new { text = "Transcribe the speech in this audio accurately. Return only the transcribed text with no additional commentary." }
+                                    }
+                                }
+                            }
+                        };
+
+                        string geminiJson = JsonSerializer.Serialize(geminiPayload);
+                        using var geminiRequest = new HttpRequestMessage(HttpMethod.Post, geminiUrl);
+                        geminiRequest.Content = new StringContent(geminiJson, Encoding.UTF8, "application/json");
+
+                        var geminiResponse = await _httpClient.SendAsync(geminiRequest);
+                        if (geminiResponse.IsSuccessStatusCode)
+                        {
+                            string geminiResponseJson = await geminiResponse.Content.ReadAsStringAsync();
+                            string transcription = ParseGeminiMessageContent(geminiResponseJson);
+                            if (!string.IsNullOrWhiteSpace(transcription) && !transcription.StartsWith("Error"))
+                            {
+                                return transcription.Trim();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Fall through to next model or Groq Whisper fallback
+                    }
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────────────────
+            // FALLBACK: Groq Whisper whisper-large-v3
+            // ─────────────────────────────────────────────────────────────────────────
+            if (string.IsNullOrWhiteSpace(groqKey))
+            {
+                return "Error: Transcription failed — Gemini key missing or invalid, and no Groq key configured as fallback.";
             }
 
             try
             {
                 string url = "https://api.groq.com/openai/v1/audio/transcriptions";
 
-                using (var form = new MultipartFormDataContent())
+                using var form = new MultipartFormDataContent();
+                var fileContent = new ByteArrayContent(fileBytes);
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
+                form.Add(fileContent, "file", "speech.wav");
+                form.Add(new StringContent("whisper-large-v3"), "model");
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                request.Content = form;
+
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
                 {
-                    byte[] fileBytes = await System.IO.File.ReadAllBytesAsync(audioFilePath);
-                    var fileContent = new ByteArrayContent(fileBytes);
-                    fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
-                    form.Add(fileContent, "file", "speech.wav");
-                    form.Add(new StringContent("whisper-large-v3"), "model");
-
-                    using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                    {
-                        request.Headers.Add("Authorization", $"Bearer {groqKey}");
-                        request.Content = form;
-
-                        var response = await _httpClient.SendAsync(request);
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            string errorContent = await response.Content.ReadAsStringAsync();
-                            return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", (int)response.StatusCode, errorContent).FriendlyMessage;
-                        }
-
-                        string responseJson = await response.Content.ReadAsStringAsync();
-                        using (var doc = JsonDocument.Parse(responseJson))
-                        {
-                            if (doc.RootElement.TryGetProperty("text", out var textProp))
-                            {
-                                return textProp.GetString() ?? "";
-                            }
-                        }
-                        return $"Error: Transcription text not found in response JSON: {responseJson}";
-                    }
+                    string errorContent = await response.Content.ReadAsStringAsync();
+                    return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", (int)response.StatusCode, errorContent).FriendlyMessage;
                 }
+
+                string responseJson = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseJson);
+                if (doc.RootElement.TryGetProperty("text", out var textProp))
+                {
+                    return textProp.GetString() ?? "";
+                }
+                return $"Error: Transcription text not found in response JSON: {responseJson}";
             }
             catch (Exception ex)
             {
                 return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", 0, "", ex).FriendlyMessage;
             }
+        }
+
+        /// <summary>
+        /// Transcribes recorded speech WAV audio file.
+        /// </summary>
+        public async Task<string> TranscribeAudioAsync(string groqKey, string audioFilePath, string geminiKey = "")
+        {
+            if (!System.IO.File.Exists(audioFilePath))
+            {
+                return "Error: Recorded audio file was not found.";
+            }
+
+            byte[] fileBytes = await System.IO.File.ReadAllBytesAsync(audioFilePath);
+            return await TranscribeAudioBytesAsync(groqKey, fileBytes, geminiKey);
         }
 
         /// <summary>
@@ -696,84 +772,94 @@ namespace OverlayApp.Services
 
             if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
-                try
+                var contentsList = new System.Collections.Generic.List<object>();
+                string systemPrompt = "";
+
+                if (history != null)
                 {
-                    string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={geminiKey.Trim()}";
-
-                    var contentsList = new System.Collections.Generic.List<object>();
-                    string systemPrompt = "";
-
-                    if (history != null)
+                    foreach (var msg in history)
                     {
-                        foreach (var msg in history)
+                        if (msg.Role.Equals("system", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (msg.Role.Equals("system", StringComparison.OrdinalIgnoreCase))
-                            {
-                                systemPrompt += msg.Content + "\n";
-                            }
-                            else
-                            {
-                                string geminiRole = msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user";
-                                contentsList.Add(new
-                                {
-                                    role = geminiRole,
-                                    parts = new[] { new { text = msg.Content } }
-                                });
-                            }
-                        }
-                    }
-
-                    object payload;
-                    if (!string.IsNullOrWhiteSpace(systemPrompt))
-                    {
-                        payload = maxOutputTokens > 0
-                            ? (object)new
-                            {
-                                system_instruction = new { parts = new[] { new { text = systemPrompt.Trim() } } },
-                                contents = contentsList,
-                                generationConfig = new { maxOutputTokens }
-                            }
-                            : new
-                            {
-                                system_instruction = new { parts = new[] { new { text = systemPrompt.Trim() } } },
-                                contents = contentsList
-                            };
-                    }
-                    else
-                    {
-                        payload = maxOutputTokens > 0
-                            ? (object)new { contents = contentsList, generationConfig = new { maxOutputTokens } }
-                            : new { contents = contentsList };
-                    }
-
-                    string jsonPayload = JsonSerializer.Serialize(payload);
-
-                    using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                    {
-                        request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-                        var response = await _httpClient.SendAsync(request);
-                        string responseJson = await response.Content.ReadAsStringAsync();
-
-                        if (response.IsSuccessStatusCode)
-                        {
-                            string result = ParseGeminiMessageContent(responseJson);
-                            if (!string.IsNullOrWhiteSpace(result) && !result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase))
-                            {
-                                return result;
-                            }
+                            systemPrompt += msg.Content + "\n";
                         }
                         else
                         {
-                            var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", modelName, (int)response.StatusCode, responseJson);
-                            lastGeminiError = errInfo.FriendlyMessage;
+                            string geminiRole = msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase) ? "model" : "user";
+                            contentsList.Add(new
+                            {
+                                role = geminiRole,
+                                parts = new[] { new { text = msg.Content } }
+                            });
                         }
                     }
                 }
-                catch (Exception ex)
+
+                object payload;
+                if (!string.IsNullOrWhiteSpace(systemPrompt))
                 {
-                    var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", modelName, 0, "", ex);
-                    lastGeminiError = errInfo.FriendlyMessage;
+                    payload = maxOutputTokens > 0
+                        ? (object)new
+                        {
+                            system_instruction = new { parts = new[] { new { text = systemPrompt.Trim() } } },
+                            contents = contentsList,
+                            generationConfig = new { maxOutputTokens }
+                        }
+                        : new
+                        {
+                            system_instruction = new { parts = new[] { new { text = systemPrompt.Trim() } } },
+                            contents = contentsList
+                        };
+                }
+                else
+                {
+                    payload = maxOutputTokens > 0
+                        ? (object)new { contents = contentsList, generationConfig = new { maxOutputTokens } }
+                        : new { contents = contentsList };
+                }
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+                string[] modelsToTry = !string.IsNullOrWhiteSpace(modelName)
+                    ? new[] { modelName }
+                    : new[] { "gemini-3.5-flash-lite" };
+                var triedModels = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var currentModel in modelsToTry)
+                {
+                    if (string.IsNullOrWhiteSpace(currentModel) || !triedModels.Add(currentModel))
+                        continue;
+
+                    try
+                    {
+                        string url = $"https://generativelanguage.googleapis.com/v1beta/models/{currentModel}:generateContent?key={geminiKey.Trim()}";
+
+                        using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                        {
+                            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                            var response = await _httpClient.SendAsync(request);
+                            string responseJson = await response.Content.ReadAsStringAsync();
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                string result = ParseGeminiMessageContent(responseJson);
+                                if (!string.IsNullOrWhiteSpace(result) && !result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return result;
+                                }
+                            }
+                            else
+                            {
+                                var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", currentModel, (int)response.StatusCode, responseJson);
+                                lastGeminiError = errInfo.FriendlyMessage;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", currentModel, 0, "", ex);
+                        lastGeminiError = errInfo.FriendlyMessage;
+                    }
                 }
             }
             else

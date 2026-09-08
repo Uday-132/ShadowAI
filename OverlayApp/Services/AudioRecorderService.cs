@@ -24,13 +24,20 @@ namespace OverlayApp.Services
         private bool _hasSpeechStarted;
         private double _silenceDurationSeconds;
         private double _totalDurationSeconds;
-        private const double SilenceThreshold = 0.0015; // Extremely sensitive RMS threshold
-        private const double SilenceTimeout = 1.2;     // 1.2 seconds of continuous silence before answering immediately as requested
-        private const double MaxSpeechLength = 30.0;   // Max speech duration safety limit before auto-answering or resetting
+        private double _utteranceSpeechSeconds;
+        private const double SilenceThreshold = 0.0015; // Sensitive RMS threshold
+        private const double SilenceTimeout = 2.2;     // 2.2 seconds of silence required so 1-second conversational pauses don't cut off questions prematurely
+        private const double MaxSpeechLength = 35.0;   // Max speech duration safety limit before auto-answering or resetting
         private System.Threading.Timer? _watchdogTimer;
         private DateTime _lastDataAvailableTime;
 
+        // In-memory PCM buffer for instantaneous live transcription & zero-restart audio capture
+        private readonly MemoryStream _utterancePcmStream = new MemoryStream();
+        private readonly object _utteranceLock = new object();
+
+        public event Action? SpeechStarted;
         public event Action? SilenceDetected;
+        public bool HasSpeechStarted => _hasSpeechStarted;
 
         public AudioRecorderService()
         {
@@ -49,10 +56,12 @@ namespace OverlayApp.Services
             {
                 StopRecording();
 
+                ClearUtterance();
                 _isLiveMode = isLiveMode;
                 _hasSpeechStarted = false;
                 _silenceDurationSeconds = 0;
                 _totalDurationSeconds = 0;
+                _utteranceSpeechSeconds = 0;
                 _samplePositionAccumulator = 0;
                 CurrentRms = 0;
                 _lastDataAvailableTime = DateTime.Now;
@@ -92,6 +101,10 @@ namespace OverlayApp.Services
                                 {
                                     // Write raw PCM bytes directly to the file — eliminates resampling and float decoding bugs
                                     _waveWriter.Write(e.Buffer, 0, e.BytesRecorded);
+                                    lock (_utteranceLock)
+                                    {
+                                        _utterancePcmStream.Write(e.Buffer, 0, e.BytesRecorded);
+                                    }
 
                                     // Track RMS volume for silence detection
                                     int sampleCount = e.BytesRecorded / 2;
@@ -215,7 +228,17 @@ namespace OverlayApp.Services
                     if (silenceSeconds >= SilenceTimeout)
                     {
                         _hasSpeechStarted = false;
-                        System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
+                        _silenceDurationSeconds = 0;
+                        if (_utteranceSpeechSeconds >= 0.8)
+                        {
+                            _utteranceSpeechSeconds = 0;
+                            System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
+                        }
+                        else
+                        {
+                            _utteranceSpeechSeconds = 0;
+                            ClearUtterance();
+                        }
                     }
                 }
             }
@@ -227,8 +250,13 @@ namespace OverlayApp.Services
 
             if (CurrentRms >= SilenceThreshold)
             {
-                _hasSpeechStarted = true;
-                _silenceDurationSeconds = 0; // Reset silence clock
+                _utteranceSpeechSeconds += chunkDuration;
+                if (!_hasSpeechStarted && _utteranceSpeechSeconds >= 0.25)
+                {
+                    _hasSpeechStarted = true;
+                    System.Threading.Tasks.Task.Run(() => SpeechStarted?.Invoke());
+                }
+                _silenceDurationSeconds = 0; // Reset silence clock when interviewer speaks
             }
             else
             {
@@ -237,10 +265,20 @@ namespace OverlayApp.Services
                     _silenceDurationSeconds += chunkDuration;
                     if (_silenceDurationSeconds >= SilenceTimeout)
                     {
-                        // Reset flags immediately to prevent double triggers while the Task pool thread schedules StopRecording
+                        // Silence threshold met: interviewer has finished asking the question
                         _silenceDurationSeconds = 0;
                         _hasSpeechStarted = false;
-                        System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
+
+                        if (_utteranceSpeechSeconds >= 0.8)
+                        {
+                            _utteranceSpeechSeconds = 0;
+                            System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
+                        }
+                        else
+                        {
+                            _utteranceSpeechSeconds = 0;
+                            ClearUtterance();
+                        }
                         return;
                     }
                 }
@@ -249,15 +287,18 @@ namespace OverlayApp.Services
             // Safety limit / reset
             if (_totalDurationSeconds >= MaxSpeechLength)
             {
-                if (_hasSpeechStarted)
+                if (_hasSpeechStarted && _utteranceSpeechSeconds >= 0.8)
                 {
                     _hasSpeechStarted = false;
+                    _silenceDurationSeconds = 0;
+                    _utteranceSpeechSeconds = 0;
                     System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
                 }
                 else
                 {
-                    // No speech was detected for 30 seconds.
-                    // Silently reset the recording to keep files small and fresh.
+                    _hasSpeechStarted = false;
+                    _silenceDurationSeconds = 0;
+                    _utteranceSpeechSeconds = 0;
                     ResetRecordingSession();
                 }
             }
@@ -302,6 +343,12 @@ namespace OverlayApp.Services
                 {
                     float clamped = Math.Max(-1.0f, Math.Min(1.0f, val));
                     _waveWriter.WriteSample(clamped);
+                    short pcmVal = (short)(clamped * 32767f);
+                    lock (_utteranceLock)
+                    {
+                        _utterancePcmStream.WriteByte((byte)(pcmVal & 0xFF));
+                        _utterancePcmStream.WriteByte((byte)((pcmVal >> 8) & 0xFF));
+                    }
                 }
             }
             else
@@ -320,6 +367,13 @@ namespace OverlayApp.Services
                     float clamped = Math.Max(-1.0f, Math.Min(1.0f, val));
 
                     _waveWriter.WriteSample(clamped);
+                    short pcmVal = (short)(clamped * 32767f);
+                    lock (_utteranceLock)
+                    {
+                        _utterancePcmStream.WriteByte((byte)(pcmVal & 0xFF));
+                        _utterancePcmStream.WriteByte((byte)((pcmVal >> 8) & 0xFF));
+                    }
+
                     _samplePositionAccumulator += ratio;
                 }
 
@@ -396,6 +450,80 @@ namespace OverlayApp.Services
             }
 
             return monoSamples;
+        }
+
+        /// <summary>
+        /// Gets the current speech audio captured so far as a valid 16kHz mono 16-bit PCM WAV (without clearing buffer).
+        /// Ideal for real-time intermediate speech-to-text preview in the interviewer box.
+        /// </summary>
+        public byte[] GetCurrentUtteranceWavBytes()
+        {
+            lock (_utteranceLock)
+            {
+                if (_utterancePcmStream.Length < 3200) // less than 0.1s of audio
+                    return Array.Empty<byte>();
+
+                return CreateWavWithHeader(_utterancePcmStream.ToArray());
+            }
+        }
+
+        /// <summary>
+        /// Extracts the entire speech audio captured for this utterance as a 16kHz mono WAV, and resets the buffer.
+        /// </summary>
+        public byte[] TakeUtteranceWavBytes()
+        {
+            lock (_utteranceLock)
+            {
+                if (_utterancePcmStream.Length < 3200)
+                {
+                    _utterancePcmStream.SetLength(0);
+                    return Array.Empty<byte>();
+                }
+
+                byte[] wav = CreateWavWithHeader(_utterancePcmStream.ToArray());
+                _utterancePcmStream.SetLength(0);
+                return wav;
+            }
+        }
+
+        /// <summary>
+        /// Clears the in-memory utterance PCM stream.
+        /// </summary>
+        public void ClearUtterance()
+        {
+            lock (_utteranceLock)
+            {
+                _utterancePcmStream.SetLength(0);
+            }
+        }
+
+        /// <summary>
+        /// Creates a standard 44-byte RIFF/WAV header for 16kHz mono 16-bit PCM audio.
+        /// </summary>
+        public static byte[] CreateWavWithHeader(byte[] pcmBytes)
+        {
+            int subChunk2Size = pcmBytes.Length;
+            int chunkSize = 36 + subChunk2Size;
+            byte[] wav = new byte[44 + subChunk2Size];
+            using (var ms = new MemoryStream(wav))
+            using (var bw = new BinaryWriter(ms))
+            {
+                bw.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+                bw.Write(chunkSize);
+                bw.Write(System.Text.Encoding.ASCII.GetBytes("WAVE"));
+                bw.Write(System.Text.Encoding.ASCII.GetBytes("fmt "));
+                bw.Write(16); // Subchunk1Size for PCM
+                bw.Write((short)1); // AudioFormat: 1 = PCM
+                bw.Write((short)1); // NumChannels: 1 = Mono
+                bw.Write(16000); // SampleRate: 16000
+                bw.Write(16000 * 1 * 2); // ByteRate: 32000
+                bw.Write((short)2); // BlockAlign: 2
+                bw.Write((short)16); // BitsPerSample: 16
+                bw.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+                bw.Write(subChunk2Size);
+                bw.Write(pcmBytes);
+            }
+            return wav;
         }
     }
 }

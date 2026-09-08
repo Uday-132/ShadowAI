@@ -26,8 +26,13 @@ namespace OverlayApp.Models
         [JsonInclude] public bool IsTrialStarted = false;
         [JsonInclude] public string ScanResponseText = "";
         [JsonInclude] public string VoiceScanResponseText = "";
+        [JsonInclude] public string ResumeText = "";
+        [JsonInclude] public string ResumeFileName = "";
+        [JsonInclude] public string ResumeScanResponseText = "";
         [JsonInclude] public bool IsSystemAudioSource = false;
         [JsonInclude] public bool IsLiveMode = false;
+        [JsonInclude] public bool IsResumeSystemAudioSource = false;
+        [JsonInclude] public bool IsResumeLiveMode = false;
         [JsonInclude] public string TextScanType = "Normal";
         [JsonInclude] public string ProgrammingLanguage = "Python";
         [JsonInclude] public string SessionToken = "";

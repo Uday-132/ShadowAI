@@ -11,6 +11,7 @@ namespace OverlayApp.Models
         AiScan,      // kept for backward compatibility with saved settings (maps to TxtScan)
         TxtScan,
         VoiceScan,
+        ResumeScan,
         Profile
     }
 }

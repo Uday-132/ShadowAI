@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
 
   let body = req.body || {};
   if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch (e) {}
+    try { body = JSON.parse(body); } catch (e) { }
   }
   const { email, password } = body;
   if (!email || !password) {
@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
         if (kRes.rows.length > 0 && kRes.rows[0].api_key) {
           userGroqKey = kRes.rows[0].api_key;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });

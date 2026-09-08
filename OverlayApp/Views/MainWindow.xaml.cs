@@ -181,37 +181,81 @@ namespace OverlayApp.Views
                 }
             };
 
-            // Auto-scroll to bottom when voice chat bubbles are added or updated
+            // Scroll to user question bubble when it is added (Voice Scan)
+            // Do NOT auto-scroll to the bottom when the assistant answer is given — stay anchored at the question!
             ViewModel.VoiceChatBubbles.CollectionChanged += (s, args) =>
             {
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    VoiceScanScrollViewer?.ScrollToEnd();
-                }), System.Windows.Threading.DispatcherPriority.Background);
-
-                // Subscribe to PropertyChanged on newly added voice bubbles for live content updates
                 if (args.NewItems != null)
                 {
                     foreach (var item in args.NewItems)
                     {
-                        if (item is OverlayApp.Models.ChatBubbleItem bubble)
+                        if (item is OverlayApp.Models.ChatBubbleItem bubble && bubble.IsUser)
                         {
-                            bubble.PropertyChanged += (bs, bp) =>
+                            Dispatcher.BeginInvoke(new Action(() =>
                             {
-                                if (bp.PropertyName == "Content" || bp.PropertyName == "IsLoading")
+                                try
                                 {
-                                    Dispatcher.BeginInvoke(new Action(() =>
+                                    if (VoiceScanItemsControl != null && VoiceScanScrollViewer != null)
                                     {
-                                        VoiceScanScrollViewer?.ScrollToEnd();
-                                    }), System.Windows.Threading.DispatcherPriority.Background);
+                                        var container = VoiceScanItemsControl.ItemContainerGenerator.ContainerFromItem(bubble) as FrameworkElement;
+                                        if (container != null)
+                                        {
+                                            var contentPanel = VoiceScanScrollViewer.Content as UIElement;
+                                            if (contentPanel != null)
+                                            {
+                                                var pt = container.TranslatePoint(new Point(0, 0), contentPanel);
+                                                VoiceScanScrollViewer.ScrollToVerticalOffset(Math.Max(0, pt.Y - 8));
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    VoiceScanScrollViewer?.ScrollToEnd();
                                 }
-                            };
+                                catch {}
+                            }), System.Windows.Threading.DispatcherPriority.Loaded);
                         }
                     }
                 }
             };
 
-            // VoiceScan and ClickThrough property change handlers
+            // Scroll to user question bubble when it is added (Resume Scan)
+            // Do NOT auto-scroll to the bottom when the assistant answer is given — stay anchored at the question!
+            ViewModel.ResumeChatBubbles.CollectionChanged += (s, args) =>
+            {
+                if (args.NewItems != null)
+                {
+                    foreach (var item in args.NewItems)
+                    {
+                        if (item is OverlayApp.Models.ChatBubbleItem bubble && bubble.IsUser)
+                        {
+                            Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                try
+                                {
+                                    if (ResumeScanItemsControl != null && ResumeScanScrollViewer != null)
+                                    {
+                                        var container = ResumeScanItemsControl.ItemContainerGenerator.ContainerFromItem(bubble) as FrameworkElement;
+                                        if (container != null)
+                                        {
+                                            var contentPanel = ResumeScanScrollViewer.Content as UIElement;
+                                            if (contentPanel != null)
+                                            {
+                                                var pt = container.TranslatePoint(new Point(0, 0), contentPanel);
+                                                ResumeScanScrollViewer.ScrollToVerticalOffset(Math.Max(0, pt.Y - 8));
+                                                return;
+                                            }
+                                        }
+                                    }
+                                    ResumeScanScrollViewer?.ScrollToEnd();
+                                }
+                                catch {}
+                            }), System.Windows.Threading.DispatcherPriority.Loaded);
+                        }
+                    }
+                }
+            };
+
+            // VoiceScan, ResumeScan and ClickThrough property change handlers
             ViewModel.PropertyChanged += (s, args) =>
             {
                 if (args.PropertyName == nameof(MainViewModel.VoiceScanResponseText))
@@ -222,6 +266,17 @@ namespace OverlayApp.Views
                         Dispatcher.BeginInvoke(new Action(() =>
                         {
                             VoiceScanScrollViewer?.ScrollToTop();
+                        }));
+                    }
+                }
+                else if (args.PropertyName == nameof(MainViewModel.ResumeScanResponseText))
+                {
+                    // Only scroll to top when there are no chat bubbles yet (fallback plain text mode)
+                    if (ViewModel.ResumeChatBubbles.Count == 0)
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            ResumeScanScrollViewer?.ScrollToTop();
                         }));
                     }
                 }
