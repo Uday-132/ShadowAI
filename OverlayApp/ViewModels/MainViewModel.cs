@@ -1558,9 +1558,9 @@ namespace OverlayApp.ViewModels
         private void StartScreenshotCaptureForVoice()
         {
             if (IsLoginOverlayVisible || IsPaymentOverlayVisible) return;
-            if (VoiceContextScreenshots.Count >= 3)
+            if (VoiceContextScreenshots.Count >= 4)
             {
-                VoiceScanResponseText = "⚠️ Max 3 code context screenshots. Clear existing ones first.";
+                VoiceScanResponseText = "⚠️ Max 4 code context screenshots. Clear existing ones first.";
                 return;
             }
 
