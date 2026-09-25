@@ -26,7 +26,7 @@ namespace OverlayApp.Services
         private double _totalDurationSeconds;
         private double _utteranceSpeechSeconds;
         private const double SilenceThreshold = 0.0015; // Sensitive RMS threshold
-        private const double SilenceTimeout = 2.2;     // 2.2 seconds of silence required so 1-second conversational pauses don't cut off questions prematurely
+        private const double SilenceTimeout = 1.2;     // 1.2 seconds of silence for immediate answer trigger upon completion
         private const double MaxSpeechLength = 35.0;   // Max speech duration safety limit before auto-answering or resetting
         private System.Threading.Timer? _watchdogTimer;
         private DateTime _lastDataAvailableTime;
@@ -229,7 +229,7 @@ namespace OverlayApp.Services
                     {
                         _hasSpeechStarted = false;
                         _silenceDurationSeconds = 0;
-                        if (_utteranceSpeechSeconds >= 0.8)
+                        if (_utteranceSpeechSeconds >= 0.4)
                         {
                             _utteranceSpeechSeconds = 0;
                             System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
@@ -251,7 +251,7 @@ namespace OverlayApp.Services
             if (CurrentRms >= SilenceThreshold)
             {
                 _utteranceSpeechSeconds += chunkDuration;
-                if (!_hasSpeechStarted && _utteranceSpeechSeconds >= 0.25)
+                if (!_hasSpeechStarted && _utteranceSpeechSeconds >= 0.15)
                 {
                     _hasSpeechStarted = true;
                     System.Threading.Tasks.Task.Run(() => SpeechStarted?.Invoke());
@@ -269,7 +269,7 @@ namespace OverlayApp.Services
                         _silenceDurationSeconds = 0;
                         _hasSpeechStarted = false;
 
-                        if (_utteranceSpeechSeconds >= 0.8)
+                        if (_utteranceSpeechSeconds >= 0.4)
                         {
                             _utteranceSpeechSeconds = 0;
                             System.Threading.Tasks.Task.Run(() => SilenceDetected?.Invoke());
@@ -287,7 +287,7 @@ namespace OverlayApp.Services
             // Safety limit / reset
             if (_totalDurationSeconds >= MaxSpeechLength)
             {
-                if (_hasSpeechStarted && _utteranceSpeechSeconds >= 0.8)
+                if (_hasSpeechStarted && _utteranceSpeechSeconds >= 0.4)
                 {
                     _hasSpeechStarted = false;
                     _silenceDurationSeconds = 0;

@@ -2512,12 +2512,24 @@
                                 <TextBox Text="{Binding GeminiInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
                             </Border>
 
+                            <!-- NVIDIA Key Section -->
+                            <DockPanel Margin="0,0,0,4">
+                                <TextBlock Text="3. NVIDIA API KEY" Foreground="#76B900" FontSize="10.5" FontWeight="Bold" DockPanel.Dock="Left"/>
+                                <Button Command="{Binding OpenNvidiaConsoleCommand}" Cursor="Arrow" Background="Transparent" BorderThickness="0" DockPanel.Dock="Right">
+                                    <TextBlock Text="🌐 build.nvidia.com" Foreground="#99FFFFFF" FontSize="9.5" TextDecorations="Underline"/>
+                                </Button>
+                            </DockPanel>
+                            <Border CornerRadius="7" Background="#30000000" BorderThickness="1" BorderBrush="#35FFFFFF" Padding="10,6" Margin="0,0,0,12">
+                                <TextBox Text="{Binding NvidiaInputKey, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="11" CaretBrush="#FFFFFF" VerticalContentAlignment="Center"/>
+                            </Border>
+
                             <!-- Default API Provider Selector -->
                             <DockPanel Margin="0,0,0,6">
                                 <TextBlock Text="PRIMARY API PROVIDER:" Foreground="#99FFFFFF" FontSize="9.5" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left"/>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                                     <RadioButton Content="Groq" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGroqApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,10,0" Foreground="#CCFFFFFF" FontSize="10"/>
-                                    <RadioButton Content="Gemini" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#CCFFFFFF" FontSize="10"/>
+                                    <RadioButton Content="Gemini" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsGeminiApiActive, Mode=TwoWay}" Cursor="Arrow" Margin="0,0,10,0" Foreground="#CCFFFFFF" FontSize="10"/>
+                                    <RadioButton Content="NVIDIA" GroupName="EntranceApiProviderGroup" IsChecked="{Binding IsNvidiaApiActive, Mode=TwoWay}" Cursor="Arrow" Foreground="#76B900" FontSize="10" FontWeight="Bold"/>
                                 </StackPanel>
                             </DockPanel>
 

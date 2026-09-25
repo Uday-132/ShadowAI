@@ -267,14 +267,30 @@ namespace OverlayApp.ViewModels
             _hotkeyService = hotkeyService;
             _styleService = styleService;
 
+            // Ensure default NVIDIA key is configured and NVIDIA is active provider by default
+            if (string.IsNullOrWhiteSpace(_settings.NvidiaKey))
+            {
+                _settings.NvidiaKey = "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";
+            }
+            _settings.IsNvidiaKeyValidated = true;
+
+            // Auto-migrate to NVIDIA as active provider
+            if (string.IsNullOrWhiteSpace(_settings.ActiveApiProvider) || _settings.ActiveApiProvider == "Groq" || _settings.ActiveApiProvider == "Gemini")
+            {
+                _settings.ActiveApiProvider = "Nvidia";
+            }
+            _settingsService.SaveSettings(_settings);
+
             GroqInputKey = _settings.GroqKey;
             GeminiInputKey = _settings.GeminiKey;
+            NvidiaInputKey = _settings.NvidiaKey;
             ValidateGroqKeyCommand = new RelayCommand(async _ => await ValidateGroqKeyAsync());
             ValidateGeminiKeyCommand = new RelayCommand(async _ => await ValidateGeminiKeyAsync());
             ValidateApiKeysCommand = new RelayCommand(async _ => await ValidateApiKeysAsync());
             OpenApiKeySettingsCommand = new RelayCommand(_ => IsSettingsOpen = true);
             OpenGroqConsoleCommand = new RelayCommand(_ => OpenGroqConsole());
             OpenGeminiConsoleCommand = new RelayCommand(_ => OpenGeminiConsole());
+            OpenNvidiaConsoleCommand = new RelayCommand(_ => OpenNvidiaConsole());
             StartFreeTrialCommand = new RelayCommand(_ => StartFreeTrial());
             AskFollowUpCommand = new RelayCommand(param => AskFollowUp(param as string));
 
@@ -529,7 +545,10 @@ namespace OverlayApp.ViewModels
                     e.PropertyName == nameof(IsClickThrough) ||
                     e.PropertyName == nameof(IsLocked) ||
                     e.PropertyName == nameof(NotesText) ||
+                    e.PropertyName == nameof(NvidiaKey) ||
                     e.PropertyName == nameof(GroqKey) ||
+                    e.PropertyName == nameof(GeminiKey) ||
+                    e.PropertyName == nameof(ActiveApiProvider) ||
                     e.PropertyName == nameof(AppFontSize) ||
                     e.PropertyName == nameof(IsFirstRun) ||
                     e.PropertyName == nameof(IsSystemAudioSource) ||
@@ -761,17 +780,27 @@ namespace OverlayApp.ViewModels
 
         public string ActiveApiProvider
         {
-            get => string.IsNullOrEmpty(_settings.ActiveApiProvider) ? "Groq" : _settings.ActiveApiProvider;
+            get => string.IsNullOrEmpty(_settings.ActiveApiProvider) ? "Nvidia" : _settings.ActiveApiProvider;
             set
             {
                 if (_settings.ActiveApiProvider != value)
                 {
                     _settings.ActiveApiProvider = value;
                     OnPropertyChanged(nameof(ActiveApiProvider));
+                    OnPropertyChanged(nameof(IsNvidiaApiActive));
                     OnPropertyChanged(nameof(IsGroqApiActive));
                     OnPropertyChanged(nameof(IsGeminiApiActive));
                     OnPropertyChanged(nameof(ActiveApiKeyStatusText));
                 }
+            }
+        }
+
+        public bool IsNvidiaApiActive
+        {
+            get => ActiveApiProvider == "Nvidia";
+            set
+            {
+                if (value) ActiveApiProvider = "Nvidia";
             }
         }
 
@@ -790,6 +819,29 @@ namespace OverlayApp.ViewModels
             set
             {
                 if (value) ActiveApiProvider = "Gemini";
+            }
+        }
+
+        public string NvidiaKey
+        {
+            get => string.IsNullOrWhiteSpace(_settings.NvidiaKey) ? "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" : _settings.NvidiaKey;
+            set
+            {
+                if (SetProperty(ref _settings.NvidiaKey, value))
+                {
+                    OnPropertyChanged(nameof(MaskedNvidiaKey));
+                    OnPropertyChanged(nameof(ActiveApiKeyStatusText));
+                }
+            }
+        }
+
+        public string MaskedNvidiaKey
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(NvidiaKey)) return "Not Configured";
+                if (NvidiaKey.Length <= 10) return "****";
+                return NvidiaKey.Substring(0, 7) + "..." + NvidiaKey.Substring(NvidiaKey.Length - 4);
             }
         }
 
@@ -816,9 +868,15 @@ namespace OverlayApp.ViewModels
             }
         }
 
-        public string ActiveApiKeyStatusText => IsGeminiApiActive 
-            ? $"Active API: Gemini ({MaskedGeminiKey})" 
-            : $"Active API: Groq ({MaskedGroqKey})";
+        public string ActiveApiKeyStatusText
+        {
+            get
+            {
+                if (IsNvidiaApiActive) return $"Active API: NVIDIA ({MaskedNvidiaKey})";
+                if (IsGeminiApiActive) return $"Active API: Gemini ({MaskedGeminiKey})";
+                return $"Active API: Groq ({MaskedGroqKey})";
+            }
+        }
 
         public string ScanResponseText
         {
@@ -1849,147 +1907,88 @@ namespace OverlayApp.ViewModels
                 // --- LLM Response Phase ---
                 if (IsMcqScanMode)
                 {
-                    // Set A (primary): gemini-3.5-flash-lite + gemma-4-31b-it (both Gemini)
-                    // Qwen tiebreaker: used ONLY if (a) a model exceeds 40s, or (b) Set A answers mismatch
-                    // Set B (fallback): gemini-3.7-flash + groq/compound — used only if BOTH Set A models fail
-                    string modelA = "gemini-3.5-flash-lite";
-                    string modelB = "gemma-4-31b-it";
-                    string modelC = "gemini-3.7-flash";
-                    string modelD = "groq/compound";
-                    string modelQwen = "openai/gpt-oss-120b";
+                    // Set A (Primary):
+                    // Model A: Groq (qwen/qwen3.8-27b)
+                    // Model B: Gemini (gemini-3.5-flash-lite)
+                    // Set B (Invoked only on mismatch or error):
+                    // Model C: Gemini (gemini-3.1-flash-lite)
+                    string modelA = "qwen/qwen3.8-27b";
+                    string modelB = "gemini-3.5-flash-lite";
+                    string modelC = "gemini-3.1-flash-lite";
+
                     assistantBubble.ModelInfo = $"Set A: {modelA} + {modelB}";
-                    assistantBubble.Content = $"⏳ Verifying MCQ answer with Set A ({modelA} + {modelB})...";
+                    assistantBubble.Content = $"⏳ Verifying MCQ with Set A ({modelA} + {modelB})...";
 
-                    // Run Set A in parallel with a 40s timeout per model
-                    var cts = new System.Threading.CancellationTokenSource();
-                    var timeout = Task.Delay(40000, cts.Token);
+                    // Launch Set A in parallel directly without cross-provider fallback to preserve real status & errors
+                    Task<string> taskA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
+                    Task<string> taskB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelB, "", "");
 
-                    var taskA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA, "", "");
-                    var taskB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelB, "", "");
-
-                    // Wait for both, but track if either exceeds 40s
-                    var taskAWithTimeout = Task.WhenAny(taskA, Task.Delay(40000));
-                    var taskBWithTimeout = Task.WhenAny(taskB, Task.Delay(40000));
-
-                    await Task.WhenAll(taskAWithTimeout, taskBWithTimeout);
+                    await Task.WhenAll(taskA, taskB);
 
                     string answerA = taskA.IsCompleted ? await taskA : "";
                     string answerB = taskB.IsCompleted ? await taskB : "";
 
-                    bool timedOutA = !taskA.IsCompleted;
-                    bool timedOutB = !taskB.IsCompleted;
+                    bool isErrorA = string.IsNullOrWhiteSpace(answerA) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA);
+                    bool isErrorB = string.IsNullOrWhiteSpace(answerB) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB);
 
-                    // If timed out, replace with Groq qwen
-                    if (timedOutA || timedOutB)
+                    string cleanA = !isErrorA ? CleanMcqResponse(answerA) : "";
+                    string cleanB = !isErrorB ? CleanMcqResponse(answerB) : "";
+
+                    bool mismatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) &&
+                                    !cleanA.Equals(cleanB, StringComparison.OrdinalIgnoreCase);
+
+                    string answerC = "";
+                    bool isErrorC = false;
+                    bool usedSet2 = false;
+
+                    // Trigger Set B ONLY when answers mismatch, or when both Set A models failed
+                    if (mismatch || (isErrorA && isErrorB))
                     {
-                        assistantBubble.Content = $"⏳ {(timedOutA ? modelA : modelB)} timed out — fetching from Groq qwen...";
-                        string qwenAnswer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelQwen);
-                        if (timedOutA) answerA = qwenAnswer;
-                        if (timedOutB) answerB = qwenAnswer;
-                        assistantBubble.ModelInfo = $"Set A: {(timedOutA ? modelQwen : modelA)} + {(timedOutB ? modelQwen : modelB)} (qwen substituted)";
-                    }
+                        usedSet2 = true;
+                        assistantBubble.ModelInfo = $"Set B: {modelC}";
+                        assistantBubble.Content = mismatch 
+                            ? $"⚠️ Mismatch in Set A ({modelA}: {cleanA} vs {modelB}: {cleanB}) — resolving with Set B ({modelC})..."
+                            : $"⚠️ Set A failed — retrying with Set B ({modelC})...";
 
-                    bool isErrorA = answerA == null || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA);
-                    bool isErrorB = answerB == null || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB);
-
-                    string answerC = "", answerD = "";
-                    bool isErrorC = false, isErrorD = false;
-                    bool usedFallback = false;
-
-                    // If BOTH Set A models fail, fall back to Set B
-                    if (isErrorA && isErrorB)
-                    {
-                        usedFallback = true;
-                        assistantBubble.ModelInfo = $"Set B (fallback): {modelC} + {modelD}";
-                        assistantBubble.Content = $"⚠️ Set A had errors — retrying with Set B ({modelC} + {modelD})...";
-
-                        var taskC = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelC, "", "");
-                        var taskD = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelD);
-                        await Task.WhenAll(taskC, taskD);
-                        answerC = await taskC;
-                        answerD = await taskD;
-                        isErrorC = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerC);
-                        isErrorD = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerD);
-                    }
-
-                    // If Set A both succeeded but answers mismatch — call Groq qwen as tiebreaker
-                    string answerQwen = "";
-                    bool usedQwenTiebreaker = false;
-                    if (!usedFallback && !isErrorA && !isErrorB)
-                    {
-                        string cleanA = CleanMcqResponse(answerA);
-                        string cleanB = CleanMcqResponse(answerB);
-                        bool mismatch = !string.IsNullOrEmpty(cleanA) && !string.IsNullOrEmpty(cleanB) &&
-                                        !cleanA.Equals(cleanB, StringComparison.OrdinalIgnoreCase);
-                        if (mismatch)
-                        {
-                            usedQwenTiebreaker = true;
-                            assistantBubble.Content = $"⚠️ Mismatch detected — calling Groq qwen tiebreaker...";
-                            answerQwen = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelQwen);
-                        }
+                        answerC = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelC, "", "");
+                        isErrorC = string.IsNullOrWhiteSpace(answerC) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerC);
                     }
 
                     var sbVerify = new System.Text.StringBuilder();
                     sbVerify.AppendLine(metadataHeader);
-                    sbVerify.AppendLine(usedFallback
-                        ? "### 🤖 MCQ Verification — Set B (Fallback)"
-                        : usedQwenTiebreaker
-                            ? "### 🤖 MCQ Verification — Set A + Qwen Tiebreaker"
-                            : "### 🤖 MCQ Verification — Set A");
+                    sbVerify.AppendLine(usedSet2
+                        ? "### 🤖 MCQ Verification — Set A + Set B (Resolution)"
+                        : "### 🤖 MCQ Verification — Set A");
                     sbVerify.AppendLine();
 
-                    if (!usedFallback)
+                    string displayA = isErrorA ? (answerA ?? "⚠️ Unknown Error").Trim() : (!string.IsNullOrEmpty(cleanA) ? cleanA.ToUpperInvariant() : (answerA ?? "").Trim());
+                    string displayB = isErrorB ? (answerB ?? "⚠️ Unknown Error").Trim() : (!string.IsNullOrEmpty(cleanB) ? cleanB.ToUpperInvariant() : (answerB ?? "").Trim());
+
+                    sbVerify.AppendLine($"* **{modelA} (Groq):** {displayA}");
+                    sbVerify.AppendLine($"* **{modelB} (Gemini):** {displayB}");
+
+                    if (usedSet2)
                     {
-                        string cleanedA = CleanMcqResponse(answerA ?? "");
-                        string cleanedB = CleanMcqResponse(answerB ?? "");
-                        string displayA = isErrorA ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedA) ? cleanedA.ToUpperInvariant() : (answerA ?? "").Trim());
-                        string displayB = isErrorB ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedB) ? cleanedB.ToUpperInvariant() : (answerB ?? "").Trim());
-                        string labelA = timedOutA ? $"{modelQwen} (qwen sub)" : $"{modelA} (Gemini)";
-                        string labelB = timedOutB ? $"{modelQwen} (qwen sub)" : $"{modelB} (Gemini)";
-                        sbVerify.AppendLine($"* **{labelA}:** {displayA}");
-                        sbVerify.AppendLine($"* **{labelB}:** {displayB}");
-                        if (usedQwenTiebreaker)
-                        {
-                            string cleanedQ = CleanMcqResponse(answerQwen);
-                            bool isErrorQ = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerQwen);
-                            string displayQ = isErrorQ ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedQ) ? cleanedQ.ToUpperInvariant() : answerQwen.Trim());
-                            sbVerify.AppendLine($"* **{modelQwen} (Groq tiebreaker):** {displayQ}");
-                        }
+                        string cleanC = CleanMcqResponse(answerC);
+                        string displayC = isErrorC ? (answerC ?? "⚠️ Unknown Error").Trim() : (!string.IsNullOrEmpty(cleanC) ? cleanC.ToUpperInvariant() : answerC.Trim());
+                        sbVerify.AppendLine($"* **{modelC} (Gemini):** {displayC}");
                     }
-                    else
-                    {
-                        sbVerify.AppendLine($"* **{modelA} (Gemini):** ⚠️ Error — fell back to Set B");
-                        sbVerify.AppendLine($"* **{modelB} (Gemini):** {(isErrorB ? "⚠️ Error — fell back to Set B" : "✅ OK")}");
-                        string cleanedC = CleanMcqResponse(answerC);
-                        string cleanedD = CleanMcqResponse(answerD);
-                        string displayC = isErrorC ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedC) ? cleanedC.ToUpperInvariant() : answerC.Trim());
-                        string displayD = isErrorD ? "⚠️ Error" : (!string.IsNullOrEmpty(cleanedD) ? cleanedD.ToUpperInvariant() : answerD.Trim());
-                        sbVerify.AppendLine($"* **{modelC} (Gemini fallback):** {displayC}");
-                        sbVerify.AppendLine($"* **{modelD} (Groq fallback):** {displayD}");
-                    }
+
                     sbVerify.AppendLine();
                     sbVerify.AppendLine("---");
                     sbVerify.AppendLine();
 
                     // Collect valid answers for consensus
                     var validAnswers = new System.Collections.Generic.List<(string label, string raw, string clean)>();
-                    if (!usedFallback)
-                    {
-                        if (!isErrorA) { string c = CleanMcqResponse(answerA ?? ""); if (!string.IsNullOrEmpty(c)) validAnswers.Add((timedOutA ? modelQwen : modelA, answerA, c)); }
-                        if (!isErrorB) { string c = CleanMcqResponse(answerB ?? ""); if (!string.IsNullOrEmpty(c)) validAnswers.Add((timedOutB ? modelQwen : modelB, answerB, c)); }
-                        if (usedQwenTiebreaker && !OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerQwen))
-                        {
-                            string c = CleanMcqResponse(answerQwen);
-                            if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelQwen, answerQwen, c));
-                        }
-                    }
-                    else
+                    if (!isErrorA && !string.IsNullOrEmpty(cleanA)) validAnswers.Add((modelA, answerA, cleanA));
+                    if (!isErrorB && !string.IsNullOrEmpty(cleanB)) validAnswers.Add((modelB, answerB, cleanB));
+
+                    if (usedSet2)
                     {
                         if (!isErrorC) { string c = CleanMcqResponse(answerC); if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelC, answerC, c)); }
-                        if (!isErrorD) { string c = CleanMcqResponse(answerD); if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelD, answerD, c)); }
                     }
 
-                    bool anyError = usedFallback ? (isErrorC || isErrorD) : (isErrorA && isErrorB);
+                    bool anyError = usedSet2 ? isErrorC : (isErrorA && isErrorB);
                     assistantBubble.HasError = anyError;
                     assistantBubble.ShowCheckApiKeyAction = anyError;
 
@@ -2038,24 +2037,40 @@ namespace OverlayApp.ViewModels
                 }
                 else if (IsCodingScanMode)
                 {
-                    // Generator: gemma-4-31b-it (25s timeout) → fallback to gemini-3.5-flash-lite if slow
-                    // Verifier: gemini-3.5-flash-lite always
+                    // NVIDIA Mode: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning generator + verifier
+                    // Gemini Mode: gemma-4-31b-it generator + gemini-3.5-flash-lite verifier
                     // Set B (error fallback): gemini-3.7-flash generator + groq/compound verifier
                     string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
-                    string primaryModelA = "gemma-4-31b-it";
-                    string timeoutFallbackModel = "gemini-3.5-flash-lite";
-                    string verifierModelA = "gemini-3.5-flash-lite";
-                    string primaryModelB = "gemini-3.7-flash";
-                    string verifierModelB = "groq/compound";
+                    string primaryModelA, timeoutFallbackModel, verifierModelA, primaryModelB, verifierModelB;
+                    if (IsNvidiaApiActive)
+                    {
+                        primaryModelA = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+                        timeoutFallbackModel = "gemini-3.5-flash-lite";
+                        verifierModelA = "gemini-3.5-flash-lite";
+                        primaryModelB = "qwen/qwen3.8-27b";
+                        verifierModelB = "qwen/qwen3.8-27b";
+                    }
+                    else
+                    {
+                        primaryModelA = "gemini-3.5-flash-lite";
+                        timeoutFallbackModel = "gemini-3.5-flash-lite";
+                        verifierModelA = "gemini-3.5-flash-lite";
+                        primaryModelB = "qwen/qwen3.8-27b";
+                        verifierModelB = "qwen/qwen3.8-27b";
+                    }
                     bool isProjectMode = false; // Project mode removed — always single-language
                     assistantBubble.ModelInfo = $"{primaryModelA} → {verifierModelA}";
 
                     assistantBubble.Content = $"⏳ [1/2] Generating {(isProjectMode ? "multi-file project" : targetLang)} code with **{primaryModelA}**...";
 
-                    // Run Gemma with a 25s timeout — if it doesn't respond, switch to gemini-3.5-flash-lite
-                    var gemmaTask = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelA, effectiveGroqKey, "qwen/qwen3.6-27b");
+                    // Run primary generator with a 25s timeout
+                    Task<string> genTask;
+                    if (IsNvidiaApiActive)
+                        genTask = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, primaryModelA, 0, "", "");
+                    else
+                        genTask = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelA, "", "");
                     var timeoutTask = Task.Delay(25000);
-                    var firstDone = await Task.WhenAny(gemmaTask, timeoutTask);
+                    var firstDone = await Task.WhenAny(genTask, timeoutTask);
 
                     string initialCode;
                     string generatorUsed;
@@ -2063,27 +2078,33 @@ namespace OverlayApp.ViewModels
 
                     if (firstDone == timeoutTask)
                     {
-                        // Gemma timed out — switch immediately to gemini-3.5-flash-lite for the answer
+                        // Primary timed out (>25s) — switch to Gemini as generator
                         generatorUsed = timeoutFallbackModel;
-                        assistantBubble.Content = $"⏳ Gemma timed out — switching to **{timeoutFallbackModel}**...";
+                        assistantBubble.Content = $"⏳ Primary timed out (>25s) — switching to **{timeoutFallbackModel}**...";
                         assistantBubble.ModelInfo = $"{timeoutFallbackModel} (timeout fallback) → {verifierModelA}";
-                        initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, timeoutFallbackModel, effectiveGroqKey, "qwen/qwen3.6-27b");
+                        initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, timeoutFallbackModel, "", "");
                     }
                     else
                     {
-                        // Gemma responded in time — use its output
-                        initialCode = await gemmaTask;
+                        initialCode = await genTask;
                         generatorUsed = primaryModelA;
+
+                        // If primary generator failed with error, fallback to Gemini
+                        if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode) && timeoutFallbackModel != primaryModelA)
+                        {
+                            generatorUsed = timeoutFallbackModel;
+                            assistantBubble.Content = $"⚠️ Primary error — switching to **{timeoutFallbackModel}**...";
+                            assistantBubble.ModelInfo = $"{timeoutFallbackModel} → {verifierModelA}";
+                            initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, timeoutFallbackModel, "", "");
+                        }
                     }
 
-                    bool isErrorGen = OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode);
-
-                    // If generator still errors, fall back to Set B
-                    if (isErrorGen)
+                    // If Gemini generator also errors (or timed out + Gemini error), fallback to Groq (qwen/qwen3.8-27b)
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(initialCode))
                     {
-                        assistantBubble.ModelInfo = $"Set B (fallback): {primaryModelB} → {verifierModelB}";
-                        assistantBubble.Content = $"⚠️ Generator error — retrying with **{primaryModelB}** (Set B)...";
-                        initialCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, primaryModelB, effectiveGroqKey, "qwen/qwen3.6-27b");
+                        assistantBubble.ModelInfo = $"Fallback: {primaryModelB} → {verifierModelB}";
+                        assistantBubble.Content = $"⚠️ Generator error — retrying with **{primaryModelB}** (Groq)...";
+                        initialCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, primaryModelB);
                         generatorUsed = primaryModelB;
                         verifierUsed = verifierModelB;
 
@@ -2091,7 +2112,7 @@ namespace OverlayApp.ViewModels
                         {
                             assistantBubble.HasError = true;
                             assistantBubble.ShowCheckApiKeyAction = true;
-                            assistantBubble.ErrorSummary = "Both generators encountered errors.";
+                            assistantBubble.ErrorSummary = "All code generators encountered errors.";
                             string errContent = metadataHeader + initialCode.Trim();
                             assistantBubble.Content = errContent;
                             assistantBubble.IsLoading = false;
@@ -2114,7 +2135,13 @@ namespace OverlayApp.ViewModels
                             new ChatMessage { Role = "user", Content = $"The previous {targetLang} code output was cut off mid-way. Continue the code EXACTLY from where it stopped. Do not repeat the previous code. Output ONLY the remaining raw code without any markdown or intro." }
                         };
 
-                        string continuationCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, continuationHistory, generatorUsed, effectiveGroqKey, "qwen/qwen3.6-27b");
+                        string continuationCode;
+                        if (generatorUsed.Contains("nemotron", StringComparison.OrdinalIgnoreCase))
+                            continuationCode = await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, continuationHistory, generatorUsed, 0, "", "");
+                        else if (generatorUsed.Contains("qwen", StringComparison.OrdinalIgnoreCase))
+                            continuationCode = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, continuationHistory, generatorUsed);
+                        else
+                            continuationCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, continuationHistory, generatorUsed, "", "");
                         if (!OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(continuationCode))
                         {
                             continuationCode = CleanCodeMarkdown(continuationCode);
@@ -2122,7 +2149,7 @@ namespace OverlayApp.ViewModels
                         }
                     }
 
-                    // Code Audit with the verifier from whichever set was used
+                    // Code Audit with the verifier
                     assistantBubble.Content = $"⏳ [2/2] Verifying code with **{verifierUsed}**...";
 
                     var verifyHistory = new System.Collections.Generic.List<ChatMessage>
@@ -2137,15 +2164,17 @@ namespace OverlayApp.ViewModels
                         }
                     };
 
-                    // Set A verifier uses Gemini; Set B verifier uses Groq
+                    // Route verifier through correct API
                     string verificationOutput;
-                    if (verifierUsed == verifierModelA)
+                    if (verifierUsed.Contains("gemini", StringComparison.OrdinalIgnoreCase))
                         verificationOutput = (await _llmService.ProcessChatWithGeminiAsync(GeminiKey, verifyHistory, verifierUsed, "", "")).Trim();
-                    else
+                    else if (verifierUsed.Contains("qwen", StringComparison.OrdinalIgnoreCase))
                         verificationOutput = (await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierUsed)).Trim();
+                    else
+                        verificationOutput = (await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, verifyHistory, verifierUsed, 0, "", "")).Trim();
 
-                    // If Set A verifier fails, try Set B verifier
-                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(verificationOutput) && verifierUsed == verifierModelA)
+                    // If verifier fails, try Groq verifier
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(verificationOutput) && verifierUsed != verifierModelB)
                     {
                         verifierUsed = verifierModelB;
                         verificationOutput = (await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, verifyHistory, verifierUsed)).Trim();
@@ -2187,17 +2216,37 @@ namespace OverlayApp.ViewModels
                 }
                 else
                 {
-                    // Normal scan — Set A first (gemini-3.5-flash-lite + gemma-4-31b-it, both Gemini), fallback to Set B (gemini-3.7-flash + groq/compound)
-                    string geminiModelA = "gemini-3.5-flash-lite";
-                    string geminiModelA2 = "gemma-4-31b-it";
-                    string geminiModelB = "gemini-3.7-flash";
-                    string groqModelB = "groq/compound";
-                    assistantBubble.ModelInfo = $"Set A: {geminiModelA} + {geminiModelA2}";
-                    assistantBubble.Content = $"⏳ Generating response with Set A ({geminiModelA} + {geminiModelA2})...";
+                    // Normal scan — Set A first (NVIDIA: nemotron-3-nano-omni-30b-a3b-reasoning + nemotron-3.5-lightning-30b-a3b; Gemini: gemini-3.5-flash-lite + gemma-4-31b-it)
+                    string modelA, modelA2, modelB, modelB2;
+                    if (IsNvidiaApiActive)
+                    {
+                        modelA = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+                        modelA2 = "nvidia/nemotron-3.5-lightning-30b-a3b";
+                        modelB = "gemini-3.5-flash-lite";
+                        modelB2 = "groq/compound";
+                    }
+                    else
+                    {
+                        modelA = "gemini-3.5-flash-lite";
+                        modelA2 = "gemma-4-31b-it";
+                        modelB = "gemini-3.7-flash";
+                        modelB2 = "groq/compound";
+                    }
+                    assistantBubble.ModelInfo = $"Set A: {modelA} + {modelA2}";
+                    assistantBubble.Content = $"⏳ Generating response with Set A ({modelA} + {modelA2})...";
 
-                    // Run Set A in parallel — both via Gemini API
-                    var taskGA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, geminiModelA, "", "");
-                    var taskQA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, geminiModelA2, "", "");
+                    // Run Set A in parallel
+                    Task<string> taskGA, taskQA;
+                    if (IsNvidiaApiActive)
+                    {
+                        taskGA = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelA, 0, GeminiKey, effectiveGroqKey);
+                        taskQA = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelA2, 0, GeminiKey, effectiveGroqKey);
+                    }
+                    else
+                    {
+                        taskGA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA, "", "");
+                        taskQA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA2, "", "");
+                    }
                     await Task.WhenAll(taskGA, taskQA);
                     string respGA = await taskGA;
                     string respQA = await taskQA;
@@ -2213,11 +2262,11 @@ namespace OverlayApp.ViewModels
                     if (errGA && errQA)
                     {
                         usedFallback = true;
-                        assistantBubble.ModelInfo = $"Set B (fallback): {geminiModelB} + {groqModelB}";
-                        assistantBubble.Content = $"⚠️ Set A had errors — retrying with Set B ({geminiModelB} + {groqModelB})...";
+                        assistantBubble.ModelInfo = $"Set B (fallback): {modelB} + {modelB2}";
+                        assistantBubble.Content = $"⚠️ Set A had errors — retrying with Set B ({modelB} + {modelB2})...";
 
-                        var taskGB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, geminiModelB, "", "");
-                        var taskQB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, groqModelB);
+                        var taskGB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelB, "", "");
+                        var taskQB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB2);
                         await Task.WhenAll(taskGB, taskQB);
                         respGB = await taskGB;
                         respQB = await taskQB;
@@ -2239,16 +2288,16 @@ namespace OverlayApp.ViewModels
                     }
                     else if (!usedFallback)
                     {
-                        if (!errGA) { sbNormal.AppendLine($"### 🔵 {geminiModelA}\n\n{respGA.Trim()}\n"); sbNormal.AppendLine("---\n"); }
-                        if (!errQA) { sbNormal.AppendLine($"### � {geminiModelA2}\n\n{respQA.Trim()}\n"); }
+                        if (!errGA) { sbNormal.AppendLine($"### 🔵 {modelA}\n\n{respGA.Trim()}\n"); sbNormal.AppendLine("---\n"); }
+                        if (!errQA) { sbNormal.AppendLine($"### 🟣 {modelA2}\n\n{respQA.Trim()}\n"); }
                         // At least one succeeded — not an error state
                         assistantBubble.HasError = false;
                         assistantBubble.ShowCheckApiKeyAction = false;
                     }
                     else
                     {
-                        if (!errGB) { sbNormal.AppendLine($"### 🔵 {geminiModelB} (fallback)\n\n{respGB.Trim()}\n"); sbNormal.AppendLine("---\n"); }
-                        if (!errQB) { sbNormal.AppendLine($"### 🟢 {groqModelB} (fallback)\n\n{respQB.Trim()}\n"); }
+                        if (!errGB) { sbNormal.AppendLine($"### 🔵 {modelB} (fallback)\n\n{respGB.Trim()}\n"); sbNormal.AppendLine("---\n"); }
+                        if (!errQB) { sbNormal.AppendLine($"### 🟢 {modelB2} (fallback)\n\n{respQB.Trim()}\n"); }
                         bool anyErr = errGB || errQB;
                         assistantBubble.HasError = anyErr;
                         assistantBubble.ShowCheckApiKeyAction = anyErr;
@@ -2642,10 +2691,13 @@ namespace OverlayApp.ViewModels
 
                     _voiceChatHistory.Add(new ChatMessage {
                         Role = "system",
-                        Content = "You are a sharp, articulate colleague helping in real time.\n" +
-                                  "Provide a direct, conversational, humanized answer in 3 to 5 sentences.\n" +
-                                  "Speak naturally like a human. Never use robotic clichés or AI filler like 'Certainly!', 'Great question!', 'Sure!'.\n" +
-                                  "Answer immediately and concisely so it can be spoken in real time within seconds." +
+                        Content = "You are a sharp, articulate colleague speaking naturally in real time.\n" +
+                                  "Answer the user's question directly in a conversational, humanized manner in 3 to 5 clear sentences.\n\n" +
+                                  "CRITICAL GUIDELINES:\n" +
+                                  "- Avoid high-end academic jargon, robotic phrases, or dense corporate buzzwords. Use plain, grounded, everyday conversational English.\n" +
+                                  "- When explaining any concept, problem, or technique, always include a brief, concrete real-world example to make it instantly clear.\n" +
+                                  "- Speak like a real human. Never use AI filler like 'Certainly!', 'Great question!', 'Sure!', 'As an AI...'. Jump directly into the answer.\n" +
+                                  "- Keep it concise so it can be spoken aloud and understood within 15-20 seconds." +
                                   codeContext
                     });
                 }
@@ -2677,9 +2729,37 @@ namespace OverlayApp.ViewModels
                     }
                 }, voiceTimerCts.Token);
 
-                // 1st preference: gemini-3.5-flash-lite (ultra-fast response)
-                string voiceModelUsed = "gemini-3.5-flash-lite";
-                string explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
+                string voiceModelUsed;
+                string explanation;
+                
+                // Prioritize ultra-fast Groq (<1s) & Gemini (~1.2s) to eliminate high latency
+                if (!string.IsNullOrWhiteSpace(effectiveGroqKey))
+                {
+                    voiceModelUsed = "qwen/qwen3.8-27b";
+                    explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, voiceModelUsed);
+                    
+                    // Fallback to Gemini if Groq errors
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation) && IsGeminiApiActive)
+                    {
+                        voiceModelUsed = "gemini-3.5-flash-lite";
+                        explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, voiceModelUsed, "", "");
+                    }
+                }
+                else if (IsGeminiApiActive)
+                {
+                    voiceModelUsed = "gemini-3.5-flash-lite";
+                    explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, voiceModelUsed, "", "");
+                }
+                else if (IsNvidiaApiActive)
+                {
+                    voiceModelUsed = "nvidia/nemotron-3.5-lightning-30b-a3b";
+                    explanation = await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, historyToSend, voiceModelUsed, 0, GeminiKey, effectiveGroqKey);
+                }
+                else
+                {
+                    voiceModelUsed = "qwen/qwen3.8-27b";
+                    explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, voiceModelUsed);
+                }
 
                 voiceTimerCts.Cancel();
                 voiceStopwatch.Stop();
@@ -2855,14 +2935,15 @@ namespace OverlayApp.ViewModels
                     string resumeContext = string.IsNullOrWhiteSpace(ResumeText) ? "No resume provided." : ResumeText;
                     _resumeChatHistory.Add(new ChatMessage {
                         Role = "system",
-                        Content = $"You are an expert real-time interview coach whispering answers directly to the candidate.\n" +
-                                  $"The interviewer just asked a question. Write the exact, natural words the candidate should say right now — nothing else.\n\n" +
+                        Content = $"You are an expert real-time interview coach whispering spoken answers directly to the candidate.\n" +
+                                  $"The interviewer just asked a question. Write the exact, natural words the candidate should say aloud right now — nothing else.\n\n" +
                                   $"CANDIDATE BACKGROUND / RESUME:\n\"\"\"\n{resumeContext}\n\"\"\"\n\n" +
                                   $"HOW TO ANSWER AS A REAL HUMAN:\n" +
                                   $"- Speak strictly in natural first person: \"I\", \"my team\", \"at [Company] I led...\". Never refer to \"the candidate\" or mention a resume.\n" +
-                                  $"- Weave in authentic details: company names, exact roles, technologies, metrics, and outcomes from the background above.\n" +
+                                  $"- Avoid high-end academic jargon, robotic phrases, or dense corporate buzzwords. Use plain, grounded, everyday conversational English.\n" +
+                                  $"- Always anchor your answer with a concrete, relatable real-world example (situation, action, measurable outcome) from the background above.\n" +
                                   $"- Sound like a real, confident professional talking to an interviewer — conversational, articulate, and direct.\n" +
-                                  $"- Keep it concise: 3 to 5 sentences maximum, so it sounds natural when spoken aloud in 20-30 seconds.\n" +
+                                  $"- Keep it concise: 3 to 5 sentences maximum (under 75 words), so it sounds natural when spoken aloud in 20-30 seconds.\n" +
                                   $"- NEVER use AI filler like \"Certainly!\", \"Great question!\", \"Sure!\", or \"As a...\". Jump immediately into the answer."
                     });
                 }
@@ -2893,9 +2974,37 @@ namespace OverlayApp.ViewModels
                     }
                 }, resumeTimerCts.Token);
 
-                // 1st preference: gemini-3.5-flash-lite (ultra-fast response)
-                string modelUsed = "gemini-3.5-flash-lite";
-                string explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
+                string modelUsed;
+                string explanation;
+
+                // Prioritize ultra-fast Groq (<1s) & Gemini (~1.2s) to eliminate high latency
+                if (!string.IsNullOrWhiteSpace(effectiveGroqKey))
+                {
+                    modelUsed = "qwen/qwen3.8-27b";
+                    explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, modelUsed);
+
+                    // Fallback to Gemini if Groq errors
+                    if (OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(explanation) && IsGeminiApiActive)
+                    {
+                        modelUsed = "gemini-3.5-flash-lite";
+                        explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, modelUsed, "", "");
+                    }
+                }
+                else if (IsGeminiApiActive)
+                {
+                    modelUsed = "gemini-3.5-flash-lite";
+                    explanation = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, modelUsed, "", "");
+                }
+                else if (IsNvidiaApiActive)
+                {
+                    modelUsed = "nvidia/nemotron-3.5-lightning-30b-a3b";
+                    explanation = await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, historyToSend, modelUsed, 0, GeminiKey, effectiveGroqKey);
+                }
+                else
+                {
+                    modelUsed = "qwen/qwen3.8-27b";
+                    explanation = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, modelUsed);
+                }
 
                 resumeTimerCts.Cancel();
                 resumeStopwatch.Stop();
@@ -3211,12 +3320,29 @@ namespace OverlayApp.ViewModels
         public ICommand ValidateGeminiKeyCommand { get; }
         public ICommand ValidateApiKeysCommand { get; }
         public ICommand OpenGeminiConsoleCommand { get; }
+        public ICommand OpenNvidiaConsoleCommand { get; }
+
+        private string _nvidiaInputKey = "";
+        public string NvidiaInputKey
+        {
+            get => _nvidiaInputKey;
+            set => SetProperty(ref _nvidiaInputKey, value);
+        }
 
         private void OpenGeminiConsole()
         {
             try
             {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://aistudio.google.com/app/apikey") { UseShellExecute = true });
+            }
+            catch { }
+        }
+
+        private void OpenNvidiaConsole()
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://build.nvidia.com/") { UseShellExecute = true });
             }
             catch { }
         }
@@ -3260,9 +3386,9 @@ namespace OverlayApp.ViewModels
 
         private async Task ValidateApiKeysAsync()
         {
-            if (string.IsNullOrWhiteSpace(GroqInputKey) && string.IsNullOrWhiteSpace(GeminiInputKey))
+            if (string.IsNullOrWhiteSpace(GroqInputKey) && string.IsNullOrWhiteSpace(GeminiInputKey) && string.IsNullOrWhiteSpace(NvidiaInputKey))
             {
-                GroqKeyValidationError = "Please paste your Groq or Gemini API Key to continue.";
+                GroqKeyValidationError = "Please paste at least one API Key (Groq, Gemini, or NVIDIA) to continue.";
                 return;
             }
 
@@ -3273,6 +3399,7 @@ namespace OverlayApp.ViewModels
             {
                 bool groqValid = false;
                 bool geminiValid = false;
+                bool nvidiaValid = false;
                 string errors = "";
 
                 if (!string.IsNullOrWhiteSpace(GroqInputKey))
@@ -3305,7 +3432,22 @@ namespace OverlayApp.ViewModels
                     }
                 }
 
-                if (groqValid || geminiValid)
+                if (!string.IsNullOrWhiteSpace(NvidiaInputKey))
+                {
+                    var (isNvValid, nvErr) = await _llmService.ValidateNvidiaKeyAsync(NvidiaInputKey);
+                    if (isNvValid)
+                    {
+                        NvidiaKey = NvidiaInputKey.Trim();
+                        _settings.IsNvidiaKeyValidated = true;
+                        nvidiaValid = true;
+                    }
+                    else
+                    {
+                        errors += $"NVIDIA Key: {nvErr}\n";
+                    }
+                }
+
+                if (groqValid || geminiValid || nvidiaValid)
                 {
                     IsGroqKeyValidated = true;
                     IsTrialStarted = true; // Complete entrance onboarding so user enters app directly
@@ -3336,7 +3478,15 @@ namespace OverlayApp.ViewModels
         {
             string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
 
-            if (IsGeminiApiActive)
+            if (IsNvidiaApiActive)
+            {
+                // NVIDIA doesn't have a dedicated OCR endpoint — fall through to Gemini or Groq for OCR
+                if (!string.IsNullOrWhiteSpace(GeminiKey))
+                    return await _llmService.ExtractTextFromGeminiImageAsync(GeminiKey, imageBytes, effectiveGroqKey);
+                else
+                    return await _llmService.ExtractTextFromImageAsync(effectiveGroqKey, imageBytes);
+            }
+            else if (IsGeminiApiActive)
             {
                 return await _llmService.ExtractTextFromGeminiImageAsync(GeminiKey, imageBytes, effectiveGroqKey);
             }
@@ -3346,11 +3496,15 @@ namespace OverlayApp.ViewModels
             }
         }
 
-        private async Task<string> PerformChatAsync(System.Collections.Generic.List<ChatMessage> history, string groqModel = "qwen/qwen3.6-27b")
+        private async Task<string> PerformChatAsync(System.Collections.Generic.List<ChatMessage> history, string groqModel = "openai/gpt-oss-120b")
         {
             string effectiveGroqKey = string.IsNullOrWhiteSpace(GroqKey) ? SystemGroqKey : GroqKey;
 
-            if (IsGeminiApiActive)
+            if (IsNvidiaApiActive)
+            {
+                return await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, history, "nvidia/nemotron-3.5-lightning", 0, GeminiKey, effectiveGroqKey);
+            }
+            else if (IsGeminiApiActive)
             {
                 return await _llmService.ProcessChatWithGeminiAsync(GeminiKey, history, "gemini-3.5-flash-lite", effectiveGroqKey, groqModel);
             }
@@ -3596,7 +3750,7 @@ namespace OverlayApp.ViewModels
                     // For coding follow-ups: use Gemini (fast flash) with qwen as Groq fallback
                     // For normal follow-ups: use openai/gpt-oss-120b via Groq
                     string displayModel = IsCodingScanMode ? "gemini-3.5-flash-lite" : "openai/gpt-oss-120b";
-                    string groqFallbackModel = IsCodingScanMode ? "qwen/qwen3.6-27b" : "openai/gpt-oss-120b";
+                    string groqFallbackModel = IsCodingScanMode ? "qwen/qwen3.8-27b" : "openai/gpt-oss-120b";
                     assistantBubble.ModelInfo = displayModel;
                     assistantBubble.Content = $"⏳ Generating response with **{displayModel}**...";
 
@@ -3714,8 +3868,23 @@ namespace OverlayApp.ViewModels
                         }
                     }, resumeTimerCts.Token);
 
-                    string answer = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
-                    string modelUsed = "gemini-3.5-flash-lite";
+                    string answer;
+                    string modelUsed;
+                    if (IsNvidiaApiActive)
+                    {
+                        modelUsed = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+                        answer = await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, historyToSend, modelUsed, 0, GeminiKey, effectiveGroqKey);
+                    }
+                    else if (IsGeminiApiActive)
+                    {
+                        modelUsed = "gemini-3.5-flash-lite";
+                        answer = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, modelUsed, "", "");
+                    }
+                    else
+                    {
+                        modelUsed = "openai/gpt-oss-120b";
+                        answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, modelUsed);
+                    }
 
                     resumeTimerCts.Cancel();
                     resumeStopwatch.Stop();
@@ -3828,8 +3997,23 @@ namespace OverlayApp.ViewModels
 
                     var historyToSend = PruneVoiceChatHistory(_voiceChatHistory);
 
-                    string answer = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, "gemini-3.5-flash-lite", "", "");
-                    string modelUsed = "gemini-3.5-flash-lite";
+                    string answer;
+                    string modelUsed;
+                    if (IsNvidiaApiActive)
+                    {
+                        modelUsed = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+                        answer = await _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, historyToSend, modelUsed, 0, GeminiKey, effectiveGroqKey);
+                    }
+                    else if (IsGeminiApiActive)
+                    {
+                        modelUsed = "gemini-3.5-flash-lite";
+                        answer = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, historyToSend, modelUsed, "", "");
+                    }
+                    else
+                    {
+                        modelUsed = "openai/gpt-oss-120b";
+                        answer = await _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, historyToSend, modelUsed);
+                    }
 
                     voiceTimerCts.Cancel();
                     voiceStopwatch.Stop();

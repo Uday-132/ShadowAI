@@ -17,7 +17,9 @@ namespace OverlayApp.Models
         [JsonInclude] public string NotesText = "Welcome to Productivity Overlay!\n\nQuick Checklist:\n[ ] Research task\n[ ] Design interface\n[x] Initialize repo\n\nTips:\n- Adjust opacity with the slider in settings.\n- Click the Pin icon to make the overlay Click-Through.\n- Press global hotkey Ctrl+Shift+C to exit Click-Through mode!";
         [JsonInclude] public bool IsFirstRun = true;
         [JsonInclude] public double FontSize = 12.0;
-        [JsonInclude] public string ActiveApiProvider = "Groq"; // "Groq" or "Gemini"
+        [JsonInclude] public string ActiveApiProvider = "Nvidia"; // "Nvidia", "Groq", or "Gemini"
+        [JsonInclude] public string NvidiaKey = "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";
+        [JsonInclude] public bool IsNvidiaKeyValidated = true;
         [JsonInclude] public string GroqKey = "";
         [JsonInclude] public bool IsGroqKeyValidated = false;
         [JsonInclude] public string GeminiKey = "";

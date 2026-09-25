@@ -54,7 +54,8 @@ namespace OverlayApp.Helpers
                 rawResponse.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase) ||
                 rawResponse.Contains("RESOURCE_EXHAUSTED", StringComparison.OrdinalIgnoreCase) ||
                 rawResponse.Contains("tokens per day", StringComparison.OrdinalIgnoreCase) ||
-                rawResponse.Contains("tokens per minute", StringComparison.OrdinalIgnoreCase))
+                rawResponse.Contains("tokens per minute", StringComparison.OrdinalIgnoreCase) ||
+                rawResponse.Contains("Rate limit", StringComparison.OrdinalIgnoreCase))
             {
                 info.IsRateLimit = true;
                 info.RequiresKeyCheck = true;
@@ -74,17 +75,8 @@ namespace OverlayApp.Helpers
                     }
                 }
 
-                string quotaDetail = "";
-                if (extractedMsg.Contains("tokens per day (TPD)", StringComparison.OrdinalIgnoreCase))
-                {
-                    quotaDetail = " Daily token quota (TPD) reached.";
-                }
-                else if (extractedMsg.Contains("tokens per minute (TPM)", StringComparison.OrdinalIgnoreCase))
-                {
-                    quotaDetail = " Per-minute token limit (TPM) reached.";
-                }
-
-                info.FriendlyMessage = $"⏳ Rate limit reached ({modelName}).{quotaDetail}{waitText} Upgrade to Dev Tier or switch API key in Settings.";
+                string detail = !string.IsNullOrWhiteSpace(extractedMsg) ? extractedMsg : "40 RPM / quota limit reached";
+                info.FriendlyMessage = $"⏳ [HTTP 429 Rate Limit] {provider} ({modelName}): {detail}.{waitText}";
                 return info;
             }
 
@@ -97,14 +89,16 @@ namespace OverlayApp.Helpers
                 rawResponse.Contains("PERMISSION_DENIED", StringComparison.OrdinalIgnoreCase))
             {
                 info.RequiresKeyCheck = true;
-                info.FriendlyMessage = $"🔑 Invalid or expired {provider} API key (HTTP {statusCode}). Please check or update your key in Settings.";
+                string detail = !string.IsNullOrWhiteSpace(extractedMsg) ? extractedMsg : "Invalid or expired key";
+                info.FriendlyMessage = $"🔑 [HTTP {statusCode} Auth Error] {provider} ({modelName}): {detail}. Please check your API key in Settings.";
                 return info;
             }
 
             // 4. Server Overload / Downtime (HTTP 500, 502, 503, 504)
             if (statusCode >= 500 && statusCode < 600)
             {
-                info.FriendlyMessage = $"☁️ {provider} server temporarily overloaded (HTTP {statusCode}). Please retry in a few moments.";
+                string detail = !string.IsNullOrWhiteSpace(extractedMsg) ? extractedMsg : "Server temporarily overloaded";
+                info.FriendlyMessage = $"☁️ [HTTP {statusCode} Server Busy] {provider} ({modelName}): {detail}.";
                 return info;
             }
 
@@ -114,25 +108,24 @@ namespace OverlayApp.Helpers
                 rawResponse.Contains("context length", StringComparison.OrdinalIgnoreCase) ||
                 rawResponse.Contains("maximum context length", StringComparison.OrdinalIgnoreCase))
             {
-                info.FriendlyMessage = $"📄 Input too large for {modelName}. Try capturing fewer screenshots or clearing previous conversation turns.";
+                info.FriendlyMessage = $"📄 [HTTP 413] Input too large for {modelName}. Try capturing fewer screenshots or clearing chat.";
                 return info;
             }
 
-            // 6. Generic Sanitized Message
+            // 6. Generic Sanitized Message with Status Code
             if (!string.IsNullOrWhiteSpace(extractedMsg))
             {
-                // Remove billing / promotional links and strip long technical IDs
                 string cleanMsg = Regex.Replace(extractedMsg, @"https?://\S+", "").Trim();
                 cleanMsg = Regex.Replace(cleanMsg, @"in organization `[^`]+`", "").Trim();
                 cleanMsg = Regex.Replace(cleanMsg, @"service tier `[^`]+`", "").Trim();
                 cleanMsg = cleanMsg.Replace("  ", " ");
 
-                if (cleanMsg.Length > 140) cleanMsg = cleanMsg.Substring(0, 137) + "...";
-                info.FriendlyMessage = $"⚠️ {provider} Error: {cleanMsg}";
+                if (cleanMsg.Length > 160) cleanMsg = cleanMsg.Substring(0, 157) + "...";
+                info.FriendlyMessage = $"⚠️ [HTTP {statusCode}] {provider} ({modelName}) Error: {cleanMsg}";
                 return info;
             }
 
-            info.FriendlyMessage = $"⚠️ {provider} API returned HTTP {statusCode}. Please verify your network and API keys.";
+            info.FriendlyMessage = $"⚠️ [HTTP {statusCode}] {provider} ({modelName}) API request failed. Raw: {rawResponse.Trim()}";
             return info;
         }
 
@@ -154,9 +147,22 @@ namespace OverlayApp.Helpers
                         return errProp.GetString() ?? "";
                     }
                 }
+                if (root.TryGetProperty("detail", out var detailProp))
+                {
+                    return detailProp.GetString() ?? "";
+                }
                 if (root.TryGetProperty("message", out var directMsg))
                 {
                     return directMsg.GetString() ?? "";
+                }
+                if (root.TryGetProperty("title", out var titleProp))
+                {
+                    string title = titleProp.GetString() ?? "";
+                    if (root.TryGetProperty("detail", out var dProp))
+                    {
+                        return $"{title}: {dProp.GetString()}";
+                    }
+                    return title;
                 }
             }
             catch {}
@@ -172,8 +178,8 @@ namespace OverlayApp.Helpers
             string t = text.Trim();
             return t.StartsWith("⚠️") || 
                    t.StartsWith("❌") || 
-                   t.StartsWith("⏳ Rate limit") || 
-                   t.StartsWith("🔑 Invalid") ||
+                   t.StartsWith("⏳") || 
+                   t.StartsWith("🔑") ||
                    t.StartsWith("☁️") ||
                    t.StartsWith("Groq API Error", StringComparison.OrdinalIgnoreCase) ||
                    t.StartsWith("Gemini API Error", StringComparison.OrdinalIgnoreCase) ||

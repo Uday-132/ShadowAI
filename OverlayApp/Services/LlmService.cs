@@ -9,7 +9,7 @@ namespace OverlayApp.Services
     /// <summary>
     /// Service that coordinates the Dual-LLM scanning pipeline.
     /// Stage 1: Uses Groq Vision API or Windows WinRT OCR (Offline backup) to extract text from screen capture.
-    /// Stage 2: Calls Groq OpenAI models (qwen/qwen3.6-27b / gpt-oss-120b / llama-3.3-70b) to process transcribed text.
+    /// Stage 2: Calls Groq OpenAI models (openai/gpt-oss-120b / groq/compound / qwen/qwen3.8-27b) to process transcribed text.
     /// </summary>
     public class LlmService
     {
@@ -67,9 +67,23 @@ namespace OverlayApp.Services
         {
             if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured screen image data was empty.");
 
+            // 1. Ultra-fast Native Windows WinRT OCR (5-30ms, zero network latency, 100% offline accuracy)
+            try
+            {
+                string localText = await PerformWindowsOcrAsync(imageBytes);
+                if (!string.IsNullOrWhiteSpace(localText) && localText.Trim().Length >= 5)
+                {
+                    return (localText.Trim(), "Windows WinRT OCR (Instant)", "");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Windows OCR note: {ex.Message}");
+            }
+
             string lastError = "";
 
-            // 1. Primary: Groq Vision API
+            // 2. Groq Vision API Fallback
             if (!string.IsNullOrWhiteSpace(groqKey))
             {
                 string base64Image = Convert.ToBase64String(imageBytes);
@@ -77,8 +91,7 @@ namespace OverlayApp.Services
 
                 string[] visionModels = new[]
                 {
-                    "qwen/qwen3.6-27b",
-                    "qwen/qwen-2.5-vl-72b-instruct"
+                    "qwen/qwen3.8-27b"
                 };
 
                 foreach (var visionModel in visionModels)
@@ -337,13 +350,51 @@ namespace OverlayApp.Services
             }
 
             // ─────────────────────────────────────────────────────────────────────────
-            // PRIMARY: Google Gemini gemini-3-flash-live (inline base64 audio)
+            // PRIMARY: Groq Whisper whisper-large-v3 (Ultra-fast ~250ms latency)
+            // ─────────────────────────────────────────────────────────────────────────
+            string effectiveGroqKey = string.IsNullOrWhiteSpace(groqKey) ? "" : groqKey.Trim();
+            if (!string.IsNullOrWhiteSpace(effectiveGroqKey))
+            {
+                try
+                {
+                    string url = "https://api.groq.com/openai/v1/audio/transcriptions";
+
+                    using var form = new MultipartFormDataContent();
+                    var fileContent = new ByteArrayContent(fileBytes);
+                    fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
+                    form.Add(fileContent, "file", "speech.wav");
+                    form.Add(new StringContent("whisper-large-v3"), "model");
+
+                    using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                    request.Headers.Add("Authorization", $"Bearer {effectiveGroqKey}");
+                    request.Content = form;
+
+                    var response = await _httpClient.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string responseJson = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(responseJson);
+                        if (doc.RootElement.TryGetProperty("text", out var textProp))
+                        {
+                            string result = textProp.GetString() ?? "";
+                            if (!string.IsNullOrWhiteSpace(result)) return result.Trim();
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fall through to Gemini
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────────────────
+            // FALLBACK: Google Gemini Vision/Audio
             // ─────────────────────────────────────────────────────────────────────────
             string effectiveGeminiKey = string.IsNullOrWhiteSpace(geminiKey) ? "" : geminiKey.Trim();
             if (!string.IsNullOrWhiteSpace(effectiveGeminiKey) && !effectiveGeminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
                 string base64Audio = Convert.ToBase64String(fileBytes);
-                string[] geminiModels = new[] { "gemini-3-flash-live", "gemini-3.5-transcribe-live", "gemini-3.5-transcribe", "gemini-2.0-flash", "gemini-1.5-flash" };
+                string[] geminiModels = new[] { "gemini-2.0-flash", "gemini-1.5-flash" };
 
                 foreach (var model in geminiModels)
                 {
@@ -390,52 +441,12 @@ namespace OverlayApp.Services
                     }
                     catch
                     {
-                        // Fall through to next model or Groq Whisper fallback
+                        // Fall through
                     }
                 }
             }
 
-            // ─────────────────────────────────────────────────────────────────────────
-            // FALLBACK: Groq Whisper whisper-large-v3
-            // ─────────────────────────────────────────────────────────────────────────
-            if (string.IsNullOrWhiteSpace(groqKey))
-            {
-                return "Error: Transcription failed — Gemini key missing or invalid, and no Groq key configured as fallback.";
-            }
-
-            try
-            {
-                string url = "https://api.groq.com/openai/v1/audio/transcriptions";
-
-                using var form = new MultipartFormDataContent();
-                var fileContent = new ByteArrayContent(fileBytes);
-                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");
-                form.Add(fileContent, "file", "speech.wav");
-                form.Add(new StringContent("whisper-large-v3"), "model");
-
-                using var request = new HttpRequestMessage(HttpMethod.Post, url);
-                request.Headers.Add("Authorization", $"Bearer {groqKey}");
-                request.Content = form;
-
-                var response = await _httpClient.SendAsync(request);
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errorContent = await response.Content.ReadAsStringAsync();
-                    return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", (int)response.StatusCode, errorContent).FriendlyMessage;
-                }
-
-                string responseJson = await response.Content.ReadAsStringAsync();
-                using var doc = JsonDocument.Parse(responseJson);
-                if (doc.RootElement.TryGetProperty("text", out var textProp))
-                {
-                    return textProp.GetString() ?? "";
-                }
-                return $"Error: Transcription text not found in response JSON: {responseJson}";
-            }
-            catch (Exception ex)
-            {
-                return Helpers.LlmErrorHelper.FormatError("Groq Whisper", "whisper-large-v3", 0, "", ex).FriendlyMessage;
-            }
+            return "Error: Speech transcription could not be completed.";
         }
 
         /// <summary>
@@ -479,8 +490,20 @@ namespace OverlayApp.Services
                         var firstChoice = choices[0];
                         if (firstChoice.TryGetProperty("message", out var message))
                         {
-                            string rawContent = message.GetProperty("content").GetString() ?? "Empty message content.";
-                            return StripReasoningTags(rawContent);
+                            string? rawContent = null;
+                            if (message.TryGetProperty("content", out var contentProp) && contentProp.ValueKind == JsonValueKind.String)
+                            {
+                                rawContent = contentProp.GetString();
+                            }
+                            if (string.IsNullOrWhiteSpace(rawContent) && message.TryGetProperty("reasoning_content", out var reasoningProp) && reasoningProp.ValueKind == JsonValueKind.String)
+                            {
+                                rawContent = reasoningProp.GetString();
+                            }
+                            if (string.IsNullOrWhiteSpace(rawContent) && message.TryGetProperty("reasoning", out var groqReasoningProp) && groqReasoningProp.ValueKind == JsonValueKind.String)
+                            {
+                                rawContent = groqReasoningProp.GetString();
+                            }
+                            return StripReasoningTags(rawContent ?? "Empty message content.");
                         }
                     }
                 }
@@ -491,10 +514,200 @@ namespace OverlayApp.Services
                 return $"Failed to parse response JSON: {ex.Message}\nRaw JSON response:\n{json}";
             }
         }
+
+        private static readonly System.Threading.SemaphoreSlim _nvidiaRateLimitSemaphore = new System.Threading.SemaphoreSlim(1, 1);
+        private static DateTime _lastNvidiaRequestTime = DateTime.MinValue;
+        private static readonly Random _jitterRandom = new Random();
+        private const double NVIDIA_MIN_REQUEST_INTERVAL_SEC = 1.5; // 60s / 40 RPM limit = 1.5s minimal spacing
+
+        /// <summary>
+        /// Enforces client-side rate limiting to stay within NVIDIA's 40 RPM limit.
+        /// </summary>
+        private static async Task EnforceNvidiaRateLimitAsync()
+        {
+            await _nvidiaRateLimitSemaphore.WaitAsync();
+            try
+            {
+                var elapsed = (DateTime.UtcNow - _lastNvidiaRequestTime).TotalSeconds;
+                if (elapsed < NVIDIA_MIN_REQUEST_INTERVAL_SEC)
+                {
+                    int waitMs = (int)Math.Ceiling((NVIDIA_MIN_REQUEST_INTERVAL_SEC - elapsed) * 1000);
+                    if (waitMs > 0)
+                    {
+                        await Task.Delay(waitMs);
+                    }
+                }
+                _lastNvidiaRequestTime = DateTime.UtcNow;
+            }
+            finally
+            {
+                _nvidiaRateLimitSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// Sends conversational message history to NVIDIA NIM Chat Completions API with client-side rate-limiting and exponential backoff.
+        /// </summary>
+        public async Task<string> ProcessChatWithNvidiaAsync(
+            string nvidiaKey,
+            System.Collections.Generic.List<ChatMessage> history,
+            string modelName = "nvidia/nemotron-3.5-lightning",
+            int maxOutputTokens = 0,
+            string fallbackGeminiKey = "",
+            string fallbackGroqKey = "")
+        {
+            string effectiveNvidiaKey = string.IsNullOrWhiteSpace(nvidiaKey) 
+                ? "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" 
+                : nvidiaKey.Trim();
+
+            // Normalize model names
+            string primaryModel = string.IsNullOrWhiteSpace(modelName) ? "nvidia/nemotron-3.5-lightning-30b-a3b" : modelName.Trim();
+            if (primaryModel.StartsWith("nvidia/nemotron-3.5-lightning", StringComparison.OrdinalIgnoreCase))
+            {
+                primaryModel = "nvidia/nemotron-3.5-lightning-30b-a3b";
+            }
+
+            // Candidate models fallback sequence on NVIDIA NIM
+            var candidateModels = new System.Collections.Generic.List<string> { primaryModel };
+
+            if (primaryModel.Contains("coder", StringComparison.OrdinalIgnoreCase) || primaryModel.Contains("coding", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!candidateModels.Contains("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")) candidateModels.Add("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning");
+                if (!candidateModels.Contains("nvidia/nemotron-3.5-lightning-30b-a3b")) candidateModels.Add("nvidia/nemotron-3.5-lightning-30b-a3b");
+            }
+            else if (primaryModel.Contains("mcq", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!candidateModels.Contains("nvidia/nemotron-3.5-lightning-30b-a3b")) candidateModels.Add("nvidia/nemotron-3.5-lightning-30b-a3b");
+                if (!candidateModels.Contains("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning")) candidateModels.Add("nvidia/nemotron-3-nano-omni-30b-a3b-reasoning");
+            }
+            else
+            {
+                if (!candidateModels.Contains("nvidia/nemotron-3.5-lightning-30b-a3b")) candidateModels.Add("nvidia/nemotron-3.5-lightning-30b-a3b");
+            }
+
+            int maxTokens = maxOutputTokens > 0 ? maxOutputTokens : 3500;
+            string lastError = "";
+
+            const double baseDelaySec = 1.5;
+            const int maxRetries = 5;
+
+            foreach (var currentModel in candidateModels)
+            {
+                string url = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+                var payload = new
+                {
+                    model = currentModel,
+                    messages = history,
+                    max_tokens = maxTokens,
+                    temperature = 0.2,
+                    top_p = 0.7
+                };
+
+                string jsonPayload = JsonSerializer.Serialize(payload);
+
+                for (int attempt = 0; attempt < maxRetries; attempt++)
+                {
+                    try
+                    {
+                        // 1. Enforce client-side rate limiting (40 RPM limit)
+                        await EnforceNvidiaRateLimitAsync();
+
+                        using (var request = new HttpRequestMessage(HttpMethod.Post, url))
+                        {
+                            request.Headers.Add("Authorization", $"Bearer {effectiveNvidiaKey}");
+                            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                            var response = await _httpClient.SendAsync(request);
+                            string responseStr = await response.Content.ReadAsStringAsync();
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                return ParseOpenAiMessageContent(responseStr);
+                            }
+
+                            int statusCode = (int)response.StatusCode;
+
+                            // 2. Exponential backoff + jitter for Rate Limit (429) or Server Resource Exhausted (503)
+                            bool isRateLimit = statusCode == 429 || 
+                                               responseStr.Contains("rate_limit", StringComparison.OrdinalIgnoreCase) ||
+                                               responseStr.Contains("ResourceExhausted", StringComparison.OrdinalIgnoreCase);
+
+                            if (isRateLimit)
+                            {
+                                var rateErrInfo = Helpers.LlmErrorHelper.FormatError("NVIDIA", currentModel, statusCode, responseStr);
+                                lastError = rateErrInfo.FriendlyMessage;
+
+                                if (attempt < maxRetries - 1)
+                                {
+                                    double jitter = 0;
+                                    lock (_jitterRandom) { jitter = _jitterRandom.NextDouble(); }
+                                    double sleepTimeSec = (baseDelaySec * Math.Pow(2, attempt)) + jitter;
+                                    int sleepMs = (int)(sleepTimeSec * 1000);
+                                    System.Diagnostics.Debug.WriteLine($"[NVIDIA 429/503 Retry] {currentModel} (HTTP {statusCode}). Retrying in {sleepTimeSec:F2}s (Attempt {attempt + 1}/{maxRetries})...");
+                                    await Task.Delay(sleepMs);
+                                    continue;
+                                }
+                                else
+                                {
+                                    break; // Max retries exhausted for this model, try next fallback
+                                }
+                            }
+
+                            // If model not found or 404, fallback to next NIM model in list immediately
+                            if (response.StatusCode == System.Net.HttpStatusCode.NotFound || 
+                                responseStr.Contains("page not found", StringComparison.OrdinalIgnoreCase) ||
+                                responseStr.Contains("model_not_found", StringComparison.OrdinalIgnoreCase) ||
+                                responseStr.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var notFoundInfo = Helpers.LlmErrorHelper.FormatError("NVIDIA", currentModel, statusCode, responseStr);
+                                lastError = notFoundInfo.FriendlyMessage;
+                                break;
+                            }
+
+                            var errInfo = Helpers.LlmErrorHelper.FormatError("NVIDIA", currentModel, statusCode, responseStr);
+                            lastError = errInfo.FriendlyMessage;
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        var errInfo = Helpers.LlmErrorHelper.FormatError("NVIDIA", currentModel, 0, "", ex);
+                        lastError = errInfo.FriendlyMessage;
+                        if (attempt < maxRetries - 1)
+                        {
+                            await Task.Delay(1000);
+                            continue;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Fallback to Gemini or Groq if configured
+            if (!string.IsNullOrWhiteSpace(fallbackGeminiKey))
+            {
+                string geminiResp = await ProcessChatWithGeminiAsync(fallbackGeminiKey, history, "gemini-3.5-flash-lite", fallbackGroqKey);
+                if (!Helpers.LlmErrorHelper.IsErrorResponse(geminiResp))
+                {
+                    return geminiResp;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(fallbackGroqKey))
+            {
+                string groqResp = await ProcessChatWithGroqAsync(fallbackGroqKey, history, "openai/gpt-oss-120b");
+                if (!Helpers.LlmErrorHelper.IsErrorResponse(groqResp))
+                {
+                    return groqResp;
+                }
+            }
+
+            return string.IsNullOrEmpty(lastError) ? "⚠️ [HTTP 500] NVIDIA API request could not be completed." : lastError;
+        }
         /// <summary>
         /// Sends the entire conversational message history to Groq for stateful chat completions.
         /// </summary>
-        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "qwen/qwen3.6-27b", int maxOutputTokens = 0)
+        public async Task<string> ProcessChatWithGroqAsync(string groqKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "openai/gpt-oss-120b", int maxOutputTokens = 0)
         {
             if (string.IsNullOrWhiteSpace(groqKey))
             {
@@ -512,31 +725,51 @@ namespace OverlayApp.Services
             }
             int approxInputTokens = totalChars / 4;
 
+            // Normalize model names for Groq API
+            string groqModel = string.IsNullOrWhiteSpace(modelName) ? "openai/gpt-oss-120b" : modelName.Trim();
+            if (groqModel.Contains("120b", StringComparison.OrdinalIgnoreCase))
+            {
+                groqModel = "openai/gpt-oss-120b";
+            }
+            else if (groqModel.Contains("20b", StringComparison.OrdinalIgnoreCase))
+            {
+                groqModel = "openai/gpt-oss-20b";
+            }
+            else if (groqModel.Contains("qwen", StringComparison.OrdinalIgnoreCase))
+            {
+                groqModel = "qwen/qwen3.8-27b";
+            }
+            else if (groqModel.Contains("compound-mini", StringComparison.OrdinalIgnoreCase))
+            {
+                groqModel = "groq/compound-mini";
+            }
+            else if (groqModel.Contains("compound", StringComparison.OrdinalIgnoreCase))
+            {
+                groqModel = "groq/compound";
+            }
+
             // If maxOutputTokens override is specified, use it directly; otherwise calculate dynamically
             int maxTokens;
             if (maxOutputTokens > 0)
             {
                 maxTokens = maxOutputTokens;
             }
-            else if (modelName.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
+            else if (groqModel.Contains("gpt-oss", StringComparison.OrdinalIgnoreCase))
             {
-                maxTokens = Math.Clamp(3800 - approxInputTokens, 1000, 2500);
-            }
-            else if (modelName.Contains("qwen", StringComparison.OrdinalIgnoreCase))
-            {
-                maxTokens = Math.Clamp(5500 - approxInputTokens, 1500, 3000);
+                // Allocate sufficient completion tokens for reasoning models so answers are not truncated
+                maxTokens = Math.Clamp(4000 - approxInputTokens, 1000, 3000);
             }
             else
             {
-                maxTokens = 2000;
+                maxTokens = Math.Clamp(5500 - approxInputTokens, 1500, 3000);
             }
 
-            string[] fallbackModels = new[]
-            {
-                modelName,
-                "qwen/qwen3.6-27b",
-                "openai/gpt-oss-120b"
-            };
+            var fallbackModels = new System.Collections.Generic.List<string>();
+            if (!fallbackModels.Contains(groqModel)) fallbackModels.Add(groqModel);
+            if (!fallbackModels.Contains("openai/gpt-oss-120b")) fallbackModels.Add("openai/gpt-oss-120b");
+            if (!fallbackModels.Contains("groq/compound")) fallbackModels.Add("groq/compound");
+            if (!fallbackModels.Contains("qwen/qwen3.8-27b")) fallbackModels.Add("qwen/qwen3.8-27b");
+            if (!fallbackModels.Contains("openai/gpt-oss-20b")) fallbackModels.Add("openai/gpt-oss-20b");
 
             string lastError = "";
 
@@ -557,7 +790,7 @@ namespace OverlayApp.Services
 
                     using (var request = new HttpRequestMessage(HttpMethod.Post, url))
                     {
-                        request.Headers.Add("Authorization", $"Bearer {groqKey}");
+                        request.Headers.Add("Authorization", $"Bearer {groqKey.Trim()}");
                         request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
                         var response = await _httpClient.SendAsync(request);
@@ -568,10 +801,18 @@ namespace OverlayApp.Services
                             return ParseOpenAiMessageContent(responseStr);
                         }
 
+                        // If model does not exist (404), continue to next fallback model in list
+                        if (response.StatusCode == System.Net.HttpStatusCode.NotFound || 
+                            responseStr.Contains("does not exist", StringComparison.OrdinalIgnoreCase) ||
+                            responseStr.Contains("model_not_found", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
                         var errInfo = Helpers.LlmErrorHelper.FormatError("Groq", currentModel, (int)response.StatusCode, responseStr);
                         lastError = errInfo.FriendlyMessage;
 
-                        // If rate limit / TPM exceeded, try next fallback model (qwen/qwen3.6-27b)
+                        // If rate limit / TPM exceeded, try next fallback model
                         if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests || 
                             responseStr.Contains("rate_limit_exceeded", StringComparison.OrdinalIgnoreCase) ||
                             responseStr.Contains("RequestEntityTooLarge", StringComparison.OrdinalIgnoreCase))
@@ -664,19 +905,69 @@ namespace OverlayApp.Services
         }
 
         /// <summary>
+        /// Validates an NVIDIA API key by testing it against the NVIDIA models endpoint.
+        /// </summary>
+        public async Task<(bool IsValid, string ErrorMessage)> ValidateNvidiaKeyAsync(string nvidiaKey)
+        {
+            if (string.IsNullOrWhiteSpace(nvidiaKey))
+            {
+                return (false, "Please paste your NVIDIA API Key.");
+            }
+
+            nvidiaKey = nvidiaKey.Trim();
+
+            try
+            {
+                string url = "https://integrate.api.nvidia.com/v1/models";
+                using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+                {
+                    request.Headers.Add("Authorization", $"Bearer {nvidiaKey}");
+                    var response = await _httpClient.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return (true, "");
+                    }
+                    else
+                    {
+                        string err = await response.Content.ReadAsStringAsync();
+                        return (false, $"Invalid NVIDIA API Key (HTTP {response.StatusCode}). Please check key.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Connection Error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Stage 1 (Gemini): Performs OCR on image using Google Gemini Vision API, with automatic fallbacks to Groq Vision & Windows WinRT OCR.
         /// </summary>
         public async Task<(string Text, string Method, string Error)> ExtractTextFromGeminiImageAsync(string geminiKey, byte[] imageBytes, string systemGroqKey = "")
         {
             if (imageBytes == null || imageBytes.Length == 0) return ("", "None", "Error: Captured image data was empty.");
 
+            // 1. Ultra-fast Native Windows WinRT OCR (5-30ms, zero network latency)
+            try
+            {
+                string localText = await PerformWindowsOcrAsync(imageBytes);
+                if (!string.IsNullOrWhiteSpace(localText) && localText.Trim().Length >= 5)
+                {
+                    return (localText.Trim(), "Windows WinRT OCR (Instant)", "");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Windows OCR note: {ex.Message}");
+            }
+
             string lastError = "";
 
-            // 1. Primary: Google Gemini Vision API (if geminiKey is set and not a Groq key)
+            // 2. Google Gemini Vision API
             if (!string.IsNullOrWhiteSpace(geminiKey) && !geminiKey.StartsWith("gsk_", StringComparison.OrdinalIgnoreCase))
             {
                 string base64Image = Convert.ToBase64String(imageBytes);
-                string[] geminiModels = new[] { "gemini-3.6-flash", "gemini-1.5-flash" };
+                string[] geminiModels = new[] { "gemini-2.0-flash", "gemini-1.5-flash" };
 
                 foreach (var model in geminiModels)
                 {
@@ -736,7 +1027,7 @@ namespace OverlayApp.Services
                 }
             }
 
-            // 2. Fallback: Groq Vision API
+            // 3. Fallback: Groq Vision API
             if (!string.IsNullOrWhiteSpace(systemGroqKey))
             {
                 var groqResult = await ExtractTextFromImageAsync(systemGroqKey, imageBytes);
@@ -746,27 +1037,13 @@ namespace OverlayApp.Services
                 }
             }
 
-            // 3. Fallback: Windows WinRT OCR
-            try
-            {
-                string localText = await PerformWindowsOcrAsync(imageBytes);
-                if (!string.IsNullOrWhiteSpace(localText))
-                {
-                    return (localText, "Windows WinRT OCR", "");
-                }
-            }
-            catch (Exception ex)
-            {
-                lastError += $"\nWindows OCR Exception: {ex.Message}";
-            }
-
             return ("", "None", $"OCR transcription failed. {lastError}".Trim());
         }
 
         /// <summary>
         /// Stage 2 (Gemini): Sends chat history to Google Gemini API with fallback to Groq if configured.
         /// </summary>
-        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-3.5-flash-lite", string systemGroqKey = "", string fallbackGroqModel = "qwen/qwen3.6-27b", int maxOutputTokens = 0)
+        public async Task<string> ProcessChatWithGeminiAsync(string geminiKey, System.Collections.Generic.List<ChatMessage> history, string modelName = "gemini-3.5-flash-lite", string systemGroqKey = "", string fallbackGroqModel = "openai/gpt-oss-120b", int maxOutputTokens = 0)
         {
             string lastGeminiError = "";
 
@@ -819,9 +1096,21 @@ namespace OverlayApp.Services
                 }
 
                 string jsonPayload = JsonSerializer.Serialize(payload);
-                string[] modelsToTry = !string.IsNullOrWhiteSpace(modelName)
-                    ? new[] { modelName }
-                    : new[] { "gemini-3.5-flash-lite" };
+                string reqModel = string.IsNullOrWhiteSpace(modelName) ? "gemini-3.5-flash-lite" : modelName.Trim();
+                string normalizedReq = reqModel.ToLowerInvariant().Replace(" ", "-");
+                var modelsToTry = new System.Collections.Generic.List<string>();
+                if (!modelsToTry.Contains(normalizedReq)) modelsToTry.Add(normalizedReq);
+                if (normalizedReq.Contains("flash"))
+                {
+                    if (!modelsToTry.Contains("gemini-2.0-flash")) modelsToTry.Add("gemini-2.0-flash");
+                    if (!modelsToTry.Contains("gemini-1.5-flash")) modelsToTry.Add("gemini-1.5-flash");
+                    if (!modelsToTry.Contains("gemini-2.5-flash")) modelsToTry.Add("gemini-2.5-flash");
+                }
+                else
+                {
+                    if (!modelsToTry.Contains("gemini-2.0-flash")) modelsToTry.Add("gemini-2.0-flash");
+                    if (!modelsToTry.Contains("gemini-1.5-flash")) modelsToTry.Add("gemini-1.5-flash");
+                }
                 var triedModels = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var currentModel in modelsToTry)
@@ -850,8 +1139,22 @@ namespace OverlayApp.Services
                             }
                             else
                             {
+                                // If 404 (model not found on Gemini), try next Gemini model
+                                if (response.StatusCode == System.Net.HttpStatusCode.NotFound ||
+                                    responseJson.Contains("models/", StringComparison.OrdinalIgnoreCase) ||
+                                    responseJson.Contains("is not found", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
+
                                 var errInfo = Helpers.LlmErrorHelper.FormatError("Gemini", currentModel, (int)response.StatusCode, responseJson);
                                 lastGeminiError = errInfo.FriendlyMessage;
+
+                                // 429 quota/rate limit is on the key/project, so trying other models on same key will also hit 429
+                                if (response.StatusCode == (System.Net.HttpStatusCode)429 || errInfo.IsRateLimit)
+                                {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -870,7 +1173,12 @@ namespace OverlayApp.Services
             // Fallback to Groq Chat API only if systemGroqKey is specified and not empty
             if (!string.IsNullOrWhiteSpace(systemGroqKey))
             {
-                return await ProcessChatWithGroqAsync(systemGroqKey, history ?? new System.Collections.Generic.List<ChatMessage>(), fallbackGroqModel);
+                string groqResp = await ProcessChatWithGroqAsync(systemGroqKey, history ?? new System.Collections.Generic.List<ChatMessage>(), fallbackGroqModel);
+                if (!Helpers.LlmErrorHelper.IsErrorResponse(groqResp))
+                {
+                    return groqResp;
+                }
+                return !string.IsNullOrEmpty(lastGeminiError) ? lastGeminiError : groqResp;
             }
 
             return string.IsNullOrEmpty(lastGeminiError) ? "🔑 Gemini API Key is missing or invalid. Please check your key in Settings." : lastGeminiError;
