@@ -18,3 +18,6 @@ obj/
 # Node.js
 node_modules/
 Website/node_modules/
+
+# Scratch test scripts
+scratch/
