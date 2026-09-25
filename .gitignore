@@ -19,5 +19,6 @@ obj/
 node_modules/
 Website/node_modules/
 
-# Scratch test scripts
+# Scratch & Temporary Testing Scripts
 scratch/
+*.log
