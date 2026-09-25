@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -38,72 +39,73 @@ namespace OverlayInstaller
 
             try
             {
-                // Step 1: Find all embedded app files
+                // Step 1: Find embedded zip payload
                 UpdateProgress("Checking installation assets...", 10);
-                await Task.Delay(300);
+                await Task.Delay(200);
 
                 var assembly = Assembly.GetExecutingAssembly();
-                // All embedded resources under the "AppFiles\" prefix
-                var resources = assembly.GetManifestResourceNames()
-                    .Where(n => n.Contains("AppFiles"))
-                    .ToList();
-
-                if (resources.Count == 0)
-                    throw new FileNotFoundException("Application assets not found inside installer package.");
+                string zipResource = assembly.GetManifestResourceNames()
+                    .FirstOrDefault(n => n.EndsWith("AppFiles.zip", StringComparison.OrdinalIgnoreCase))
+                    ?? throw new FileNotFoundException("Application payload (AppFiles.zip) not found inside installer package.");
 
                 // Step 2: Establish target folder
                 UpdateProgress("Creating installation folder...", 20);
-                await Task.Delay(300);
+                await Task.Delay(200);
 
                 string appDataLocal = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 string installFolder = Path.Combine(appDataLocal, "SystemCore");
                 Directory.CreateDirectory(installFolder);
 
                 string targetExePath = Path.Combine(installFolder, "SystemCoreHost.exe");
+                if (!File.Exists(targetExePath))
+                {
+                    string altExe = Path.Combine(installFolder, "SystemCore.exe");
+                    if (File.Exists(altExe)) targetExePath = altExe;
+                }
 
                 // Step 2b: Kill any running instance of the app before overwriting
-                UpdateProgress("Stopping running instance...", 25);
+                UpdateProgress("Stopping running instances...", 25);
                 await Task.Delay(200);
                 try
                 {
-                    foreach (var proc in System.Diagnostics.Process.GetProcessesByName("SystemCoreHost"))
+                    foreach (var procName in new[] { "SystemCoreHost", "SystemCore" })
                     {
-                        proc.Kill();
-                        await Task.Run(() => proc.WaitForExit(5000));
+                        foreach (var proc in System.Diagnostics.Process.GetProcessesByName(procName))
+                        {
+                            proc.Kill();
+                            await Task.Run(() => proc.WaitForExit(3000));
+                        }
                     }
-                    // Brief wait to ensure file handle is fully released
-                    await Task.Delay(800);
+                    await Task.Delay(500);
                 }
-                catch { /* ignore — process may have already exited */ }
+                catch { /* ignore */ }
 
-                // Step 3: Extract all embedded files
-                int total = resources.Count;
-                for (int i = 0; i < total; i++)
+                // Step 3: Extract zip archive
+                using (Stream? zipStream = assembly.GetManifestResourceStream(zipResource))
                 {
-                    string resourceName = resources[i];
+                    if (zipStream == null) throw new InvalidOperationException("Could not read embedded installer payload.");
+                    using var archive = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Read);
+                    int total = archive.Entries.Count;
+                    for (int i = 0; i < total; i++)
+                    {
+                        var entry = archive.Entries[i];
+                        if (string.IsNullOrEmpty(entry.Name)) continue; // skip directory entries
 
-                    // Derive the output filename from the resource name
-                    // Resource name format: "OverlayInstaller.AppFiles.FileName.ext"
-                    // Extract everything after "AppFiles."
-                    int appFilesIdx = resourceName.IndexOf("AppFiles.", StringComparison.OrdinalIgnoreCase);
-                    string fileName = appFilesIdx >= 0
-                        ? resourceName.Substring(appFilesIdx + "AppFiles.".Length)
-                        : Path.GetFileName(resourceName);
+                        string destPath = Path.Combine(installFolder, entry.FullName);
+                        string? destDir = Path.GetDirectoryName(destPath);
+                        if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
 
-                    // Fix dotted names like "SystemCoreHost.deps.json" — the last two parts are extension
-                    // Resource names replace path separators with dots, so restore known filenames
-                    fileName = RestoreFileName(fileName);
-
-                    string targetPath = Path.Combine(installFolder, fileName);
-
-                    double pct = 20 + (i + 1) * 50.0 / total;
-                    UpdateProgress($"Extracting {fileName}...", pct);
-
-                    using Stream? input = assembly.GetManifestResourceStream(resourceName);
-                    if (input == null) throw new InvalidOperationException($"Could not open embedded stream for {fileName}.");
-                    using FileStream output = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
-                    await input.CopyToAsync(output);
+                        entry.ExtractToFile(destPath, overwrite: true);
+                        double pct = 25 + (i + 1) * 50.0 / total;
+                        UpdateProgress($"Extracting {entry.Name}...", pct);
+                    }
                 }
+
+                // Determine final executable path
+                if (File.Exists(Path.Combine(installFolder, "SystemCore.exe")))
+                    targetExePath = Path.Combine(installFolder, "SystemCore.exe");
+                else if (File.Exists(Path.Combine(installFolder, "SystemCoreHost.exe")))
+                    targetExePath = Path.Combine(installFolder, "SystemCoreHost.exe");
 
                 // Step 4: Create shortcuts
                 UpdateProgress("Creating desktop shortcut...", 75);
