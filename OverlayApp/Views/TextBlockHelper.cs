@@ -50,18 +50,28 @@ namespace OverlayApp.Views
                     if (line.TrimStart().StartsWith("```"))
                     {
                         inCodeBlock = !inCodeBlock;
-                        if (!addNewline) continue;
-                        textBlock.Inlines.Add(new Run("\n"));
                         continue;
                     }
 
                     if (inCodeBlock)
                     {
-                        var codeRun = new Run((addNewline ? line + "\n" : line))
+                        // Preserve indentation with non-breaking spaces so WPF layout never collapses leading spaces
+                        string formattedLine = line.Replace("\t", "    ");
+                        int leadingSpacesCount = 0;
+                        while (leadingSpacesCount < formattedLine.Length && formattedLine[leadingSpacesCount] == ' ')
+                        {
+                            leadingSpacesCount++;
+                        }
+                        if (leadingSpacesCount > 0)
+                        {
+                            formattedLine = new string('\u00A0', leadingSpacesCount) + formattedLine.Substring(leadingSpacesCount);
+                        }
+
+                        var codeRun = new Run((addNewline ? formattedLine + "\n" : formattedLine))
                         {
                             Foreground  = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFCC80")), // Amber
                             FontFamily  = new FontFamily("Consolas, Courier New"),
-                            FontSize    = 10
+                            FontSize    = Math.Max(11, textBlock.FontSize)
                         };
                         textBlock.Inlines.Add(codeRun);
                         continue;

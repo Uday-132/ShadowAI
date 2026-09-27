@@ -1873,7 +1873,21 @@ namespace OverlayApp.ViewModels
                     {
                         string targetLang = string.IsNullOrWhiteSpace(ProgrammingLanguage) ? "Python" : ProgrammingLanguage;
 
-                        string systemPrompt = $"You are a strict expert {targetLang} code generator. Solve the programming challenge described across all captured screenshots. Output ONLY the complete, working source code in {targetLang}. All explanatory text, section descriptions, or non-code content MUST be written as inline code comments (e.g. // comment in JS/Java/C++, # comment in Python/CSS, -- comment in SQL/PL-SQL). Do NOT include any standalone text lines outside of code. Do NOT use markdown code block backticks (```). Write code in a humanized developer style: natural variable names, clean modular logic, all functions fully implemented without cutting off.";
+                        string systemPrompt = 
+                            $"You are an elite, senior {targetLang} software engineer. Solve the programming challenge described across all captured screenshots.\n\n" +
+                            $"CRITICAL FORMATTING & STRUCTURE RULES:\n" +
+                            $"1. STRUCTURE & LAYOUT:\n" +
+                            $"   - Define any required data structures, classes, or structs cleanly at the top.\n" +
+                            $"   - For functions with multiple parameters, format the signature cleanly across multiple lines with 4-space indentation for parameters.\n" +
+                            $"   - Use standard 4-space indentation throughout the entire code.\n" +
+                            $"   - Separate classes, structs, and top-level functions with clean blank lines.\n" +
+                            $"   - Fully implement all functions with complete, working logic — no stubs, no placeholders.\n\n" +
+                            $"2. STRICTLY NO COMMENTS:\n" +
+                            $"   - Do NOT write ANY comments in the code. No inline comments, no block comments, no docstrings, no `#`, no `//`, no `/* */`, no `--`.\n" +
+                            $"   - Output pure, executable {targetLang} code ONLY.\n\n" +
+                            $"3. NO PREAMBLE / NO CONVERSATION:\n" +
+                            $"   - Do NOT include any introductory or concluding text, explanations, or markdown fences (```).\n" +
+                            $"   - Start directly with the source code on line 1.";
 
                         _txtChatHistory.Add(new ChatMessage {
                             Role = "system",
@@ -2166,6 +2180,7 @@ namespace OverlayApp.ViewModels
                     }
 
                     initialCode = CleanCodeMarkdown(initialCode);
+                    initialCode = StripCodeComments(initialCode, targetLang);
 
                     // Truncation Check & Continuation
                     if (IsCodeTruncated(initialCode))
@@ -2187,7 +2202,7 @@ namespace OverlayApp.ViewModels
                             continuationCode = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, continuationHistory, generatorUsed, "", "");
                         if (!OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(continuationCode))
                         {
-                            continuationCode = CleanCodeMarkdown(continuationCode);
+                            continuationCode = StripCodeComments(CleanCodeMarkdown(continuationCode), targetLang);
                             initialCode = initialCode.TrimEnd() + "\n" + continuationCode.TrimStart();
                         }
                     }
@@ -2199,7 +2214,13 @@ namespace OverlayApp.ViewModels
                     {
                         new ChatMessage {
                             Role = "system",
-                            Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement. Is this code 100% complete, bug-free, and correctly solving the problem in {targetLang}? If it is correct and complete, reply EXACTLY with 'VERIFIED_OK'. If it is incomplete, cut off, or contains errors, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, 100% working {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
+                            Content = $"You are a strict senior code reviewer. Review the generated code solution for the given problem statement.\n" +
+                                      $"Validation Criteria:\n" +
+                                      $"1. The code must correctly, completely, and efficiently solve the problem in {targetLang}.\n" +
+                                      $"2. The code must be cleanly structured with standard 4-space indentation, clear multi-line function signatures where appropriate, and clean blank line separation.\n" +
+                                      $"3. STRICTLY NO COMMENTS: The code must contain ZERO comments (no `//`, no `#`, no `/* */`, no `--`). Remove all comments.\n\n" +
+                                      $"If the code is already 100% correct, complete, beautifully structured, and has zero comments, reply EXACTLY with 'VERIFIED_OK'.\n" +
+                                      $"If the code contains errors, incomplete logic, poor formatting, or ANY comments, reply with 'CORRECTED_CODE:' on line 1, followed by the complete, beautifully structured, comment-free {targetLang} code starting on line 2. Do not include markdown code block backticks (```)."
                         },
                         new ChatMessage {
                             Role = "user",
@@ -2232,7 +2253,7 @@ namespace OverlayApp.ViewModels
                     }
                     else if (verificationOutput.StartsWith("CORRECTED_CODE:", StringComparison.OrdinalIgnoreCase))
                     {
-                        string correctedCode = CleanCodeMarkdown(verificationOutput.Substring("CORRECTED_CODE:".Length).Trim());
+                        string correctedCode = StripCodeComments(CleanCodeMarkdown(verificationOutput.Substring("CORRECTED_CODE:".Length).Trim()), targetLang);
                         if (!string.IsNullOrWhiteSpace(correctedCode) && correctedCode.Length > 20)
                         {
                             finalCode = correctedCode;
@@ -2248,9 +2269,12 @@ namespace OverlayApp.ViewModels
                         auditNote = $"✅ Code verified bug-free by {verifierUsed}.";
                     }
 
+                    // Programmatically strip all comments as guaranteed safety net
+                    finalCode = StripCodeComments(finalCode, targetLang);
+
                     assistantBubble.HasError = false;
                     assistantBubble.ShowCheckApiKeyAction = false;
-                    string finalContent = metadataHeader + $"* **Generator:** {generatorUsed}\n* **Audit:** {auditNote}\n\n" + finalCode.Trim();
+                    string finalContent = metadataHeader + $"* **Generator:** {generatorUsed}\n* **Audit:** {auditNote}\n\n```{targetLang.ToLower()}\n" + finalCode.Trim() + "\n```";
                     assistantBubble.Content = finalContent;
                     assistantBubble.IsLoading = false;
                     ScanResponseText = finalCode.Trim();
@@ -3110,19 +3134,272 @@ namespace OverlayApp.ViewModels
         {
             if (string.IsNullOrWhiteSpace(code)) return "";
             string cleaned = code.Trim();
-            if (cleaned.StartsWith("```"))
+
+            // Extract code between markdown fences if present
+            int fenceStart = cleaned.IndexOf("```");
+            if (fenceStart >= 0)
             {
-                int firstLineEnd = cleaned.IndexOf('\n');
-                if (firstLineEnd > 0)
+                int codeStart = cleaned.IndexOf('\n', fenceStart);
+                if (codeStart >= 0)
                 {
-                    cleaned = cleaned.Substring(firstLineEnd + 1);
-                }
-                if (cleaned.EndsWith("```"))
-                {
-                    cleaned = cleaned.Substring(0, cleaned.Length - 3);
+                    int fenceEnd = cleaned.LastIndexOf("```");
+                    if (fenceEnd > codeStart)
+                    {
+                        cleaned = cleaned.Substring(codeStart + 1, fenceEnd - codeStart - 1);
+                    }
+                    else
+                    {
+                        cleaned = cleaned.Substring(codeStart + 1);
+                    }
                 }
             }
+
             return cleaned.Trim();
+        }
+
+        private static string StripCodeComments(string code, string lang)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "";
+
+            string l = (lang ?? "").Trim().ToLowerInvariant();
+            bool isPython = l == "python" || l == "py";
+            bool isSql = l == "sql" || l == "pl/sql" || l == "plsql";
+            bool isHtml = l == "html" || l == "xml";
+
+            string[] originalLines = code.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var sb = new System.Text.StringBuilder(code.Length);
+            int len = code.Length;
+            int i = 0;
+
+            bool inSingleQuote = false;
+            bool inDoubleQuote = false;
+            bool inBacktickQuote = false;
+            bool inPythonTripleSingle = false;
+            bool inPythonTripleDouble = false;
+            bool inBlockComment = false;
+            bool inHtmlComment = false;
+
+            while (i < len)
+            {
+                char c = code[i];
+                char next = (i + 1 < len) ? code[i + 1] : '\0';
+
+                if (inHtmlComment)
+                {
+                    if (c == '-' && next == '-' && i + 2 < len && code[i + 2] == '>')
+                    {
+                        inHtmlComment = false;
+                        i += 3;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                    continue;
+                }
+
+                if (inBlockComment)
+                {
+                    if (c == '*' && next == '/')
+                    {
+                        inBlockComment = false;
+                        i += 2;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                    continue;
+                }
+
+                if (inPythonTripleDouble)
+                {
+                    sb.Append(c);
+                    if (c == '"' && next == '"' && i + 2 < len && code[i + 2] == '"' && (i == 0 || code[i - 1] != '\\'))
+                    {
+                        sb.Append('"');
+                        sb.Append('"');
+                        inPythonTripleDouble = false;
+                        i += 3;
+                        continue;
+                    }
+                    i++;
+                    continue;
+                }
+
+                if (inPythonTripleSingle)
+                {
+                    sb.Append(c);
+                    if (c == '\'' && next == '\'' && i + 2 < len && code[i + 2] == '\'' && (i == 0 || code[i - 1] != '\\'))
+                    {
+                        sb.Append('\'');
+                        sb.Append('\'');
+                        inPythonTripleSingle = false;
+                        i += 3;
+                        continue;
+                    }
+                    i++;
+                    continue;
+                }
+
+                if (inDoubleQuote)
+                {
+                    sb.Append(c);
+                    if (c == '\\' && next != '\0')
+                    {
+                        sb.Append(next);
+                        i += 2;
+                        continue;
+                    }
+                    if (c == '"')
+                    {
+                        inDoubleQuote = false;
+                    }
+                    i++;
+                    continue;
+                }
+
+                if (inSingleQuote)
+                {
+                    sb.Append(c);
+                    if (c == '\\' && next != '\0')
+                    {
+                        sb.Append(next);
+                        i += 2;
+                        continue;
+                    }
+                    if (c == '\'')
+                    {
+                        inSingleQuote = false;
+                    }
+                    i++;
+                    continue;
+                }
+
+                if (inBacktickQuote)
+                {
+                    sb.Append(c);
+                    if (c == '\\' && next != '\0')
+                    {
+                        sb.Append(next);
+                        i += 2;
+                        continue;
+                    }
+                    if (c == '`')
+                    {
+                        inBacktickQuote = false;
+                    }
+                    i++;
+                    continue;
+                }
+
+                // Check start of strings
+                if (isPython && c == '"' && next == '"' && i + 2 < len && code[i + 2] == '"')
+                {
+                    inPythonTripleDouble = true;
+                    sb.Append("\"\"\"");
+                    i += 3;
+                    continue;
+                }
+
+                if (isPython && c == '\'' && next == '\'' && i + 2 < len && code[i + 2] == '\'')
+                {
+                    inPythonTripleSingle = true;
+                    sb.Append("'''");
+                    i += 3;
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    inDoubleQuote = true;
+                    sb.Append(c);
+                    i++;
+                    continue;
+                }
+
+                if (c == '\'')
+                {
+                    inSingleQuote = true;
+                    sb.Append(c);
+                    i++;
+                    continue;
+                }
+
+                if (c == '`' && (l == "js" || l == "javascript"))
+                {
+                    inBacktickQuote = true;
+                    sb.Append(c);
+                    i++;
+                    continue;
+                }
+
+                // Comments
+                if (isHtml && c == '<' && next == '!' && i + 3 < len && code[i + 2] == '-' && code[i + 3] == '-')
+                {
+                    inHtmlComment = true;
+                    i += 4;
+                    continue;
+                }
+
+                if (!isPython && c == '/' && next == '*')
+                {
+                    inBlockComment = true;
+                    i += 2;
+                    continue;
+                }
+
+                if (!isPython && !isSql && c == '/' && next == '/')
+                {
+                    while (i < len && code[i] != '\n' && code[i] != '\r') i++;
+                    continue;
+                }
+
+                if (isPython && c == '#')
+                {
+                    while (i < len && code[i] != '\n' && code[i] != '\r') i++;
+                    continue;
+                }
+
+                if (isSql && c == '-' && next == '-')
+                {
+                    while (i < len && code[i] != '\n' && code[i] != '\r') i++;
+                    continue;
+                }
+
+                sb.Append(c);
+                i++;
+            }
+
+            string[] strippedLines = sb.ToString().Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var cleaned = new System.Collections.Generic.List<string>();
+            int consecutiveBlank = 0;
+
+            for (int idx = 0; idx < strippedLines.Length; idx++)
+            {
+                string orig = idx < originalLines.Length ? originalLines[idx] : "";
+                string stripped = strippedLines[idx].TrimEnd();
+
+                // If line originally had non-whitespace, but after comment stripping it became empty,
+                // it was purely a comment line -> omit it!
+                if (!string.IsNullOrWhiteSpace(orig) && string.IsNullOrWhiteSpace(stripped))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(stripped))
+                {
+                    consecutiveBlank++;
+                    if (consecutiveBlank <= 1) cleaned.Add("");
+                }
+                else
+                {
+                    consecutiveBlank = 0;
+                    cleaned.Add(stripped);
+                }
+            }
+
+            return string.Join("\n", cleaned).Trim();
         }
 
         private System.Collections.Generic.List<ChatMessage> PruneVoiceChatHistory(System.Collections.Generic.List<ChatMessage> fullHistory)

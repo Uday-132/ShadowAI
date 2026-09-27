@@ -653,6 +653,7 @@
                                          <TextBlock Text="LANG:" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="8.5" FontWeight="Bold" Margin="6,0,4,0"/>
                                          <RadioButton Content="Python" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsPythonSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="JS" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsJsSelected, Mode=TwoWay}"/>
+                                         <RadioButton Content="C" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsCSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="Java" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsJavaSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="C++" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsCppSelected, Mode=TwoWay}"/>
                                          <RadioButton Content="HTML" Style="{StaticResource SegmentButtonStyle}" GroupName="CodingLang" IsChecked="{Binding IsHtmlSelected, Mode=TwoWay}"/>
