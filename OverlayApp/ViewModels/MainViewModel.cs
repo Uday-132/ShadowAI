@@ -1907,29 +1907,35 @@ namespace OverlayApp.ViewModels
                 // --- LLM Response Phase ---
                 if (IsMcqScanMode)
                 {
-                    // Set A (Primary):
-                    // Model A: Groq (qwen/qwen3.8-27b)
-                    // Model B: Gemini (gemini-3.5-flash-lite)
-                    // Set B (Invoked only on mismatch or error):
-                    // Model C: Gemini (gemini-3.1-flash-lite)
+                    // Set A (Primary — Ultra-fast under 15s):
+                    // Model A: Groq (qwen/qwen3.8-27b) ~0.38s
+                    // Model B: Gemini (gemini-3.5-flash-lite) ~1.56s
+                    // Set B (Fallback — Invoked on mismatch, timeout >15s, or error):
+                    // Model C: Gemini (gemini-3.8-flash) ~2.65s
+                    // Model D: NVIDIA (nvidia/nemotron-3-nano-omni-30b-a3b-reasoning) ~8.6s
                     string modelA = "qwen/qwen3.8-27b";
                     string modelB = "gemini-3.5-flash-lite";
-                    string modelC = "gemini-3.1-flash-lite";
+                    string modelC = "gemini-3.8-flash";
+                    string modelD = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
 
                     assistantBubble.ModelInfo = $"Set A: {modelA} + {modelB}";
                     assistantBubble.Content = $"⏳ Verifying MCQ with Set A ({modelA} + {modelB})...";
 
-                    // Launch Set A in parallel directly without cross-provider fallback to preserve real status & errors
+                    // Launch Set A in parallel with strict 15s timeout
                     Task<string> taskA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
                     Task<string> taskB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelB, "", "");
 
-                    await Task.WhenAll(taskA, taskB);
+                    var timeoutTask15s = Task.Delay(15000);
+                    var setATask = Task.WhenAll(taskA, taskB);
 
-                    string answerA = taskA.IsCompleted ? await taskA : "";
-                    string answerB = taskB.IsCompleted ? await taskB : "";
+                    var firstFinished = await Task.WhenAny(setATask, timeoutTask15s);
+                    bool isSetATimedOut = (firstFinished == timeoutTask15s);
 
-                    bool isErrorA = string.IsNullOrWhiteSpace(answerA) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA);
-                    bool isErrorB = string.IsNullOrWhiteSpace(answerB) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB);
+                    string answerA = taskA.IsCompletedSuccessfully ? await taskA : (taskA.IsCompleted ? await taskA : "⚠️ Timeout (>15s)");
+                    string answerB = taskB.IsCompletedSuccessfully ? await taskB : (taskB.IsCompleted ? await taskB : "⚠️ Timeout (>15s)");
+
+                    bool isErrorA = string.IsNullOrWhiteSpace(answerA) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerA) || answerA.Contains("Timeout");
+                    bool isErrorB = string.IsNullOrWhiteSpace(answerB) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerB) || answerB.Contains("Timeout");
 
                     string cleanA = !isErrorA ? CleanMcqResponse(answerA) : "";
                     string cleanB = !isErrorB ? CleanMcqResponse(answerB) : "";
@@ -1939,18 +1945,38 @@ namespace OverlayApp.ViewModels
 
                     string answerC = "";
                     bool isErrorC = false;
+                    string answerD = "";
+                    bool isErrorD = false;
                     bool usedSet2 = false;
 
-                    // Trigger Set B ONLY when answers mismatch, or when both Set A models failed
-                    if (mismatch || (isErrorA && isErrorB))
+                    // Trigger Set B when answers mismatch, or when any Set A model failed or timed out
+                    if (mismatch || isErrorA || isErrorB || isSetATimedOut)
                     {
                         usedSet2 = true;
-                        assistantBubble.ModelInfo = $"Set B: {modelC}";
+                        assistantBubble.ModelInfo = mismatch ? $"Set B (Resolution): {modelC}" : $"Set B (Fallback): {modelC} + {modelD}";
                         assistantBubble.Content = mismatch 
                             ? $"⚠️ Mismatch in Set A ({modelA}: {cleanA} vs {modelB}: {cleanB}) — resolving with Set B ({modelC})..."
-                            : $"⚠️ Set A failed — retrying with Set B ({modelC})...";
+                            : $"⚠️ Set A error/timeout — retrying with Set B ({modelC} + {modelD})...";
 
-                        answerC = await _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelC, "", "");
+                        Task<string> taskC = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelC, "", "");
+                        Task<string>? taskD = null;
+                        if (!string.IsNullOrWhiteSpace(NvidiaKey))
+                        {
+                            taskD = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelD, 0, GeminiKey, effectiveGroqKey);
+                        }
+
+                        if (taskD != null)
+                        {
+                            await Task.WhenAll(taskC, taskD);
+                            answerC = await taskC;
+                            answerD = await taskD;
+                            isErrorD = string.IsNullOrWhiteSpace(answerD) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerD);
+                        }
+                        else
+                        {
+                            answerC = await taskC;
+                        }
+
                         isErrorC = string.IsNullOrWhiteSpace(answerC) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerC);
                     }
 
@@ -1972,6 +1998,13 @@ namespace OverlayApp.ViewModels
                         string cleanC = CleanMcqResponse(answerC);
                         string displayC = isErrorC ? (answerC ?? "⚠️ Unknown Error").Trim() : (!string.IsNullOrEmpty(cleanC) ? cleanC.ToUpperInvariant() : answerC.Trim());
                         sbVerify.AppendLine($"* **{modelC} (Gemini):** {displayC}");
+
+                        if (!string.IsNullOrWhiteSpace(answerD))
+                        {
+                            string cleanD = CleanMcqResponse(answerD);
+                            string displayD = isErrorD ? (answerD ?? "⚠️ Unknown Error").Trim() : (!string.IsNullOrEmpty(cleanD) ? cleanD.ToUpperInvariant() : answerD.Trim());
+                            sbVerify.AppendLine($"* **{modelD} (NVIDIA):** {displayD}");
+                        }
                     }
 
                     sbVerify.AppendLine();
@@ -1986,6 +2019,7 @@ namespace OverlayApp.ViewModels
                     if (usedSet2)
                     {
                         if (!isErrorC) { string c = CleanMcqResponse(answerC); if (!string.IsNullOrEmpty(c)) validAnswers.Add((modelC, answerC, c)); }
+                        if (!isErrorD && !string.IsNullOrWhiteSpace(answerD)) { string d = CleanMcqResponse(answerD); if (!string.IsNullOrEmpty(d)) validAnswers.Add((modelD, answerD, d)); }
                     }
 
                     bool anyError = usedSet2 ? isErrorC : (isErrorA && isErrorB);
@@ -2216,37 +2250,19 @@ namespace OverlayApp.ViewModels
                 }
                 else
                 {
-                    // Normal scan — Set A first (NVIDIA: nemotron-3-nano-omni-30b-a3b-reasoning + nemotron-3.5-lightning-30b-a3b; Gemini: gemini-3.5-flash-lite + gemma-4-31b-it)
-                    string modelA, modelA2, modelB, modelB2;
-                    if (IsNvidiaApiActive)
-                    {
-                        modelA = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
-                        modelA2 = "nvidia/nemotron-3.5-lightning-30b-a3b";
-                        modelB = "gemini-3.5-flash-lite";
-                        modelB2 = "groq/compound";
-                    }
-                    else
-                    {
-                        modelA = "gemini-3.5-flash-lite";
-                        modelA2 = "gemma-4-31b-it";
-                        modelB = "gemini-3.7-flash";
-                        modelB2 = "groq/compound";
-                    }
+                    // Normal scan — Set A first (Groq: qwen/qwen3.8-27b + Gemini: gemini-3.5-flash-lite)
+                    string modelA = "qwen/qwen3.8-27b";
+                    string modelA2 = "gemini-3.5-flash-lite";
+                    string modelB = "gemini-3.8-flash";
+                    string modelB2 = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+
                     assistantBubble.ModelInfo = $"Set A: {modelA} + {modelA2}";
                     assistantBubble.Content = $"⏳ Generating response with Set A ({modelA} + {modelA2})...";
 
                     // Run Set A in parallel
-                    Task<string> taskGA, taskQA;
-                    if (IsNvidiaApiActive)
-                    {
-                        taskGA = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelA, 0, GeminiKey, effectiveGroqKey);
-                        taskQA = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelA2, 0, GeminiKey, effectiveGroqKey);
-                    }
-                    else
-                    {
-                        taskGA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA, "", "");
-                        taskQA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA2, "", "");
-                    }
+                    Task<string> taskGA = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelA);
+                    Task<string> taskQA = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelA2, "", "");
+
                     await Task.WhenAll(taskGA, taskQA);
                     string respGA = await taskGA;
                     string respQA = await taskQA;
@@ -2266,7 +2282,7 @@ namespace OverlayApp.ViewModels
                         assistantBubble.Content = $"⚠️ Set A had errors — retrying with Set B ({modelB} + {modelB2})...";
 
                         var taskGB = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelB, "", "");
-                        var taskQB = _llmService.ProcessChatWithGroqAsync(effectiveGroqKey, _txtChatHistory, modelB2);
+                        var taskQB = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelB2, 0, GeminiKey, effectiveGroqKey);
                         await Task.WhenAll(taskGB, taskQB);
                         respGB = await taskGB;
                         respQB = await taskQB;

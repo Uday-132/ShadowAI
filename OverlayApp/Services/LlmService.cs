@@ -1102,14 +1102,14 @@ namespace OverlayApp.Services
                 if (!modelsToTry.Contains(normalizedReq)) modelsToTry.Add(normalizedReq);
                 if (normalizedReq.Contains("flash"))
                 {
-                    if (!modelsToTry.Contains("gemini-2.0-flash")) modelsToTry.Add("gemini-2.0-flash");
-                    if (!modelsToTry.Contains("gemini-1.5-flash")) modelsToTry.Add("gemini-1.5-flash");
-                    if (!modelsToTry.Contains("gemini-2.5-flash")) modelsToTry.Add("gemini-2.5-flash");
+                    if (!modelsToTry.Contains("gemini-3.5-flash-lite")) modelsToTry.Add("gemini-3.5-flash-lite");
+                    if (!modelsToTry.Contains("gemini-3.8-flash")) modelsToTry.Add("gemini-3.8-flash");
+                    if (!modelsToTry.Contains("gemini-3.1-flash-lite")) modelsToTry.Add("gemini-3.1-flash-lite");
                 }
                 else
                 {
-                    if (!modelsToTry.Contains("gemini-2.0-flash")) modelsToTry.Add("gemini-2.0-flash");
-                    if (!modelsToTry.Contains("gemini-1.5-flash")) modelsToTry.Add("gemini-1.5-flash");
+                    if (!modelsToTry.Contains("gemini-3.8-flash")) modelsToTry.Add("gemini-3.8-flash");
+                    if (!modelsToTry.Contains("gemini-3.5-flash-lite")) modelsToTry.Add("gemini-3.5-flash-lite");
                 }
                 var triedModels = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
