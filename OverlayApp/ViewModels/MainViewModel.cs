@@ -270,7 +270,7 @@ namespace OverlayApp.ViewModels
             // Ensure default NVIDIA key is configured and NVIDIA is active provider by default
             if (string.IsNullOrWhiteSpace(_settings.NvidiaKey))
             {
-                _settings.NvidiaKey = "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";
+                _settings.NvidiaKey = ApiKeys.DefaultNvidiaKey;
             }
             _settings.IsNvidiaKeyValidated = true;
 
@@ -824,7 +824,7 @@ namespace OverlayApp.ViewModels
 
         public string NvidiaKey
         {
-            get => string.IsNullOrWhiteSpace(_settings.NvidiaKey) ? "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" : _settings.NvidiaKey;
+            get => string.IsNullOrWhiteSpace(_settings.NvidiaKey) ? ApiKeys.DefaultNvidiaKey : _settings.NvidiaKey;
             set
             {
                 if (SetProperty(ref _settings.NvidiaKey, value))

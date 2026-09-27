@@ -557,7 +557,7 @@ namespace OverlayApp.Services
             string fallbackGroqKey = "")
         {
             string effectiveNvidiaKey = string.IsNullOrWhiteSpace(nvidiaKey) 
-                ? "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" 
+                ? ApiKeys.DefaultNvidiaKey 
                 : nvidiaKey.Trim();
 
             // Normalize model names

@@ -18,7 +18,7 @@ namespace OverlayApp.Models
         [JsonInclude] public bool IsFirstRun = true;
         [JsonInclude] public double FontSize = 12.0;
         [JsonInclude] public string ActiveApiProvider = "Nvidia"; // "Nvidia", "Groq", or "Gemini"
-        [JsonInclude] public string NvidiaKey = "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";
+        [JsonInclude] public string NvidiaKey = ApiKeys.DefaultNvidiaKey;
         [JsonInclude] public bool IsNvidiaKeyValidated = true;
         [JsonInclude] public string GroqKey = "";
         [JsonInclude] public bool IsGroqKeyValidated = false;

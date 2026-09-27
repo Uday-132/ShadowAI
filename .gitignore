@@ -22,3 +22,6 @@ Website/node_modules/
 # Scratch & Temporary Testing Scripts
 scratch/
 *.log
+
+# API Keys — never commit actual keys (use ApiKeys.template.cs as reference)
+OverlayApp/ApiKeys.cs

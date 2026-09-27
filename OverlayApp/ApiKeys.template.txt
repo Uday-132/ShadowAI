@@ -1,0 +1,14 @@
+namespace OverlayApp
+{
+    /// <summary>
+    /// Default/fallback API keys used when the user has not set their own.
+    /// ⚠️  Copy this file to ApiKeys.cs and fill in your real keys.
+    ///     ApiKeys.cs is git-ignored — never commit actual keys!
+    /// </summary>
+    internal static class ApiKeys
+    {
+        public const string DefaultNvidiaKey = "YOUR_NVIDIA_API_KEY_HERE";
+        public const string DefaultGroqKey   = "YOUR_GROQ_API_KEY_HERE";
+        public const string DefaultGeminiKey = "";  // optional
+    }
+}
