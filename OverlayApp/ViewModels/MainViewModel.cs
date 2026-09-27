@@ -1955,29 +1955,34 @@ namespace OverlayApp.ViewModels
                         usedSet2 = true;
                         assistantBubble.ModelInfo = mismatch ? $"Set B (Resolution): {modelC}" : $"Set B (Fallback): {modelC} + {modelD}";
                         assistantBubble.Content = mismatch 
-                            ? $"⚠️ Mismatch in Set A ({modelA}: {cleanA} vs {modelB}: {cleanB}) — resolving with Set B ({modelC})..."
-                            : $"⚠️ Set A error/timeout — retrying with Set B ({modelC} + {modelD})...";
+                            ? $"⚠️ Mismatch in Set A ({modelA}: {cleanA} vs {modelB}: {cleanB}) — resolving with Set B ({modelC}) [<15s]..."
+                            : $"⚠️ Set A error/timeout — retrying with Set B ({modelC} + {modelD}) [<15s]...";
 
                         Task<string> taskC = _llmService.ProcessChatWithGeminiAsync(GeminiKey, _txtChatHistory, modelC, "", "");
                         Task<string>? taskD = null;
-                        if (!string.IsNullOrWhiteSpace(NvidiaKey))
+                        if (!string.IsNullOrWhiteSpace(NvidiaKey) && (isErrorA || isErrorB || isSetATimedOut))
                         {
                             taskD = _llmService.ProcessChatWithNvidiaAsync(NvidiaKey, _txtChatHistory, modelD, 0, GeminiKey, effectiveGroqKey);
                         }
 
+                        Task setBTask = taskD != null ? Task.WhenAll(taskC, taskD) : taskC;
+                        var timeoutB15s = Task.Delay(15000);
+                        var firstB = await Task.WhenAny(setBTask, timeoutB15s);
+                        bool isSetBTimedOut = (firstB == timeoutB15s);
+
+                        if (taskC.IsCompletedSuccessfully) answerC = await taskC;
+                        else if (taskC.IsCompleted) answerC = await taskC;
+                        else answerC = "⚠️ Timeout (>15s)";
+
                         if (taskD != null)
                         {
-                            await Task.WhenAll(taskC, taskD);
-                            answerC = await taskC;
-                            answerD = await taskD;
-                            isErrorD = string.IsNullOrWhiteSpace(answerD) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerD);
-                        }
-                        else
-                        {
-                            answerC = await taskC;
+                            if (taskD.IsCompletedSuccessfully) answerD = await taskD;
+                            else if (taskD.IsCompleted) answerD = await taskD;
+                            else answerD = "⚠️ Timeout (>15s)";
+                            isErrorD = string.IsNullOrWhiteSpace(answerD) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerD) || answerD.Contains("Timeout");
                         }
 
-                        isErrorC = string.IsNullOrWhiteSpace(answerC) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerC);
+                        isErrorC = string.IsNullOrWhiteSpace(answerC) || OverlayApp.Helpers.LlmErrorHelper.IsErrorResponse(answerC) || answerC.Contains("Timeout");
                     }
 
                     var sbVerify = new System.Text.StringBuilder();
@@ -2023,13 +2028,13 @@ namespace OverlayApp.ViewModels
                     }
 
                     bool anyError = usedSet2 ? isErrorC : (isErrorA && isErrorB);
-                    assistantBubble.HasError = anyError;
-                    assistantBubble.ShowCheckApiKeyAction = anyError;
+                    assistantBubble.HasError = anyError && validAnswers.Count == 0;
+                    assistantBubble.ShowCheckApiKeyAction = anyError && validAnswers.Count == 0;
 
                     if (validAnswers.Count == 0)
                     {
-                        assistantBubble.ErrorSummary = "All models encountered errors.";
-                        sbVerify.AppendLine("⚠️ **Verification Failed:** All AI models encountered errors. Please check your API keys or exam environment settings.");
+                        assistantBubble.ErrorSummary = "All models encountered errors or timed out (>15s).";
+                        sbVerify.AppendLine("⚠️ **Verification Failed:** All AI models encountered errors or timed out (>15s). Please check your API keys.");
                     }
                     else
                     {
@@ -2050,8 +2055,6 @@ namespace OverlayApp.ViewModels
                         bool fullConsensus = maxVotes == validAnswers.Count;
                         bool majorityConsensus = maxVotes >= 2;
 
-                        if (anyError) assistantBubble.ErrorSummary = "Some models had errors; consensus from available responses.";
-
                         if (fullConsensus && validAnswers.Count >= 2)
                             sbVerify.AppendLine($"✅ **Both models agree:** Option **{consensusAnswer}**");
                         else if (majorityConsensus)
@@ -2059,7 +2062,13 @@ namespace OverlayApp.ViewModels
                         else if (validAnswers.Count == 1)
                             sbVerify.AppendLine($"✅ **Answer:** Option **{consensusAnswer}**");
                         else
-                            sbVerify.AppendLine($"⚠️ **Mismatch!** Models returned different answers — review results above.");
+                        {
+                            // Mismatch where Set B could not resolve in <15s or also disagreed:
+                            // User requirement: Display answers given and print Model A's answer!
+                            string preferredAnswer = !string.IsNullOrEmpty(cleanA) ? cleanA.ToUpperInvariant() : consensusAnswer;
+                            sbVerify.AppendLine($"✅ **Selected Answer (Model A - {modelA}):** Option **{preferredAnswer}**");
+                            sbVerify.AppendLine($"*(Set A mismatched and Set B did not produce consensus in <15s — defaulted to Model A)*");
+                        }
                     }
 
                     string finalContent = sbVerify.ToString().Trim();
